@@ -1,5 +1,9 @@
 # Phase 1: Implementation Notes
 
+## 2026-05-09: COM port config (1.0)
+
+Set `upload_port = COM9` and `monitor_port = COM9` for Silicon Labs CP210x USB-UART bridge.
+
 ## 2026-05-09: PlatformIO deps fix (1.0)
 
 Removed `ottowinter/AsyncTCP-esphome`, `me-no-dev/ESP Async WebServer`, `links2004/WebSockets` from `platformio.ini`:
