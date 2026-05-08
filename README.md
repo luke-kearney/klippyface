@@ -27,7 +27,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 | Feature | Status |
 |---------|--------|
 | ESP32 firmware with FreeRTOS multitasking | 🟡 In Progress |
-| Display driver abstraction (SH1106, SSD1306, ST7789, ILI9341) | 🟡 In Progress — SH1106 done |
+| Display driver abstraction (SH1106, SSD1306, ST7789, ILI9341) | 🟡 In Progress — SH1106 implemented |
 | Real-time Moonraker WebSocket integration | ⬜ Planned |
 | Configurable animations (Groups → Sets → Frames) | ⬜ Planned |
 | Klipper GCODE macro integration | ⬜ Planned |
@@ -41,6 +41,19 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 ## Current Status
 
 **Phase 1 (ESP32 Core Framework) in progress.** PlatformIO build system working, FreeRTOS task skeleton running. Settings (NVS), WiFi manager, DisplayDriver abstraction, and SH1106 driver implemented and hardware-verified (OLED shows text).
+
+## Phase Tracking
+
+| Phase | Description | Status | Task List |
+|-------|-------------|--------|-----------|
+| 1 | ESP32 Core Framework + Single Display | 🟡 In Progress | [TODO](agents/docs/phase-1/TODO.md) |
+| 2 | Moonraker WebSocket Client | ⬜ Not Started | [TODO](agents/docs/phase-2/TODO.md) |
+| 3 | Companion Server — Data Layer | ⬜ Not Started | [TODO](agents/docs/phase-3/TODO.md) |
+| 4 | ESP32 Config Fetcher | ⬜ Not Started | [TODO](agents/docs/phase-4/TODO.md) |
+| 5 | Web UI | ⬜ Not Started | [TODO](agents/docs/phase-5/TODO.md) |
+| 6 | GCODE Macro Integration | ⬜ Not Started | [TODO](agents/docs/phase-6/TODO.md) |
+| 7 | Captive Portal Setup | ⬜ Not Started | [TODO](agents/docs/phase-7/TODO.md) |
+| 8 | Multi-Node & Polish | ⬜ Not Started | [TODO](agents/docs/phase-8/TODO.md) |
 
 ## Project Structure
 
