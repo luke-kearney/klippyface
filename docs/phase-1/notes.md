@@ -1,5 +1,12 @@
 # Phase 1: Implementation Notes
 
+## 2026-05-09: PlatformIO deps fix (1.0)
+
+Removed `ottowinter/AsyncTCP-esphome`, `me-no-dev/ESP Async WebServer`, `links2004/WebSockets` from `platformio.ini`:
+- `ottowinter/AsyncTCP-esphome` doesn't exist in PIO registry — likely wrong package name
+- Async WebServer and WebSockets aren't needed until Phase 2
+- Add back in Phase 2 with verified package names
+
 ## 2026-05-09: DisplayDriver interface (1.3)
 
 Color convention for all drivers:
