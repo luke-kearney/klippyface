@@ -2,11 +2,13 @@
 #include <WiFi.h>
 #include "config/Settings.h"
 #include "wifi/WifiManager.h"
+#include "display/Sh1106Driver.h"
 
 // -------------------------------------------------------------------
 // Global instances
 // -------------------------------------------------------------------
 WifiManager wifiManager;
+Sh1106Driver* display = nullptr;
 
 // -------------------------------------------------------------------
 // Task handles
@@ -37,9 +39,29 @@ void wifiTask(void *pvParameters) {
 // Display Task (Core 1)
 // -------------------------------------------------------------------
 void displayTask(void *pvParameters) {
+    uint32_t counter = 0;
+
     for (;;) {
-        // TODO: Phase 1 — DisplayManager tick + render
-        vTaskDelay(pdMS_TO_TICKS(33)); // ~30 fps
+        if (!display) {
+            vTaskDelay(pdMS_TO_TICKS(500));
+            continue;
+        }
+
+        display->clear();
+        display->setTextSize(2);
+        display->setTextColor(1);
+        display->setCursor(10, 0);
+        display->print("Hello!");
+        display->setCursor(10, 20);
+        display->setTextSize(1);
+        display->print("Klippyface");
+        display->setCursor(10, 40);
+        display->print("Count: ");
+        display->print(String(counter).c_str());
+        counter++;
+        display->show();
+
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
@@ -58,6 +80,14 @@ void setup() {
 
     // Init persistent settings (NVS)
     Settings::begin();
+
+    // TEMP: Hardware test — init OLED directly (remove when DisplayManager is built)
+    display = new Sh1106Driver(128, 64, 0x3C, 0);
+    if (display->init()) {
+        Serial.println("[TEST] OLED init OK");
+    } else {
+        Serial.println("[TEST] OLED init FAILED — check wiring and address (0x3C or 0x3D?)");
+    }
 
     // Create tasks
     xTaskCreatePinnedToCore(
