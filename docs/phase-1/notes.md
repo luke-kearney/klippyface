@@ -1,12 +1,16 @@
 # Phase 1: Implementation Notes
 
-## 2026-05-09: OLED hardware test — direct Sh1106Driver in main.cpp
+## 2026-05-09: OLED hardware test — verified working
 
-Temporary wiring to verify OLED works before building the full engine.
-- Creates `Sh1106Driver(128, 64, 0x3C, 0)` in setup()
-- displayTask renders "Hello! / Klippyface / Count: N" incrementing every second
-- If init fails, check: I2C address (0x3C vs 0x3D), SDA/SCL wiring, pull-up resistors
-- **This is throwaway — will be replaced by DisplayManager in 1.11**
+**Result:** ✅ OLED displays "Hello! / Klippyface / Count: N" updating every second.
+
+**Working config:**
+- Board: ESP32-WROOM-32
+- Display: SH1106 128×64, I2C address **0x3C**
+- I2C pins: GPIO21 (SDA), GPIO22 (SCL) — default ESP32 pins
+- Rotation: 0
+
+The hack code has been removed from main.cpp. Hardware is proven — DisplayManager will use the same Sh1106Driver class when built.
 
 ## 2026-05-09: Bootloop fix — partition table + PSRAM flags + vTaskDelete
 
