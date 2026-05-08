@@ -1,5 +1,12 @@
 # Phase 1: Implementation Notes
 
+## 2026-05-09: DisplayDriver interface (1.3)
+
+Color convention for all drivers:
+- `uint32_t` is **always RGB888** (8-8-8) in API calls
+- Monochrome drivers: any non-zero → white (1), zero → black (0)
+- Color drivers: use full 24-bit value (upper 8 bits ignored by 16-bit drivers)
+
 ## 2026-05-09: WifiManager (1.2)
 
 Serial log format:
