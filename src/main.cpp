@@ -66,8 +66,6 @@ void setup() {
     xTaskCreatePinnedToCore(
         displayTask, "displayTask", 8192, nullptr, 10, &displayTaskHandle, 1);
 
-    // Delete the setup/loop task — we're fully FreeRTOS now
-    vTaskDelete(nullptr);
 }
 
 // -------------------------------------------------------------------

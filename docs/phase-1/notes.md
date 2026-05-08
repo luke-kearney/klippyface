@@ -1,5 +1,17 @@
 # Phase 1: Implementation Notes
 
+## 2026-05-09: Bootloop fix — partition table + PSRAM flags + vTaskDelete
+
+**Cause of bootloop:**
+- `board_build.partitions = default_16MB.csv` — ESP32-WROOM-32 is 4MB, not 16MB. Bootloader panics trying to access non-existent flash.
+- `-DBOARD_HAS_PSRAM` and `-mfix-esp32-psram-cache-issue` — WROOM-32 has no PSRAM, these flags can cause instability.
+- `vTaskDelete(nullptr)` in setup() — deleting the Arduino loop task can cause unpredictable behaviour.
+
+**Fixes:**
+- Removed `board_build.partitions` line (PlatformIO auto-selects correct 4MB table for esp32dev)
+- Removed both PSRAM build flags
+- Kept `vTaskDelay(portMAX_DELAY)` in loop() instead of vTaskDelete
+
 ## 2026-05-09: COM port config (1.0)
 
 Set `upload_port = COM9` and `monitor_port = COM9` for Silicon Labs CP210x USB-UART bridge.

@@ -4,7 +4,7 @@
 
 | # | Task | Files | Status | Notes |
 |---|------|-------|--------|-------|
-| 1.0 | Create PlatformIO project | `platformio.ini` | ✅ Done | Board: esp32dev, framework: arduino. Lib deps: Adafruit SH110X, ArduinoJson. Removed bad deps (AsyncTCP-esphome, WebSockets, AsyncWebServer) — add back in Phase 2 with verified names. 2026-05-09 |
+| 1.0 | Create PlatformIO project | `platformio.ini` | ✅ Done | Board: esp32dev, framework: arduino. Lib deps: Adafruit SH110X, ArduinoJson. Removed bad deps (AsyncTCP-esphome, WebSockets, AsyncWebServer). Removed 16MB partition table (4MB board!), removed PSRAM flags. 2026-05-09 |
 | 1.1 | Settings + NVS | `config/Settings.h/.cpp` | ✅ Done | Static class, NVS key-value, factory reset, commit. Verified compile. 2026-05-09 |
 | 1.2 | WifiManager | `wifi/WifiManager.h/.cpp` | ✅ Done | EventGroup signalling, auto-reconnect, RSSI. Wired into wifiTask. 2026-05-09 |
 | 1.3 | DisplayDriver interface | `display/DisplayDriver.h` | ✅ Done | Pure virtual. Color convention: uint32_t = RGB888 everywhere. 2026-05-09 |
