@@ -1,5 +1,13 @@
 # Phase 1: Implementation Notes
 
+## 2026-05-09: OLED hardware test — direct Sh1106Driver in main.cpp
+
+Temporary wiring to verify OLED works before building the full engine.
+- Creates `Sh1106Driver(128, 64, 0x3C, 0)` in setup()
+- displayTask renders "Hello! / Klippyface / Count: N" incrementing every second
+- If init fails, check: I2C address (0x3C vs 0x3D), SDA/SCL wiring, pull-up resistors
+- **This is throwaway — will be replaced by DisplayManager in 1.11**
+
 ## 2026-05-09: Bootloop fix — partition table + PSRAM flags + vTaskDelete
 
 **Cause of bootloop:**
