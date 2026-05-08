@@ -26,8 +26,8 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 
 | Feature | Status |
 |---------|--------|
-| ESP32 firmware with FreeRTOS multitasking | ⬜ Planned |
-| Display driver abstraction (SH1106, SSD1306, ST7789, ILI9341) | ⬜ Planned |
+| ESP32 firmware with FreeRTOS multitasking | 🟡 In Progress |
+| Display driver abstraction (SH1106, SSD1306, ST7789, ILI9341) | 🟡 In Progress — SH1106 done |
 | Real-time Moonraker WebSocket integration | ⬜ Planned |
 | Configurable animations (Groups → Sets → Frames) | ⬜ Planned |
 | Klipper GCODE macro integration | ⬜ Planned |
@@ -40,7 +40,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 
 ## Current Status
 
-**Phase 1 (ESP32 Core Framework) in progress.** Project scaffolded with PlatformIO build system, directory structure, and FreeRTOS task skeleton. No functional display code yet.
+**Phase 1 (ESP32 Core Framework) in progress.** PlatformIO build system working, FreeRTOS task skeleton running. Settings (NVS), WiFi manager, DisplayDriver abstraction, and SH1106 driver implemented and hardware-verified (OLED shows text).
 
 ## Project Structure
 
@@ -60,7 +60,7 @@ klippyface/
 └── scripts/                 # Utility scripts
 ```
 
-See [`PLAN.md`](PLAN.md) for the full architecture, data model, API reference, and implementation plan.
+See [`agents/PLAN.md`](agents/PLAN.md) for the full architecture, data model, API reference, and implementation plan.
 
 ## Getting Started
 
@@ -101,7 +101,7 @@ The system has three major components:
 | **Companion server** | .NET 10, EF Core, SQLite | REST API, node config, sprite/group library |
 | **Web UI** | Vanilla JS | Full visual editor for all content |
 
-For the detailed data model, API contracts, and task architecture, see [`PLAN.md`](PLAN.md).
+For the detailed data model, API contracts, and task architecture, see [`agents/PLAN.md`](agents/PLAN.md).
 
 ## License
 
