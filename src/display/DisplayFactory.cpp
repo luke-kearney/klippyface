@@ -8,7 +8,7 @@ DisplayDriver* createDriver(const char* type, const JsonObject& busConfig,
 
     if (strcmp(type, "sh1106") == 0) {
         uint8_t addr = 0x3C;
-        if (busConfig.containsKey("address")) {
+        if (busConfig["address"].is<const char*>()) {
             const char* addrStr = busConfig["address"];
             addr = (uint8_t)strtol(addrStr, nullptr, 16);
         }
