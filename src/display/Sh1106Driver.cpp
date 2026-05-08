@@ -35,7 +35,7 @@ bool Sh1106Driver::init() {
 
 void Sh1106Driver::powerSave(bool enable) {
     if (!_display) return;
-    _display->ssd1306_command(enable ? 0xAE : 0xAF);
+    _display->oled_command(enable ? 0xAE : 0xAF);
 }
 
 int16_t Sh1106Driver::width() const {
