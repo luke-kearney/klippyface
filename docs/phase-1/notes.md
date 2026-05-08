@@ -1,5 +1,26 @@
 # Phase 1: Implementation Notes
 
+## 2026-05-09: WifiManager (1.2)
+
+Serial log format:
+```
+[WIFI] Connecting to MyNetwork...
+[WIFI] Connected, IP: 192.168.2.100
+[WIFI] Disconnected
+[WIFI] Reconnecting to MyNetwork...
+```
+
+### Design
+- WifiManager uses a static instance pointer + Arduino WiFi event handler pattern
+- EventGroup (EVENT_CONNECTED / EVENT_DISCONNECTED) allows other tasks to block on WiFi readiness
+- Auto-reconnect tick() called every 1s from wifiTask, retries every 10s on disconnect
+
+### Gotchas
+- `WiFi.onEvent()` requires a static function — used gInstance pattern to route to instance
+- `EVENT_CONNECTED` and `EVENT_DISCONNECTED` must not collide with bits used by other event groups
+- WiFi events fire from the WiFi task context, so EventGroup operations are safe (no critical section needed for bits)
+- Must call `WiFi.mode(WIFI_STA)` before `WiFi.begin()` or behaviour is undefined
+
 ## 2026-05-09: Settings + NVS module (1.1)
 
 Serial log format used:

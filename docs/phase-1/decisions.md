@@ -1,5 +1,13 @@
 # Phase 1: Design Decisions
 
+## 2026-05-09: WifiManager — EventGroup + static event handler
+
+- **Context:** WiFi events arrive via static callback. Need to route to a class instance.
+- **Option A:** Singleton pattern with `getInstance()` — more boilerplate
+- **Option B:** Global `gInstance` pointer — simple, works because there's only one WifiManager ← **Chosen**
+- **Rationale:** There will never be multiple WifiManager instances (one WiFi radio). The global pointer is trivially correct and avoids singleton ceremony.
+- **EventGroup vs callback poll:** EventGroup lets moonrakerTask, displayTask, etc. block until WiFi is ready without busy-waiting. Much cleaner than polling `WiFi.status()`.
+
 ## 2026-05-09: Settings module — standalone class with static methods
 - **Context:** NVS access is needed by WiFi, MoonrakerClient, and ConfigFetcher before any objects are constructed (in `setup()`). A singleton/static approach avoids ordering issues.
 - **Option A:** Singleton instance with `Settings::getInstance()` — more OOP, extra boilerplate

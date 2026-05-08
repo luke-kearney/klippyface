@@ -6,7 +6,7 @@
 |---|------|-------|--------|-------|
 | 1.0 | Create PlatformIO project | `platformio.ini` | ✅ Done | Board: esp32dev, framework: arduino. Lib deps: Adafruit SH110X, ArduinoJson. 2026-05-09 |
 | 1.1 | Settings + NVS | `config/Settings.h/.cpp` | ✅ Done | Static class, NVS key-value, factory reset, commit. Verified compile. 2026-05-09 |
-| 1.2 | WifiManager | `wifi/WifiManager.h/.cpp` | ⬜ Not Started | Connect to STA, auto-reconnect. Report status via FreeRTOS event group. |
+| 1.2 | WifiManager | `wifi/WifiManager.h/.cpp` | ✅ Done | EventGroup signalling, auto-reconnect, RSSI. Wired into wifiTask. 2026-05-09 |
 | 1.3 | DisplayDriver interface | `display/DisplayDriver.h` | ⬜ Not Started | Pure virtual. All methods documented. |
 | 1.4 | Sh1106Driver | `display/Sh1106Driver.h/.cpp` | ⬜ Not Started | Wraps Adafruit_SH1106G. Implements all DisplayDriver methods. |
 | 1.5 | DisplayFactory | `display/DisplayFactory.h/.cpp` | ⬜ Not Started | `createDriver("sh1106", ...)` returns `Sh1106Driver*`. |

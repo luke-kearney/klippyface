@@ -1,6 +1,12 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include "config/Settings.h"
+#include "wifi/WifiManager.h"
+
+// -------------------------------------------------------------------
+// Global instances
+// -------------------------------------------------------------------
+WifiManager wifiManager;
 
 // -------------------------------------------------------------------
 // Task handles
@@ -12,8 +18,17 @@ TaskHandle_t displayTaskHandle = nullptr;
 // WiFi Task (Core 0)
 // -------------------------------------------------------------------
 void wifiTask(void *pvParameters) {
+    String ssid = Settings::getWifiSsid();
+    String pass = Settings::getWifiPassword();
+
+    if (ssid.length() > 0) {
+        wifiManager.begin(ssid, pass);
+    } else {
+        Serial.println("[WIFI] No credentials saved — skipping WiFi");
+    }
+
     for (;;) {
-        // TODO: Phase 1 — WifiManager integration
+        wifiManager.tick();
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
