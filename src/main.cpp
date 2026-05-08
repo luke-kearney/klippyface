@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include "config/Settings.h"
 
 // -------------------------------------------------------------------
 // Task handles
@@ -39,6 +40,9 @@ void setup() {
                   ESP.getChipRevision(),
                   ESP.getChipCores(),
                   ESP.getFlashChipSize() / (1024 * 1024));
+
+    // Init persistent settings (NVS)
+    Settings::begin();
 
     // Create tasks
     xTaskCreatePinnedToCore(
