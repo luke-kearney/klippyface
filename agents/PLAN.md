@@ -1010,6 +1010,14 @@ Each implementation phase has a corresponding folder under `docs/`:
 | `docs/phase-7/` | Captive Portal First-Boot Setup |
 | `docs/phase-8/` | Multi-Node & Polish |
 
+### README.md Maintenance
+
+The root `README.md` is the project's GitHub-facing introduction. Keep it in sync with the actual project state:
+
+- When a phase is completed, update the **Features (Target)** table status column in README.md
+- When the project structure or architecture significantly changes, reflect that in the overview sections
+- README.md should be updated **at the end of each phase**, before marking the phase complete
+
 ### File Conventions
 
 #### `TODO.md` (required per phase)
