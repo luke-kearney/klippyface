@@ -1,0 +1,46 @@
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+build/
+*.o
+*.elf
+*.map
+*.a
+
+# .NET
+server/bin/
+server/obj/
+*.user
+*.suo
+*.DotSettings
+*.nupkg
+
+# IDE
+.idea/
+.vs/
+*.swp
+*.swo
+*~
+*.sublime-*
+
+# OS
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# Environment / Secrets
+.env
+*.key
+*.pem
+
+# SQLite databases (except seed)
+*.db
+*.db-shm
+*.db-wal
+!server/seed.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
