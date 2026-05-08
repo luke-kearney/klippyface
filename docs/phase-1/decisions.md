@@ -1,5 +1,11 @@
 # Phase 1: Design Decisions
 
+## 2026-05-09: Sh1106Driver — heap-allocated Adafruit_SH1106G
+
+- **Context:** Adafruit_SH1106G does not have a default constructor (requires width/height in ctor). The driver instance must be created in `init()`, not the outer constructor.
+- **Solution:** Store `Adafruit_SH1106G*` as a pointer, `new` it in `init()`, `delete` in destructor. The Sh1106Driver constructor is lightweight (stores config only).
+- **Color mapping:** `uint32_t color → uint8_t`: any non-zero → 1 (white), zero → 0 (black). Simple and matches the DisplayDriver contract (RGB888 → 1-bit).
+
 ## 2026-05-09: WifiManager — EventGroup + static event handler
 
 - **Context:** WiFi events arrive via static callback. Need to route to a class instance.

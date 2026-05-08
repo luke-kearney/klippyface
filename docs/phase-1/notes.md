@@ -23,6 +23,14 @@ Removed `ottowinter/AsyncTCP-esphome`, `me-no-dev/ESP Async WebServer`, `links20
 - Async WebServer and WebSockets aren't needed until Phase 2
 - Add back in Phase 2 with verified package names
 
+## 2026-05-09: Sh1106Driver (1.4)
+
+Wraps `Adafruit_SH1106G` from the Adafruit_SH110X library.
+- I2C bus via `Wire`, address configurable (0x3C / 0x3D typical)
+- Constructor takes width, height, i2cAddr, rotation
+- Color mapping: any non-zero uint32_t → 1 (white), zero → 0 (black)
+- All DisplayDriver pure virtual methods implemented
+
 ## 2026-05-09: DisplayDriver interface (1.3)
 
 Color convention for all drivers:
