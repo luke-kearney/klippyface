@@ -55,7 +55,9 @@ klippyface/
 │   ├── wifi/                # WiFi manager, captive portal
 │   └── config/              # NVS settings storage
 ├── server/                  # .NET 10 companion server (future)
-├── docs/                    # Phase tracking, design decisions, notes
+├── agents/                  # Development plan + phase tracking
+│   ├── PLAN.md              # Full architecture, API, tasks
+│   └── docs/                # Phase tracking, design decisions, notes
 ├── docker/                  # Docker deployment (future)
 └── scripts/                 # Utility scripts
 ```

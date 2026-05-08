@@ -440,7 +440,10 @@ The pixel editor in the web UI:
 ```
 klippyface/
 ├── platformio.ini                      # Build config, lib deps, board
-├── PLAN.md                             # This file
+│
+├── agents/                             # Development plan + phase tracking
+│   ├── PLAN.md                         # Architecture, data model, API, tasks
+│   └── docs/                           # Per-phase tracking files
 │
 ├── src/                                # ESP32 firmware
 │   ├── main.cpp                        # setup() + xTaskCreatePinnedToCore()
@@ -522,40 +525,6 @@ klippyface/
 │
 ├── scripts/
 │   └── xbm-convert.py                 # Image → XBM/base64 utility
-│
-└── docs/
-    ├── phase-1/
-    │   ├── TODO.md                    # Task-by-task status tracking
-    │   ├── decisions.md               # Design decisions rationale
-    │   └── notes.md                   # Implementation notes, gotchas, logs
-    ├── phase-2/
-    │   ├── TODO.md
-    │   ├── decisions.md
-    │   └── notes.md
-    ├── phase-3/
-    │   ├── TODO.md
-    │   ├── decisions.md
-    │   └── notes.md
-    ├── phase-4/
-    │   ├── TODO.md
-    │   ├── decisions.md
-    │   └── notes.md
-    ├── phase-5/
-    │   ├── TODO.md
-    │   ├── decisions.md
-    │   └── notes.md
-    ├── phase-6/
-    │   ├── TODO.md
-    │   ├── decisions.md
-    │   └── notes.md
-    ├── phase-7/
-    │   ├── TODO.md
-    │   ├── decisions.md
-    │   └── notes.md
-    └── phase-8/
-        ├── TODO.md
-        ├── decisions.md
-        └── notes.md
 ```
 
 ---
@@ -586,7 +555,7 @@ klippyface/
 
 **Definition of done:** ESP32 boots, connects to WiFi, single OLED shows a hardcoded animated face. DisplayDriver abstraction works — you could swap to a different driver with one line change.
 
-**Agent tracking:** See `docs/phase-1/TODO.md` for task status.
+**Agent tracking:** See `agents/docs/phase-1/TODO.md` for task status.
 
 ---
 
@@ -605,7 +574,7 @@ klippyface/
 
 **Definition of done:** Printer starts printing → OLED shows printing face. Print completes → OLED switches to complete face. No polling — all WebSocket driven.
 
-**Agent tracking:** See `docs/phase-2/TODO.md` for task status.
+**Agent tracking:** See `agents/docs/phase-2/TODO.md` for task status.
 
 ---
 
@@ -629,7 +598,7 @@ klippyface/
 
 **Definition of done:** `curl "http://localhost:5000/api/config/node?mac=AA:BB:CC:DD:EE:01"` returns valid per-node JSON. All CRUD works against SQLite.
 
-**Agent tracking:** See `docs/phase-3/TODO.md` for task status.
+**Agent tracking:** See `agents/docs/phase-3/TODO.md` for task status.
 
 ---
 
@@ -648,7 +617,7 @@ klippyface/
 
 **Definition of done:** ESP32 boots, fetches its per-node config from server, creates the right displays with the right content. Changing config on the server updates the ESP32 within 5 minutes.
 
-**Agent tracking:** See `docs/phase-4/TODO.md` for task status.
+**Agent tracking:** See `agents/docs/phase-4/TODO.md` for task status.
 
 ---
 
@@ -675,7 +644,7 @@ klippyface/
 
 **Definition of done:** Full CRUD for everything. Create a face in the sprite editor, assign it to a set, preview the animation, assign the group to a node, save → ESP32 shows it.
 
-**Agent tracking:** See `docs/phase-5/TODO.md` for task status.
+**Agent tracking:** See `agents/docs/phase-5/TODO.md` for task status.
 
 ---
 
@@ -693,7 +662,7 @@ klippyface/
 
 **Definition of done:** A Klipper macro `DISPLAY_FACE GROUP=celebration SET=party` changes the face instantly. Progress bars render correctly during prints.
 
-**Agent tracking:** See `docs/phase-6/TODO.md` for task status.
+**Agent tracking:** See `agents/docs/phase-6/TODO.md` for task status.
 
 ---
 
@@ -711,7 +680,7 @@ klippyface/
 
 **Definition of done:** Flash blank ESP32. Phone connects to AP. Config page appears via captive portal. Fill form → reboot → ESP32 runs normally with Moonraker + Companion server.
 
-**Agent tracking:** See `docs/phase-7/TODO.md` for task status.
+**Agent tracking:** See `agents/docs/phase-7/TODO.md` for task status.
 
 ---
 
@@ -730,7 +699,7 @@ klippyface/
 
 **Definition of done:** Multiple ESP32s deployed and managed from a single web UI. Time-based presets work. Progress bars and temperature frames render correctly. Graceful fallbacks for all disconnect scenarios.
 
-**Agent tracking:** See `docs/phase-8/TODO.md` for task status.
+**Agent tracking:** See `agents/docs/phase-8/TODO.md` for task status.
 
 ---
 
@@ -990,25 +959,25 @@ This section is for **future AI agents** working on this project. Follow these s
 ### Before Starting Any Work
 
 1. **Read PLAN.md** — understand the full architecture, data model, and API contract.
-2. **Check `docs/`** — scan all `phase-*/TODO.md` files to determine what has been completed.
-3. **Check the current phase's docs** — read `docs/phase-N/notes.md` and `docs/phase-N/decisions.md` for context from prior work.
+2. **Check `agents/docs/`** — scan all `phase-*/TODO.md` files to determine what has been completed.
+3. **Check the current phase's docs** — read `agents/docs/phase-N/notes.md` and `agents/docs/phase-N/decisions.md` for context from prior work.
 4. **Verify file existence** — confirm expected source files from the project structure tree actually exist (missing files may indicate incomplete work).
-5. **Infer context** — if `docs/` is sparsely populated, use `git log` (if available) and file inspection to gauge what's been done.
+5. **Infer context** — if `agents/docs/` is sparsely populated, use `git log` (if available) and file inspection to gauge what's been done.
 
 ### Phase Folder Convention
 
-Each implementation phase has a corresponding folder under `docs/`:
+Each implementation phase has a corresponding folder under `agents/docs/`:
 
 | Folder | Phase |
 |--------|-------|
-| `docs/phase-1/` | ESP32 Core Framework + Single Display |
-| `docs/phase-2/` | Moonraker WebSocket Client + State Machine |
-| `docs/phase-3/` | Companion Server — Data Layer + Config API |
-| `docs/phase-4/` | ESP32 Config Fetcher |
-| `docs/phase-5/` | Web UI |
-| `docs/phase-6/` | GCODE Macro Integration |
-| `docs/phase-7/` | Captive Portal First-Boot Setup |
-| `docs/phase-8/` | Multi-Node & Polish |
+| `agents/docs/phase-1/` | ESP32 Core Framework + Single Display |
+| `agents/docs/phase-2/` | Moonraker WebSocket Client + State Machine |
+| `agents/docs/phase-3/` | Companion Server — Data Layer + Config API |
+| `agents/docs/phase-4/` | ESP32 Config Fetcher |
+| `agents/docs/phase-5/` | Web UI |
+| `agents/docs/phase-6/` | GCODE Macro Integration |
+| `agents/docs/phase-7/` | Captive Portal First-Boot Setup |
+| `agents/docs/phase-8/` | Multi-Node & Polish |
 
 ### README.md Maintenance
 
@@ -1072,7 +1041,7 @@ Free-form implementation notes, serial console logs, edge cases discovered, gotc
 
 To assess the current state of the project:
 
-1. Check which `docs/phase-*/TODO.md` files exist.
+1. Check which `agents/docs/phase-*/TODO.md` files exist.
 2. For each existing TODO, check `Overall Status` at the top.
 3. Look for the **highest-numbered phase marked IN PROGRESS** — that's where work should continue.
 4. If no TODO exists for a phase but source files from that phase exist, the phase may have been worked on before this convention was adopted — verify by reading the code.
