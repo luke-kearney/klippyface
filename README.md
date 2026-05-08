@@ -5,15 +5,15 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 ## How It Works
 
 ```
-┌──────────────┐    WebSocket     ┌──────────────────┐   HTTP/Config   ┌──────────────┐
-│   Moonraker   │ ←──────────────→ │  ESP32 (Node)    │ ←───────────── │  Companion    │
-│  (Klipper API) │                  │  SH1106 OLED(s)  │                │  Server (.NET)│
-└──────────────┘                   └──────────────────┘                └──────────────┘
-                                                                              │
-                                                                         ┌─────┴─────┐
+┌────────────────┐    WebSocket     ┌──────────────────┐   HTTP/Config  ┌────────────────┐
+│   Moonraker    │ ←──────────────→ │  ESP32 (Node)    │ ←───────────── │  Companion     │
+│  (Klipper API) │                  │  SH1106 OLED(s)  │                │  Server (.NET) │
+└────────────────┘                  └──────────────────┘                └────────────────┘
+                                                                               │
+                                                                         ┌─────┴──────┐
                                                                          │  Web UI    │
                                                                          │ (Browser)  │
-                                                                         └───────────┘
+                                                                         └────────────┘
 ```
 
 1. **ESP32** boots, fetches its per-node config from the Companion Server (display type, animations, triggers)
