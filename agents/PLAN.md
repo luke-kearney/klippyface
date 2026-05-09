@@ -443,6 +443,7 @@ klippyface/
 │
 ├── agents/                             # Development plan + phase tracking
 │   ├── PLAN.md                         # Architecture, data model, API, tasks
+│   ├── CONVENTIONS.md                  # Coding conventions (firmware, future: server, web UI)
 │   └── docs/                           # Per-phase tracking files
 │
 ├── src/                                # ESP32 firmware
@@ -526,6 +527,10 @@ klippyface/
 ├── scripts/
 │   └── xbm-convert.py                 # Image → XBM/base64 utility
 ```
+
+> **Coding conventions:** See `agents/CONVENTIONS.md` for firmware coding standards
+> (naming, memory, FreeRTOS patterns, serial logging format, color convention, and more).
+> Review this document before writing new source files.
 
 ---
 
@@ -959,7 +964,8 @@ This section is for **future AI agents** working on this project. Follow these s
 ### Before Starting Any Work
 
 1. **Read PLAN.md** — understand the full architecture, data model, and API contract.
-2. **Check `agents/docs/`** — scan all `phase-*/TODO.md` files to determine what has been completed.
+2. **Review conventions** — read `agents/CONVENTIONS.md` before writing any new source files to ensure code follows established patterns.
+3. **Check `agents/docs/`** — scan all `phase-*/TODO.md` files to determine what has been completed.
 3. **Check the current phase's docs** — read `agents/docs/phase-N/notes.md` and `agents/docs/phase-N/decisions.md` for context from prior work.
 4. **Verify file existence** — confirm expected source files from the project structure tree actually exist (missing files may indicate incomplete work).
 5. **Infer context** — if `agents/docs/` is sparsely populated, use `git log` (if available) and file inspection to gauge what's been done.
