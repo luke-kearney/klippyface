@@ -272,7 +272,41 @@ src/
 
 ---
 
-## 8. Code Review Checklist
+## 9. Git Commit Conventions
+
+### Format
+
+```
+<subject line — ≤50 chars, imperative mood, capitalised, no trailing period>
+
+<body — wrap at 72 chars, explain what changed and why>
+```
+
+### Example
+
+```
+Add Phase 1.6: config data structs + coding conventions
+
+- Create engine/Config.h with Frame, Set, Group, NodeConfig structs
+  and FrameType enum
+- Create engine/Config.cpp with hex color parser helpers
+- Add agents/CONVENTIONS.md covering firmware coding conventions
+- Update PLAN.md with convention references
+- Mark Task 1.6 complete in phase-1/TODO.md
+```
+
+### Guidelines
+
+- **Subject verb:** `Add`, `Fix`, `Update`, `Remove`, `Refactor`, `Sync` — imperative, no past tense
+- **Body:** bullet points starting with `-`, each describing one logical change
+- **Why:** include context if the reason isn't obvious from the diff
+- **Scope:** one commit per logical change set — don't bundle unrelated work
+- **History:** keep it clean; no "oops" or "fixup" commits on shared branches
+- **References:** link issues/tasks where relevant (e.g. "Part of Phase 3")
+
+---
+
+## 10. Code Review Checklist
 
 Before submitting any firmware change, verify:
 

@@ -1042,6 +1042,8 @@ Free-form implementation notes, serial console logs, edge cases discovered, gotc
 2. **Log key decisions** to `decisions.md` as you make them.
 3. **Document gotchas** in `notes.md` — anything that wasted time or surprised you.
 4. **Mark the phase complete** only when the "Definition of done" from PLAN.md is verified.
+5. **Commit with descriptive messages** — follow the commit style in `agents/CONVENTIONS.md`
+   (subject line + body with bullet points). Never commit with a single-line vague message.
 
 ### Determining Project State
 
