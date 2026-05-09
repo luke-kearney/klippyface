@@ -122,4 +122,4 @@ For the detailed data model, API contracts, and task architecture, see [`agents/
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE)
