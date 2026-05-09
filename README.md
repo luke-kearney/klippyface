@@ -40,7 +40,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 
 ## Current Status
 
-**Phase 1 (ESP32 Core Framework) in progress.** PlatformIO build system working, FreeRTOS task skeleton running. Settings (NVS), WiFi manager, DisplayDriver abstraction, and SH1106 driver implemented and hardware-verified (OLED shows text).
+**Phase 1 (ESP32 Core Framework) in progress.** PlatformIO build system working, FreeRTOS task skeleton running. Settings (NVS), WiFi manager, DisplayDriver abstraction, and SH1106 driver implemented and hardware-verified (OLED shows text). Config data model structs (Frame, Set, Group, NodeConfig) and hex color parser added.
 
 ## Phase Tracking
 
@@ -70,12 +70,14 @@ klippyface/
 ├── server/                  # .NET 10 companion server (future)
 ├── agents/                  # Development plan + phase tracking
 │   ├── PLAN.md              # Full architecture, API, tasks
+│   ├── CONVENTIONS.md       # Coding conventions (firmware)
 │   └── docs/                # Phase tracking, design decisions, notes
 ├── docker/                  # Docker deployment (future)
 └── scripts/                 # Utility scripts
 ```
 
 See [`agents/PLAN.md`](agents/PLAN.md) for the full architecture, data model, API reference, and implementation plan.
+See [`agents/CONVENTIONS.md`](agents/CONVENTIONS.md) for firmware coding conventions.
 
 ## Getting Started
 
