@@ -21,12 +21,16 @@ void DisplayManager::cleanup() {
 }
 
 void DisplayManager::buildHardcodedConfig() {
+    // Idle group — single text face
+    FrameElement idleEl;
+    idleEl.type = FrameElement::Text;
+    idleEl.value = "(-_-) zzz";
+    idleEl.x = 64;
+    idleEl.y = 32;
+
     Frame idleFrame;
-    idleFrame.type = FrameType::Text;
-    idleFrame.value = "(-_-) zzz";
-    idleFrame.x_offset = 64;
-    idleFrame.y_offset = 32;
     idleFrame.duration_ms = 3000;
+    idleFrame.elements.push_back(idleEl);
 
     Set idleSet;
     idleSet.id = "sleepy";
@@ -39,19 +43,54 @@ void DisplayManager::buildHardcodedConfig() {
     idleGroup.label = "Idle Faces";
     idleGroup.sets.push_back(idleSet);
 
+    // Printing group — face + live progress + temperature
+    FrameElement printFaceA;
+    printFaceA.type = FrameElement::Text;
+    printFaceA.value = ":-D";
+    printFaceA.x = 64;
+    printFaceA.y = 18;
+
+    FrameElement printProgressA;
+    printProgressA.type = FrameElement::DataValue;
+    printProgressA.value = "print_stats.progress";
+    printProgressA.x = 64;
+    printProgressA.y = 38;
+
+    FrameElement printTempA;
+    printTempA.type = FrameElement::DataValue;
+    printTempA.value = "extruder.temperature";
+    printTempA.x = 64;
+    printTempA.y = 54;
+
     Frame printA;
-    printA.type = FrameType::Text;
-    printA.value = ":-D";
-    printA.x_offset = 64;
-    printA.y_offset = 32;
     printA.duration_ms = 600;
+    printA.elements.push_back(printFaceA);
+    printA.elements.push_back(printProgressA);
+    printA.elements.push_back(printTempA);
+
+    FrameElement printFaceB;
+    printFaceB.type = FrameElement::Text;
+    printFaceB.value = "8-D";
+    printFaceB.x = 64;
+    printFaceB.y = 18;
+
+    FrameElement printProgressB;
+    printProgressB.type = FrameElement::DataValue;
+    printProgressB.value = "print_stats.progress";
+    printProgressB.x = 64;
+    printProgressB.y = 38;
+
+    FrameElement printTempB;
+    printTempB.type = FrameElement::DataValue;
+    printTempB.value = "extruder.temperature";
+    printTempB.x = 64;
+    printTempB.y = 54;
 
     Frame printB;
-    printB.type = FrameType::Text;
-    printB.value = "8-D";
-    printB.x_offset = 64;
-    printB.y_offset = 32;
     printB.duration_ms = 600;
+    printB.elements.push_back(printFaceB);
+    printB.elements.push_back(printProgressB);
+    printB.elements.push_back(printTempB);
 
     Set printSet;
     printSet.id = "excited";
@@ -65,12 +104,16 @@ void DisplayManager::buildHardcodedConfig() {
     printGroup.label = "Printing Faces";
     printGroup.sets.push_back(printSet);
 
+    // Celebration group — single text face
+    FrameElement celebEl;
+    celebEl.type = FrameElement::Text;
+    celebEl.value = "\\o/";
+    celebEl.x = 64;
+    celebEl.y = 32;
+
     Frame celebFrame;
-    celebFrame.type = FrameType::Text;
-    celebFrame.value = "\\o/";
-    celebFrame.x_offset = 64;
-    celebFrame.y_offset = 32;
     celebFrame.duration_ms = 500;
+    celebFrame.elements.push_back(celebEl);
 
     Set celebSet;
     celebSet.id = "party";

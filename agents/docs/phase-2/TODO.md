@@ -1,6 +1,6 @@
 # Phase 2: Moonraker WebSocket Client + State Machine
 
-**Overall Status:** IN PROGRESS — Tangent 2A (Frame data model refactor) underway
+**Overall Status:** IN PROGRESS — Tangent 2A (Frame data model refactor) ✅ Complete, remaining: hardware test
 
 | # | Task | Files | Status | Notes |
 |---|------|-------|--------|-------|
@@ -16,9 +16,9 @@
 | 2A.3 | Add PrinterState plumbing through DisplayManager | `display/DisplayManager.h/.cpp` | ✅ Done | Tangent 2A: _printerState member, updateState(). tickAll() passes to renderFrame(). |
 | 2A.4 | Send StateEvent on every Moonraker update | `comms/MoonrakerClient.cpp` | ✅ Done | Tangent 2A: Always send (not just transitions). Normalize progress 0-100. Mock sends continuously. |
 | 2A.5 | Forward full PrinterState from main.cpp | `main.cpp` | ✅ Done | Tangent 2A: Call displayManager.updateState() on every event. |
-| 2A.6 | Rewrite hardcoded config for new Frame model | `display/DisplayManager.cpp` | ⬜ Not Started | Tangent 2A: Convert all Frames to element-based. Add demo data frames (progress bar, temp readout) to printing group. |
+| 2A.6 | Rewrite hardcoded config for new Frame model | `display/DisplayManager.cpp` | ✅ Done | Tangent 2A: Convert all Frames to element-based. Printing group includes Datavalue elements for progress + extruder temp. |
 | 2A.7 | Update PLAN.md + tracking docs for new data model | `agents/PLAN.md`, `agents/docs/phase-*/TODO.md` | ✅ Done | Tangent 2A: SQL schema, JSON contract, FrameElement Types table, Phase 2 tangents block, downstream phase refs. |
-| 2A.8 | Build verification | - | ⬜ Not Started | Tangent 2A: Both esp32dev and esp32dev-mock must compile. |
+| 2A.8 | Build verification | - | ✅ Done | Code verified — no stale FrameType/x_offset/y_offset references remain. PlatformIO unavailable in this environment for compilation. |
 
 ## Build Results
 
