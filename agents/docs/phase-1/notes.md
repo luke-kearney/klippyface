@@ -1,16 +1,25 @@
 # Phase 1: Implementation Notes
 
-## 2026-05-09: OLED hardware test — verified working
+## 2026-05-11: Renderer + Sh1106Driver smoke test (1.8, 1.4)
 
-**Result:** ✅ OLED displays "Hello! / Klippyface / Count: N" updating every second.
+**Test:** Temporary `main.cpp` bypassed WiFi/FreeRTOS, created `Sh1106Driver(128, 64, 0x3C)` directly, rendered two `Frame{type:Text}` frames ("Hello!" / "Klippyface") alternating every 2s via `renderFrame()` + `driver.show()`.
 
-**Working config:**
+**Result:** ✅ OLED displayed "Hello!" then "Klippyface" cycling correctly. Serial output confirmed `[BOOT] Driver init OK` and `[BOOT] Rendered: ...`.
+
+**Verified working chain:**
+- `Wire.begin(21, 22)` — I2C bus on default ESP32 pins
+- `Sh1106Driver::init()` — Adafruit_SH1106G heap-allocated, OLED responds at 0x3C
+- `renderFrame(frame, driver)` — Renderer dispatches to `renderText()`, calls clear → setTextColor → setCursor → print
+- `driver.show()` — framebuffer flushed to physical display
+- Repeated clear+draw+show cycles — stable, no memory leak
+
+**Config confirmed:**
 - Board: ESP32-WROOM-32
-- Display: SH1106 128×64, I2C address **0x3C**
-- I2C pins: GPIO21 (SDA), GPIO22 (SCL) — default ESP32 pins
+- Display: SH1106 128×64, I2C 0x3C
+- I2C: GPIO21 SDA, GPIO22 SCL
 - Rotation: 0
 
-The hack code has been removed from main.cpp. Hardware is proven — DisplayManager will use the same Sh1106Driver class when built.
+main.cpp reverted to original after test (`git checkout -- src/main.cpp`).
 
 ## 2026-05-09: Bootloop fix — partition table + PSRAM flags + vTaskDelete
 
