@@ -137,6 +137,33 @@ void gcodeHandlerTask(void *pvParameters) {
 }
 
 // -------------------------------------------------------------------
+// GPIO Monitor Task (Core 0) — factory reset on 3s BOOT button hold
+// -------------------------------------------------------------------
+void gpioMonitorTask(void *pvParameters) {
+    pinMode(0, INPUT_PULLUP);
+    unsigned long pressStart = 0;
+    bool wasPressed = false;
+
+    for (;;) {
+        bool isPressed = (digitalRead(0) == LOW);
+
+        if (isPressed && !wasPressed) {
+            pressStart = millis();
+            Serial.println("[BOOT] GPIO0 held — hold 3s for factory reset");
+        }
+
+        if (isPressed && (millis() - pressStart > 3000)) {
+            Serial.println("[BOOT] GPIO0 held 3s — factory reset");
+            Settings::clear();
+            ESP.restart();
+        }
+
+        wasPressed = isPressed;
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+}
+
+// -------------------------------------------------------------------
 // Captive Portal Task (Core 0) — only active when not provisioned
 // -------------------------------------------------------------------
 void captivePortalTask(void *pvParameters) {
@@ -179,21 +206,9 @@ void setup() {
 
     Settings::begin();
 
-    // Factory reset: hold GPIO0 (BOOT button) for 3s after boot
-    pinMode(0, INPUT_PULLUP);
-    if (digitalRead(0) == LOW) {
-        Serial.println("[BOOT] GPIO0 held — hold 3s for factory reset or release to continue");
-        unsigned long pressStart = millis();
-        while (digitalRead(0) == LOW) {
-            if (millis() - pressStart > 3000) {
-                Serial.println("[BOOT] GPIO0 held 3s — factory reset");
-                Settings::clear();
-                ESP.restart();
-            }
-            delay(10);
-        }
-        Serial.println("[BOOT] GPIO0 released — continuing normal boot");
-    }
+    // GPIO monitor task — detects 3s BOOT button press for factory reset
+    xTaskCreatePinnedToCore(
+        gpioMonitorTask, "gpioMonitorTask", 2048, nullptr, 1, nullptr, 0);
 
     // Provisioning check: if not configured, start captive portal
     if (!Settings::isProvisioned()) {

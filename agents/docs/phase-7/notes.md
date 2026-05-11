@@ -29,9 +29,7 @@ libraries are:
 setup()
   ├── Serial.begin()
   ├── Settings::begin()
-   ├── GPIO0 factory reset check (3s long-press)
-   │     └── if held 3s → Settings::clear() → ESP.restart()
-   │     └── if released early → continue normal boot
+   ├── gpioMonitorTask created (pri 1, Core 0, runs continuously)
   ├── isProvisioned()?
   │     ├── NO  → startCaptivePortal() [creates captivePortalTask, then vTaskSuspend(NULL)]
   │     └── YES → normal boot (WiFi STA, Moonraker, etc.)
@@ -40,15 +38,19 @@ setup()
   └── xTaskCreatePinnedToCore() × N
 ```
 
-## Factory Reset (GPIO0 — Long Press)
+## Factory Reset (GPIO0 — Dedicated Monitor Task)
 
 - GPIO0 is the BOOT button on most ESP32 dev boards
 - **Strapping pin caveat:** GPIO0 sampled at EN rising determines boot mode.
   Holding it during power-on enters download mode (firmware doesn't run).
-  Therefore factory reset uses a **3-second long-press after boot** instead.
+- Factory reset uses a dedicated FreeRTOS task (`gpioMonitorTask`, pri 1) that:
+  - Runs continuously, checking GPIO0 every 50ms
+  - Detects button press **at any time** after boot (not just during `setup()`)
+  - On 3s hold: logs event, calls `Settings::clear()`, calls `ESP.restart()`
+- Task is created right after `Settings::begin()` — before the provisioning check —
+  so it runs in **both** captive portal mode and normal mode
 - Flow: power on normally → press and hold BOOT for 3s → NVS cleared → reboot → captive portal
-- If the button is released before 3s, boot continues normally (no reset)
-- Check runs immediately after `Settings::begin()` (NVS must be initialized to call `clear()`)
+- Short press or press-and-release (<3s): ignored, boot continues normally
 - On reboot after reset: `isProvisioned()` returns false → captive portal starts
 
 ## Form Validation
