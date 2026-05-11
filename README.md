@@ -53,7 +53,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 | Phase | Description | Status | Task List |
 |-------|-------------|--------|-----------|
 | 1 | ESP32 Core Framework + Single Display | ✅ Complete | [TODO](agents/docs/phase-1/TODO.md) |
-| 2 | Moonraker WebSocket Client | 🟡 In Progress (Tangents 2A + 2B complete, build verification pending) | [TODO](agents/docs/phase-2/TODO.md) |
+| 2 | Moonraker WebSocket Client | ✅ Complete | [TODO](agents/docs/phase-2/TODO.md) |
 | 3 | Companion Server — Data Layer | ⬜ Not Started | [TODO](agents/docs/phase-3/TODO.md) |
 | 4 | ESP32 Config Fetcher | ⬜ Not Started | [TODO](agents/docs/phase-4/TODO.md) |
 | 5 | Web UI | ⬜ Not Started | [TODO](agents/docs/phase-5/TODO.md) |

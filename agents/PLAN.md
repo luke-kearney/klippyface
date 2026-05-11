@@ -639,7 +639,7 @@ klippyface/
 
 **Definition of done:** Printer starts printing → OLED shows printing face. Print completes → OLED switches to complete face. No polling — all WebSocket driven.
 
-**Phase 2 status:** 🟡 In Progress — Tangents 2A + 2B code complete. Hardware-tested on real ESP32 + SH1106 — connection monitor correctly detects WiFi offline state. Pre-existing crash in `_ws.loop()` (called without WiFi initialized on unprovisioned device) found and fixed. Build verification pending (PlatformIO unavailable in Agent environment).
+**Phase 2 status:** ✅ Complete — All Phase 2 tasks, Tangent 2A (Frame data model refactor), and Tangent 2B (connection status + screen sleep) implemented, built, and hardware-verified. Both `esp32dev` and `esp32dev-mock` builds pass.
 
 **Agent tracking:** See `agents/docs/phase-2/TODO.md` for task details.
 

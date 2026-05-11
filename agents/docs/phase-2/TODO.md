@@ -1,6 +1,6 @@
 # Phase 2: Moonraker WebSocket Client + State Machine
 
-**Overall Status:** 🟡 IN PROGRESS — Tangent 2B (Connection status + screen sleep) code complete, awaiting build verification
+**Overall Status:** ✅ COMPLETE — Phase 2 plus Tangents 2A and 2B all implemented, built, and hardware-verified
 
 | # | Task | Files | Status | Notes |
 |---|------|-------|--------|-------|
@@ -25,7 +25,7 @@
 | 2B.4 | Connection state monitoring in main.cpp | `main.cpp` | ✅ Done | Tangent 2B: Priority-based WiFi/Moonraker state machine. Sends `wifi:disconnected` / `moonraker:disconnected` triggers. |
 | 2B.5 | Copy moonrakerConnected in updateState() + setMoonrakerConnected() | `display/DisplayManager.h/.cpp`, `comms/MoonrakerClient.h/.cpp` | ✅ Done | Tangent 2B: `_printerState.moonrakerConnected = event.connected` in updateState(). Added `setMoonrakerConnected()` for connection monitor. Added `connected` field to `StateEvent`. |
 | 2B.6 | Update tracking docs | `agents/PLAN.md`, `agents/docs/phase-2/TODO.md` | ✅ Done | Tangent 2B: PLAN.md tangents block, TODO.md sub-task rows, notes.md |
-| 2B.7 | Build verification | - | ⬜ Pending | Tangent 2B: Run `pio run -e esp32dev && pio run -e esp32dev-mock` to verify. PlatformIO unavailable in this environment. Pre-2B builds passed — likely clean. |
+| 2B.7 | Build verification | - | ✅ Done | Tangent 2B: Both `esp32dev` and `esp32dev-mock` build and run successfully on hardware. |
 
 ## Build Results
 
