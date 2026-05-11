@@ -12,6 +12,8 @@
 #include "display/DisplayDriver.h"
 #include "display/Sprite.h"
 
+struct StateEvent;
+
 class DisplayManager {
 public:
     DisplayManager();
@@ -20,6 +22,7 @@ public:
     bool begin();
     void tickAll(uint32_t now);
     void onStateChange(const String& trigger);
+    void updateState(const StateEvent& event);
     void directCommand(const String& groupId,
                        const String& setId = "",
                        int16_t loopCount = 0);
@@ -48,6 +51,7 @@ private:
     std::vector<DisplaySlot> _slots;
     std::map<String, Sprite> _sprites;
     QueueHandle_t _cmdQueue = nullptr;
+    PrinterState _printerState;
 
     void buildHardcodedConfig();
     void cleanup();

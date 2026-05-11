@@ -68,7 +68,10 @@ void moonrakerTask(void *pvParameters) {
         while (xQueueReceive(stateQueue, &event, 0) == pdTRUE) {
             Serial.printf("[MAIN] State: %s (progress: %.1f%%)\n",
                           event.trigger, event.progress);
-            displayManager.onStateChange(String(event.trigger));
+            displayManager.updateState(event);
+            if (event.trigger[0] != '\0') {
+                displayManager.onStateChange(String(event.trigger));
+            }
         }
 
         vTaskDelay(pdMS_TO_TICKS(50));

@@ -1,6 +1,7 @@
 #include "display/DisplayManager.h"
 #include "display/Renderer.h"
 #include "display/Sh1106Driver.h"
+#include "comms/MoonrakerClient.h"
 
 static const char* TAG = "DISPLAY";
 
@@ -150,10 +151,18 @@ void DisplayManager::tickAll(uint32_t now) {
 
         const Frame* frame = slot.engine.tick(now);
         if (frame) {
-            renderFrame(*frame, *slot.driver, &_sprites);
+            renderFrame(*frame, *slot.driver, &_sprites, &_printerState);
             slot.driver->show();
         }
     }
+}
+
+void DisplayManager::updateState(const StateEvent& event) {
+    _printerState.progress = event.progress;
+    _printerState.nozzleTemp = event.nozzleTemp;
+    _printerState.bedTemp = event.bedTemp;
+    _printerState.nozzleTarget = event.nozzleTarget;
+    _printerState.bedTarget = event.bedTarget;
 }
 
 void DisplayManager::onStateChange(const String& trigger) {

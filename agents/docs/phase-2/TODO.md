@@ -13,9 +13,9 @@
 | 2.6 | Mock mode | `comms/MoonrakerClient.cpp` (mock `#else` branch) | ✅ Done | `#ifdef MOONRAKER_MOCK` replaces WebSocket with timer-based state machine: idle(5s) → printing(15s) → complete(3s) → idle. Publishes realistic `StateEvent` with progress and temps. Use `pio run -e esp32dev-mock`. Tangent 2A: sends every tick for continuous progress animation. |
 | 2A.1 | Define new FrameElement + Frame + PrinterState structs | `engine/Config.h/.cpp` | ✅ Done | Tangent 2A: Remove FrameType enum. FrameElement has type (Text/Sprite/DataValue), value, label, color, x, y. New Frame has duration_ms, bg_color, elements vector. PrinterState with resolve(). |
 | 2A.2 | Update Renderer for element-based composition | `display/Renderer.h/.cpp` | ✅ Done | Tangent 2A: renderFrame() clears bg_color once, iterates elements, draws each at (x,y). DataValue uses PrinterState::resolve(). |
-| 2A.3 | Add PrinterState plumbing through DisplayManager | `display/DisplayManager.h/.cpp` | ⬜ Not Started | Tangent 2A: _printerState member, updateState(). tickAll() passes to renderFrame(). |
-| 2A.4 | Send StateEvent on every Moonraker update | `comms/MoonrakerClient.cpp` | ⬜ Not Started | Tangent 2A: Always send (not just transitions). Normalize progress 0-100. Mock sends continuously. |
-| 2A.5 | Forward full PrinterState from main.cpp | `main.cpp` | ⬜ Not Started | Tangent 2A: Call displayManager.updateState() on every event. |
+| 2A.3 | Add PrinterState plumbing through DisplayManager | `display/DisplayManager.h/.cpp` | ✅ Done | Tangent 2A: _printerState member, updateState(). tickAll() passes to renderFrame(). |
+| 2A.4 | Send StateEvent on every Moonraker update | `comms/MoonrakerClient.cpp` | ✅ Done | Tangent 2A: Always send (not just transitions). Normalize progress 0-100. Mock sends continuously. |
+| 2A.5 | Forward full PrinterState from main.cpp | `main.cpp` | ✅ Done | Tangent 2A: Call displayManager.updateState() on every event. |
 | 2A.6 | Rewrite hardcoded config for new Frame model | `display/DisplayManager.cpp` | ⬜ Not Started | Tangent 2A: Convert all Frames to element-based. Add demo data frames (progress bar, temp readout) to printing group. |
 | 2A.7 | Update PLAN.md + tracking docs for new data model | `agents/PLAN.md`, `agents/docs/phase-*/TODO.md` | ✅ Done | Tangent 2A: SQL schema, JSON contract, FrameElement Types table, Phase 2 tangents block, downstream phase refs. |
 | 2A.8 | Build verification | - | ⬜ Not Started | Tangent 2A: Both esp32dev and esp32dev-mock must compile. |

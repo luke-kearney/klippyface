@@ -151,13 +151,13 @@ void MoonrakerClient::handleStatusUpdate(const JsonDocument& doc) {
         Serial.printf("[%s] State: %s\n", TAG, newState);
     }
 
-    float progress    = params0["print_stats"]["progress"].as<float>();
+    float progress    = params0["print_stats"]["progress"].as<float>() * 100.0f;
     float nozzleTemp  = params0["extruder"]["temperature"].as<float>();
     float bedTemp     = params0["heater_bed"]["temperature"].as<float>();
     float nozzleTarget = params0["extruder"]["target"].as<float>();
     float bedTarget   = params0["heater_bed"]["target"].as<float>();
 
-    if (trigger[0] != '\0' && _stateQueue) {
+    if (_stateQueue) {
         StateEvent event;
         strncpy(event.trigger, trigger, sizeof(event.trigger) - 1);
         event.trigger[sizeof(event.trigger) - 1] = '\0';
@@ -240,7 +240,7 @@ void MoonrakerClient::tick() {
             break;
     }
 
-    if (newTrigger[0] != '\0' && _stateQueue) {
+    if (_stateQueue) {
         StateEvent event;
         strncpy(event.trigger, newTrigger, sizeof(event.trigger) - 1);
         event.trigger[sizeof(event.trigger) - 1] = '\0';
@@ -250,8 +250,10 @@ void MoonrakerClient::tick() {
         event.nozzleTarget = (mockState == MOCK_PRINTING) ? 220.0f : 0.0f;
         event.bedTarget = (mockState == MOCK_PRINTING) ? 65.0f : 0.0f;
 
-        Serial.printf("[%s] MOCK state: %s (progress: %.1f%%)\n",
-                      TAG, newTrigger, mockProgress);
+        if (newTrigger[0] != '\0') {
+            Serial.printf("[%s] MOCK state: %s (progress: %.1f%%)\n",
+                          TAG, newTrigger, mockProgress);
+        }
 
         xQueueSend(_stateQueue, &event, 0);
     }
