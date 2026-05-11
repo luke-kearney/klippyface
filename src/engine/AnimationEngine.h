@@ -17,6 +17,7 @@ public:
 
     bool onTrigger(const String& trigger);
     void switchToGroup(const String& groupId);
+    void switchToGroupAndSet(const String& groupId, const String& setId);
     const Frame* tick(uint32_t now);
     void resetToDefault();
 

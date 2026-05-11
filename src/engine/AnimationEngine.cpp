@@ -111,6 +111,42 @@ void AnimationEngine::switchToGroup(const String& groupId) {
     startGroup(groupId);
 }
 
+void AnimationEngine::switchToGroupAndSet(const String& groupId, const String& setId) {
+    if (!_configured) return;
+    if (groupId.isEmpty()) return;
+
+    const Group* group = findGroup(groupId);
+    if (!group) {
+        Serial.printf("[%s] Cannot switch to unknown group: %s\n", TAG, groupId.c_str());
+        return;
+    }
+
+    const Set* targetSet = nullptr;
+    for (const auto& s : group->sets) {
+        if (s.id == setId) {
+            targetSet = &s;
+            break;
+        }
+    }
+
+    if (!targetSet) {
+        Serial.printf("[%s] Set '%s' not found in group '%s'\n",
+                      TAG, setId.c_str(), groupId.c_str());
+        return;
+    }
+
+    if (groupId == _currentGroupId && setId == _currentSetId) return;
+
+    _currentGroupId = groupId;
+    _currentSetId = setId;
+    _frameIndex = 0;
+    _lastFrameTime = 0;
+    _loopCountRemaining = targetSet->loop_forever ? 0 : targetSet->loop_count;
+
+    Serial.printf("[%s] Switch to group: %s, set: %s\n",
+                  TAG, groupId.c_str(), setId.c_str());
+}
+
 void AnimationEngine::resetToDefault() {
     if (!_configured) return;
     startGroup(_defaultGroupId);

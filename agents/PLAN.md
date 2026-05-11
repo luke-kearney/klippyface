@@ -528,6 +528,8 @@ klippyface/
 │   └── xbm-convert.py                 # Image → XBM/base64 utility
 ```
 
+**Phase 2 progress:** MoonrakerClient (WebSocket + JSON state parsing), GcodeHandler, queue-based cross-core dispatch, and mock mode all implemented. Both `esp32dev` and `esp32dev-mock` builds pass. See `agents/docs/phase-2/TODO.md`.
+
 > **Coding conventions:** See `agents/CONVENTIONS.md` for firmware coding standards
 > (naming, memory, FreeRTOS patterns, serial logging format, color convention, and more).
 > Review this document before writing new source files.
@@ -568,18 +570,21 @@ klippyface/
 
 > **Goal:** ESP32 connects to Moonraker via WebSocket, receives real-time printer state, triggers group changes on displays.
 
-| # | Task | Files | Key detail |
-|---|------|-------|------------|
-| 2.1 | MoonrakerClient | `comms/MoonrakerClient.h/.cpp` | WebSocket connect, auto-reconnect. Subscribe to `notify_status_update`. |
-| 2.2 | State parsing | `comms/MoonrakerClient.cpp` | Parse print_stats, extruder, heater_bed. Publish `StateEvent` struct to stateQueue. |
-| 2.3 | GcodeHandler | `comms/GcodeHandler.h/.cpp` | Parse `notify_gcode_response`. Look for `display:...` patterns. Publish to commandQueue. |
-| 2.4 | Moonraker task | `main.cpp` | Create `moonrakerTask` on Core 0. Owns WebSocket lifecycle. |
-| 2.5 | Hardcoded triggers | `engine/AnimationEngine.cpp` | Map `state:printing` → group_id, `state:complete` → group_id, etc. |
-| 2.6 | Integration test | - | Flash. Change printer state. Confirm OLED face updates in real time. |
+| # | Task | Files | Key detail | Status |
+|---|------|-------|------------|--------|
+| 2.0 | Add WebSocket lib | `platformio.ini` | `links2004/WebSockets@^2.4.2`. Added `esp32dev-mock` env. | ✅ Done |
+| 2.1 | MoonrakerClient | `comms/MoonrakerClient.h/.cpp` | WebSocket connect, auto-reconnect. Subscribe to `notify_status_update`. gInstance pattern (like WifiManager). | ✅ Done |
+| 2.2 | State parsing | `comms/MoonrakerClient.cpp` | Parse print_stats, extruder, heater_bed. Publish `StateEvent` struct to FreeRTOS stateQueue. Only on state transition. | ✅ Done |
+| 2.3 | GcodeHandler | `comms/GcodeHandler.h/.cpp` | Parse `notify_gcode_response`. Look for `display:group=... set=... loop=...` patterns. | ✅ Done |
+| 2.4 | Moonraker + Gcode tasks | `main.cpp` | `moonrakerTask` (Core 0, pri 9) ticks WS + drains stateQueue. `gcodeHandlerTask` (Core 0, pri 7) drains gcodeQueue. | ✅ Done |
+| 2.5 | Hardcoded triggers + queue safety | `display/DisplayManager.cpp`, `engine/AnimationEngine.cpp` | 3 groups with trigger map. Queue-based `CmdMessage` dispatch for cross-core safety (no shared mutable state). | ✅ Done |
+| 2.6 | Mock mode + verification | `comms/MoonrakerClient.cpp` (#ifdef branch) | `#ifdef MOONRAKER_MOCK` replaces WS with timer: idle(5s)→printing(15s)→complete(3s)→idle. Both builds verified. | ✅ Done |
 
 **Definition of done:** Printer starts printing → OLED shows printing face. Print completes → OLED switches to complete face. No polling — all WebSocket driven.
 
-**Agent tracking:** See `agents/docs/phase-2/TODO.md` for task status.
+**Phase 2 status:** 🟡 In Progress — code complete, both build variants pass, awaiting hardware integration test with real Moonraker.
+
+**Agent tracking:** See `agents/docs/phase-2/TODO.md` for task details.
 
 ---
 
@@ -947,12 +952,18 @@ Every component logs key events:
 ```
 [WIFI] Connecting to Voyager...
 [WIFI] Connected, IP: 192.168.2.100
-[CONFIG] Fetching from http://192.168.2.21:5000/api/config/node?mac=AA:BB:CC:DD:EE:01
-[CONFIG] Loaded: 2 displays, 5 groups, 12 frames, 4 sprites
-[MOONRAKER] WebSocket connected
-[MOONRAKER] State: printing (progress: 45.2%)
-[DISPLAY] face_oled: trigger "state:printing" → group "printing_faces"
+[MOONRAKER] Connecting to ws://192.168.2.21:7125/websocket
+[MOONRAKER] Connected
+[MOONRAKER] Subscribed to printer objects
+[MOONRAKER] State: printing
+[MAIN] State: state:printing (progress: 45.2%)
+[DISPLAY] Engine triggered: state:printing → printing_faces
 [DISPLAY] Animation tick: set "excited" frame 2/3
+
+# Mock mode output (no printer needed):
+[MOONRAKER] MOCK MODE — simulating Moonraker at 192.168.2.21:7125
+[MOONRAKER] MOCK state: state:printing (progress: 0.0%)
+[MAIN] State: state:printing (progress: 0.0%)
 ```
 
 ---
