@@ -552,7 +552,7 @@ klippyface/
 | 1.5 | DisplayFactory | `display/DisplayFactory.h/.cpp` | `createDriver("sh1106", ...)` returns `Sh1106Driver*`. |
 | 1.6 | Config data structs | `engine/Config.h/.cpp` | `Frame`, `Set`, `Group`, `NodeConfig`, `DisplaySlotConfig` structs. |
 | 1.7 | AnimationEngine | `engine/AnimationEngine.h/.cpp` | `tick(now)` → returns current `const Frame*`. Handles looping, trigger→group mapping, set-level frame_time override. Listens for state changes via `onTrigger()`. |
-| 1.8 | Renderer | `display/Renderer.h/.cpp` | `renderFrame(Frame*, DisplayDriver*)`. Handles text + sprite frame types. |
+| 1.8 | Renderer | `display/Renderer.h/.cpp` | Stateless `renderFrame(Frame&, DisplayDriver&, sprites?)`. Handles text (centered), sprite (drawBitmap), clear, progress/temp skip. |
 | 1.9 | Sprite decode | `display/Sprite.h/.cpp` | `Sprite` struct (width, height, decoded data vector). `decodeBase64Sprite()` — base64 → monochrome bitmap with size validation. |
 | 1.10 | DisplayManager | `display/DisplayManager.h/.cpp` | Owns `vector<DisplaySlot>`. Each slot = driver + engine. `onStateChange()` fans out. `tickAll()` renders all. |
 | 1.11 | main.cpp | `main.cpp` | Init hardware. Create tasks: wifi, displayManager. Hardcoded config (1 display, 1 group, 2 frames). |
