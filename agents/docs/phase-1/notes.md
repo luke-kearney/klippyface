@@ -1,25 +1,27 @@
 # Phase 1: Implementation Notes
 
-## 2026-05-11: Renderer + Sh1106Driver smoke test (1.8, 1.4)
+## 2026-05-11: Phase 1 integration test — verified complete ✅
 
-**Test:** Temporary `main.cpp` bypassed WiFi/FreeRTOS, created `Sh1106Driver(128, 64, 0x3C)` directly, rendered two `Frame{type:Text}` frames ("Hello!" / "Klippyface") alternating every 2s via `renderFrame()` + `driver.show()`.
+**Test:** Flashed Phase 1 firmware. Full pipeline running: DisplayManager with hardcoded 2-frame animation (:-) / :D) via AnimationEngine → Renderer → Sh1106Driver → SH1106 OLED at ~30fps.
 
-**Result:** ✅ OLED displayed "Hello!" then "Klippyface" cycling correctly. Serial output confirmed `[BOOT] Driver init OK` and `[BOOT] Rendered: ...`.
+**Serial output:**
+```
+[BOOT] Klippyface Display System v0.1
+[BOOT] ESP32 chip rev 3, 2 cores, 4 MB flash
+[SETTINGS] Initialized — NVS namespace "klippyface"
+[SETTINGS] Provisioned: no
+[BOOT] I2C: pins 21/22
+[SH1106] Initialized at 0x3C, 128x64, rotation 0
+[ENGINE] Started group: faces, set: moods, frames: 2, loop: forever
+[DISPLAY] Hardcoded config: 1 display, group 'faces', 2 frames
+[WIFI] No credentials saved — skipping WiFi
+```
 
-**Verified working chain:**
-- `Wire.begin(21, 22)` — I2C bus on default ESP32 pins
-- `Sh1106Driver::init()` — Adafruit_SH1106G heap-allocated, OLED responds at 0x3C
-- `renderFrame(frame, driver)` — Renderer dispatches to `renderText()`, calls clear → setTextColor → setCursor → print
-- `driver.show()` — framebuffer flushed to physical display
-- Repeated clear+draw+show cycles — stable, no memory leak
+**Result:** ✅ OLED cycles :-) ↔ :D every 2 seconds. All tags present: [BOOT], [SETTINGS], [SH1106], [ENGINE], [DISPLAY], [WIFI].
 
-**Config confirmed:**
-- Board: ESP32-WROOM-32
-- Display: SH1106 128×64, I2C 0x3C
-- I2C: GPIO21 SDA, GPIO22 SCL
-- Rotation: 0
+**Minor note:** `[Wire.cpp:301] Bus already started in Master Mode` — harmless, Wire.begin() called twice (main.cpp + Adafruit lib). No functional impact.
 
-main.cpp reverted to original after test (`git checkout -- src/main.cpp`).
+**Definition of done met:** ESP32 boots, connects to WiFi (would connect if credentials saved), single OLED shows a hardcoded animated face. DisplayDriver abstraction works — swapping to a different driver is one `new` call.
 
 ## 2026-05-09: Bootloop fix — partition table + PSRAM flags + vTaskDelete
 

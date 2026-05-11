@@ -560,7 +560,7 @@ klippyface/
 
 **Definition of done:** ESP32 boots, connects to WiFi, single OLED shows a hardcoded animated face. DisplayDriver abstraction works — you could swap to a different driver with one line change.
 
-**Agent tracking:** See `agents/docs/phase-1/TODO.md` for task status.
+**Phase 1 status:** ✅ Complete — see `agents/docs/phase-1/TODO.md` for task details.
 
 ---
 

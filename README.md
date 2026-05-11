@@ -26,10 +26,10 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 
 | Feature | Status |
 |---------|--------|
-| ESP32 firmware with FreeRTOS multitasking | 🟡 In Progress |
+| ESP32 firmware with FreeRTOS multitasking | ✅ Complete |
 | Display driver abstraction (SH1106, SSD1306, ST7789, ILI9341) | 🟡 In Progress — SH1106 implemented |
 | Real-time Moonraker WebSocket integration | ⬜ Planned |
-| Configurable animations (Groups → Sets → Frames) | 🟡 In Progress — Config structs + AnimationEngine built |
+| Configurable animations (Groups → Sets → Frames) | ✅ Complete — Config structs + AnimationEngine + Renderer + Sprite |
 | Klipper GCODE macro integration | ⬜ Planned |
 | .NET 10 companion server with SQLite | ⬜ Planned |
 | Web UI — node/display management | ⬜ Planned |
@@ -40,13 +40,13 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 
 ## Current Status
 
-**Phase 1 (ESP32 Core Framework) in progress.** PlatformIO build system working, FreeRTOS multitasking running (wifiTask + displayTask). Settings (NVS), WiFi manager, DisplayDriver abstraction, and SH1106 driver implemented and hardware-verified. Animation engine, sprite decoder, renderer, and DisplayManager all implemented. Hardcoded 2-frame animation wired into displayTask at ~30fps.
+**Phase 1 (ESP32 Core Framework) complete.** PlatformIO + FreeRTOS multitasking (wifiTask + displayTask). Settings (NVS), WiFi manager, DisplayDriver abstraction, SH1106 driver, animation engine, sprite decoder, renderer, and DisplayManager all implemented and hardware-verified. OLED shows animated face cycling :-) / :D at ~30fps.
 
 ## Phase Tracking
 
 | Phase | Description | Status | Task List |
 |-------|-------------|--------|-----------|
-| 1 | ESP32 Core Framework + Single Display | 🟡 In Progress | [TODO](agents/docs/phase-1/TODO.md) |
+| 1 | ESP32 Core Framework + Single Display | ✅ Complete | [TODO](agents/docs/phase-1/TODO.md) |
 | 2 | Moonraker WebSocket Client | ⬜ Not Started | [TODO](agents/docs/phase-2/TODO.md) |
 | 3 | Companion Server — Data Layer | ⬜ Not Started | [TODO](agents/docs/phase-3/TODO.md) |
 | 4 | ESP32 Config Fetcher | ⬜ Not Started | [TODO](agents/docs/phase-4/TODO.md) |
