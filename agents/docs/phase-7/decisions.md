@@ -41,6 +41,19 @@
 - Timer resets on any HTTP request
 - Reboot re-enters setup mode (since NVS is still unprovisioned)
 
+## D6: Factory Reset GPIO0 Strategy (Revised)
+
+**Original decision:** Check GPIO0 at boot, reset if LOW.
+
+**Revised decision:** Long-press detection (3s hold after boot).
+
+**Rationale:**
+- GPIO0 is an ESP32 strapping pin. Held LOW at power-on → download mode → firmware doesn't execute
+- The original approach could never work — the `pinMode`/`digitalRead` code never ran
+- Long-press detection works reliably: power on normally, then hold BOOT for 3s
+- Short press (<3s) continues normal boot, avoiding accidental resets
+- Uses a blocking `while` loop with `delay(10)` — acceptable here since this runs in `setup()` before any FreeRTOS tasks are created
+
 ## D5: Provisioned NVS Flag
 
 **Decision:** Explicit `setProvisioned(true)` call before reboot, persisted via `commit()`

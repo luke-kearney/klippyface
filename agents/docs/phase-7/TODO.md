@@ -4,7 +4,7 @@
 
 | # | Task | Files | Status | Notes |
 |---|------|-------|--------|-------|
-| 7.0 | Add `setProvisioned()` + GPIO0 factory reset | `config/Settings.h/.cpp`, `main.cpp` | ✅ Done | Added `setProvisioned(bool)` — writes NVS flag + commits. GPIO0 factory reset check runs after `Settings::begin()`: erases NVS + `ESP.restart()`. 2026-05-11 |
+| 7.0 | Add `setProvisioned()` + GPIO0 factory reset | `config/Settings.h/.cpp`, `main.cpp` | ✅ Done | Added `setProvisioned(bool)` — writes NVS flag + commits. GPIO0 factory reset via 3s long-press (strapping pin: held at power-on = download mode, firmware can't run). 2026-05-11 |
 | 7.1 | CaptivePortal | `wifi/CaptivePortal.h/.cpp` | ✅ Done | AP "Klippyface-Setup" (open). DNSServer catch-all → ESP IP. WebServer port 80 with lambdas. 30-min idle timeout → auto-reboot. Reboot pending flag on save. 2026-05-11 |
 | 7.2 | SetupServer | `wifi/SetupServer.h/.cpp` | ✅ Done | `saveConfig()` writes SSID/pass/host/port/friendly to NVS via Settings. `scanNetworks()` returns JSON array with SSID + RSSI. 2026-05-11 |
 | 7.3 | setup_html.h | `wifi/setup_html.h` | ✅ Done | PROGMEM embedded HTML page with WiFi scan, SSID/password (show/hide), Moonraker host+port, friendly name, save button with loading state + reboot countdown. Mobile-first dark theme. 2026-05-11 |

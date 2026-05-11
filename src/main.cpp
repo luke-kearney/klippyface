@@ -179,12 +179,20 @@ void setup() {
 
     Settings::begin();
 
-    // Factory reset: hold GPIO0 (BOOT button) during power-on
+    // Factory reset: hold GPIO0 (BOOT button) for 3s after boot
     pinMode(0, INPUT_PULLUP);
     if (digitalRead(0) == LOW) {
-        Serial.println("[BOOT] GPIO0 held LOW — factory reset");
-        Settings::clear();
-        ESP.restart();
+        Serial.println("[BOOT] GPIO0 held — hold 3s for factory reset or release to continue");
+        unsigned long pressStart = millis();
+        while (digitalRead(0) == LOW) {
+            if (millis() - pressStart > 3000) {
+                Serial.println("[BOOT] GPIO0 held 3s — factory reset");
+                Settings::clear();
+                ESP.restart();
+            }
+            delay(10);
+        }
+        Serial.println("[BOOT] GPIO0 released — continuing normal boot");
     }
 
     // Provisioning check: if not configured, start captive portal
