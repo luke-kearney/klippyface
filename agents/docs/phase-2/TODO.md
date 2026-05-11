@@ -42,12 +42,12 @@
 - [x] GCODE display:... commands switch groups/sets
 - [x] Mock mode for testing without a printer
 - [x] FreeRTOS queue-based cross-core communication (no shared mutable state)
-- [x] All builds pass
-- [ ] **Hardware test pending** — flash and verify with real Moonraker
+- [x] All builds pass (pre-2B)
+- [x] **Hardware test conducted** — flashed to real ESP32 with real SH1106. Connection monitor correctly detects WiFi offline. Pre-existing `_ws.loop()` crash (called before WiFi init) found and fixed. Re-test needed after fix with real Moonraker connection.
 
 ### Tangent 2A: Frame data model refactor
-- [ ] `FrameElement` + new `Frame` + `PrinterState` structs defined and compiling
-- [ ] All existing face animations render identically after migration
-- [ ] `PrinterState::resolve()` returns formatted values for all 6 binding keys
-- [ ] Mock mode shows animated progress bar and temperature readout during print cycle
-- [ ] Both `esp32dev` and `esp32dev-mock` build clean
+- [x] `FrameElement` + new `Frame` + `PrinterState` structs defined and compiling
+- [x] All existing face animations render identically after migration
+- [x] `PrinterState::resolve()` returns formatted values for all 6 binding keys
+- [x] Mock mode shows animated progress bar and temperature readout during print cycle
+- [x] Both `esp32dev` and `esp32dev-mock` build clean (pre-2B verified)

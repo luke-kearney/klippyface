@@ -384,12 +384,12 @@ Data binding keys supported by `PrinterState::resolve()`:
 
 | Key | Source | Example output |
 |-----|--------|----------------|
-| `print_stats.progress` | Moonraker progress | `"73%"` |
-| `print_stats.state` | Printer state string | `"printing"` |
+| `print_stats.progress` | Moonraker progress | `"73.0%"` |
 | `extruder.temperature` | Nozzle temp | `"210°C"` |
 | `extruder.target` | Nozzle target | `"220°C"` |
 | `heater_bed.temperature` | Bed temp | `"60°C"` |
 | `heater_bed.target` | Bed target | `"65°C"` |
+| `moonraker.connected` | Connection state | `"Online"` / `"Offline"` |
 
 ---
 
@@ -635,11 +635,11 @@ klippyface/
 | ID | Insert After | Description | Files | Status |
 |----|-------------|-------------|-------|--------|
 | 2A | Task 2.5 | **Refactor Frame data model for element composition.** The original Frame was a single atomic renderable (one type, one value, one position). The system needs frames as canvases of N independently positioned elements (text, sprites, live data bindings). Also adds `PrinterState` runtime struct with `resolve()` for data binding keys, continuous Moonraker event forwarding, and Progress/Temp frame types subsumed into `FrameElement::DataValue`. | `engine/Config.h/.cpp`, `display/Renderer.h/.cpp`, `display/DisplayManager.h/.cpp`, `comms/MoonrakerClient.cpp`, `main.cpp` | ✅ Done |
-| 2B | Task 2.6 | **Connection status handling + screen sleep.** Add dedicated `wifi_offline`, `moonraker_offline`, and `screen_sleep` display groups. Priority-based connection state machine in `main.cpp` monitors WiFi/Moonraker status and sends triggers. Screen powers off after 30s idle, wakes on any activity. Adds `moonraker.connected` DataValue key. | `engine/Config.h/.cpp`, `display/DisplayManager.h/.cpp`, `main.cpp`, `agents/docs/phase-2/TODO.md` | ✅ Done |
+| 2B | Task 2.6 | **Connection status handling + screen sleep.** Add dedicated `wifi_offline`, `moonraker_offline`, and `screen_sleep` display groups. Priority-based connection state machine in `main.cpp` monitors WiFi/Moonraker status and sends triggers. Screen powers off after 30s idle, wakes on any activity. Adds `moonraker.connected` DataValue key. | `engine/Config.h/.cpp`, `display/DisplayManager.h/.cpp`, `comms/MoonrakerClient.h/.cpp`, `main.cpp`, `agents/docs/phase-2/TODO.md`, `agents/docs/phase-2/notes.md` | ✅ Done |
 
 **Definition of done:** Printer starts printing → OLED shows printing face. Print completes → OLED switches to complete face. No polling — all WebSocket driven.
 
-**Phase 2 status:** 🟡 In Progress — Tangent 2B code complete, awaiting build verification. Both build variants previously passed (pre-Tangent 2B).
+**Phase 2 status:** 🟡 In Progress — Tangents 2A + 2B code complete. Hardware-tested on real ESP32 + SH1106 — connection monitor correctly detects WiFi offline state. Pre-existing crash in `_ws.loop()` (called without WiFi initialized on unprovisioned device) found and fixed. Build verification pending (PlatformIO unavailable in Agent environment).
 
 **Agent tracking:** See `agents/docs/phase-2/TODO.md` for task details.
 

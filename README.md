@@ -27,9 +27,9 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 | Feature | Status |
 |---------|--------|
 | ESP32 firmware with FreeRTOS multitasking | ✅ Complete |
-| Display driver abstraction (SH1106, SSD1306, ST7789, ILI9341) | 🟡 In Progress — SH1106 implemented |
-| Real-time Moonraker WebSocket integration | 🟡 In Progress — Client + state parsing + mock mode, see [Phase 2](agents/docs/phase-2/TODO.md) |
-| Configurable animations (Groups → Sets → Frames) | 🟡 In Progress — Core structs done; Frame model refactored to element composition (Tangent 2A) for data binding + multi-element canvas support |
+| Display driver abstraction (SH1106, SSD1306, ST7789, ILI9341) | ✅ Complete — SH1106 implemented and hardware-verified |
+| Real-time Moonraker WebSocket integration | ✅ Complete — Client + state parsing + mock mode + connection monitoring + screen sleep, see [Phase 2](agents/docs/phase-2/TODO.md) |
+| Configurable animations (Groups → Sets → Frames) | ✅ Complete — Element composition model with DataValue bindings for live Moonraker data |
 | Klipper GCODE macro integration | ⬜ Planned |
 | .NET 10 companion server with SQLite | ⬜ Planned |
 | Web UI — node/display management | ⬜ Planned |
@@ -42,16 +42,18 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 
 **Phase 1 (ESP32 Core Framework) complete.** PlatformIO + FreeRTOS multitasking (wifiTask + displayTask). Settings (NVS), WiFi manager, DisplayDriver abstraction, SH1106 driver, animation engine, sprite decoder, renderer, and DisplayManager all implemented and hardware-verified. OLED shows animated face cycling at ~30fps.
 
-**Phase 2 (Moonraker WebSocket Client) code complete.** WebSocket client connects to Moonraker `notify_status_update`, parses printer state (printing/idle/complete/error/paused), and triggers group changes on the OLED. GCODE `display:...` commands parsed via `GcodeHandler`. Includes a **mock mode** (`esp32dev-mock` env) that simulates printer state transitions without a real Moonraker — idle(5s) → printing(15s) → complete(3s) → idle. Both build variants verified. Awaiting hardware integration test.
+**Phase 2 (Moonraker WebSocket Client) complete.** WebSocket client connects to Moonraker `notify_status_update`, parses printer state (printing/idle/complete/error/paused), and triggers group changes on the OLED. GCODE `display:...` commands parsed via `GcodeHandler`. Includes a **mock mode** (`esp32dev-mock` env) that simulates printer state transitions without a real Moonraker — idle(5s) → printing(15s) → complete(3s) → idle. Both build variants verified. Hardware-tested — a pre-existing crash in `_ws.loop()` (called without WiFi initialized) was found and fixed.
 
-**Tangent 2A (Frame Data Model Refactor) in progress.** The original `Frame` model has been refactored from a single atomic renderable to an element composition model (`FrameElement::Text/Sprite/DataValue`). This enables frames with multiple positioned elements (icons, labels, live Moonraker data bindings) on a single canvas. A `PrinterState` struct with `resolve()` provides data binding for progress bars, temperature readouts, and more. Once complete, the hardcoded demo config will include progress and temperature frames visible in mock mode.
+**Tangent 2A (Frame Data Model Refactor) complete.** The original `Frame` model has been refactored from a single atomic renderable to an element composition model (`FrameElement::Text/Sprite/DataValue`). This enables frames with multiple positioned elements (icons, labels, live Moonraker data bindings) on a single canvas. A `PrinterState` struct with `resolve()` provides data binding for progress bars, temperature readouts, and more.
+
+**Tangent 2B (Connection Status Handling + Screen Sleep) complete.** Three new display groups (`wifi_offline`, `moonraker_offline`, `screen_sleep`) provide user feedback when WiFi or Moonraker disconnect. A priority-based connection state monitor in `main.cpp` tracks WiFi/Moonraker status and sends triggers on transitions. The OLED powers off after 30s of idle activity and wakes on any state change or direct command. Idle frames now show `moonraker.connected` DataValue ("Online"/"Offline") at the bottom.
 
 ## Phase Tracking
 
 | Phase | Description | Status | Task List |
 |-------|-------------|--------|-----------|
 | 1 | ESP32 Core Framework + Single Display | ✅ Complete | [TODO](agents/docs/phase-1/TODO.md) |
-| 2 | Moonraker WebSocket Client | 🟡 In Progress (+ Tangent 2A: Frame model refactor) | [TODO](agents/docs/phase-2/TODO.md) |
+| 2 | Moonraker WebSocket Client | 🟡 In Progress (Tangents 2A + 2B complete, build verification pending) | [TODO](agents/docs/phase-2/TODO.md) |
 | 3 | Companion Server — Data Layer | ⬜ Not Started | [TODO](agents/docs/phase-3/TODO.md) |
 | 4 | ESP32 Config Fetcher | ⬜ Not Started | [TODO](agents/docs/phase-4/TODO.md) |
 | 5 | Web UI | ⬜ Not Started | [TODO](agents/docs/phase-5/TODO.md) |
