@@ -1,6 +1,6 @@
 # Phase 3: Companion Server — Data Layer + Config API
 
-**Overall Status:** NOT STARTED
+**Overall Status:** 🟡 In Progress — started 2026-05-11
 
 | # | Task | Files | Status | Notes |
 |---|------|-------|--------|-------|
