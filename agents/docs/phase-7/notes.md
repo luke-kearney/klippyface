@@ -75,3 +75,45 @@ Implementation writes `nvs_set_u8(KEY_PROVISIONED, provisioned ? 1 : 0)` and cal
 | `[PORTAL]` | `CaptivePortal` | `[PORTAL] AP started: Klippyface-Setup (192.168.4.1)` |
 | `[SETUP]` | `SetupServer` | `[SETUP] POST /save: SSID="MyNetwork" MK_HOST=192.168.2.21` |
 | `[BOOT]` | `main.cpp` | `[BOOT] Not provisioned — starting captive portal` |
+
+## Known Issues
+
+### Moonraker WebSocket Connection Fails After Provisioning
+
+**Symptoms (from real hardware log 2026-05-11):**
+
+```
+[MOONRAKER] Connecting to ws://192.168.2.21:7125/websocket
+[MAIN] Connection: WIFI_OFFLINE                          ← WiFi not ready yet
+...
+[WIFI] Connecting to Voyager...
+[WIFI] Connected, IP: 192.168.1.29
+[MAIN] Connection: MOONRAKER_OFFLINE
+...
+[MOONRAKER] Attempting reconnect...
+[MOONRAKER] Disconnected
+[MOONRAKER] Attempting reconnect...    (repeats every 5s)
+[MOONRAKER] Disconnected
+```
+
+**Environment:**
+- ESP32 WiFi IP: `192.168.1.29` (subnet 192.168.1.x)
+- Moonraker host: `192.168.2.21:7125` (subnet 192.168.2.x)
+- Cross-subnet connectivity confirmed: `curl` from a 192.168.1.x machine reaches 192.168.2.21:7125 (TCP handshake succeeds)
+
+**Observed issues:**
+
+1. **`moonrakerClient.begin()` called before WiFi is ready** — The log shows `[MOONRAKER] Connecting to ws://...` at `59.076` but `[WIFI] Connected` at `59.273`. The `waitForConnection()` in `moonrakerTask` should block until WiFi connects, but either:
+   - The `WifiManager._eventGroup` may be null (not yet created by `wifiTask`)
+   - The WebSocket library's `begin()` starts an async TCP connection before WiFi is up
+
+2. **WebSocket connects but immediately disconnects** — All reconnection attempts show `[MOONRAKER] Disconnected` with no error details. The 5s retry interval suggests the library detects connection failure rather than a timeout.
+
+3. **No auth/API key** — The current `MoonrakerClient::begin()` likely connects without a `X-Api-Key` header or `?token=` query param. Newer Moonraker versions may require authentication.
+
+**Suggested investigations:**
+- Check `MoonrakerClient.cpp` for WebSocket header construction
+- Add `[MOONRAKER]` log output with the WebSocket disconnect reason code
+- Test with `websocat ws://192.168.2.21:7125/websocket` from the PC to verify raw WS connection
+- Check if Moonraker requires `api_key` or `token` parameter
+- Verify timing: ensure `wifiManager.begin()` runs _before_ `waitForConnection()` checks
