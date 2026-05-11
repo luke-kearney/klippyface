@@ -31,7 +31,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 | Real-time Moonraker WebSocket integration | ✅ Complete — Client + state parsing + mock mode + connection monitoring + screen sleep, see [Phase 2](agents/docs/phase-2/TODO.md) |
 | Configurable animations (Groups → Sets → Frames) | ✅ Complete — Element composition model with DataValue bindings for live Moonraker data |
 | Klipper GCODE macro integration | ⬜ Planned |
-| .NET 10 companion server with SQLite | ⬜ Planned |
+| .NET 10 companion server with SQLite | ✅ Complete — Full CRUD API + per-node config export, see [Phase 3](agents/docs/phase-3/TODO.md) |
 | Web UI — node/display management | ⬜ Planned |
 | Web UI — pixel sprite editor | ⬜ Planned |
 | Web UI — animation preview canvas | ⬜ Planned |
@@ -41,6 +41,8 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 ## Current Status
 
 **Phase 1 (ESP32 Core Framework) complete.** PlatformIO + FreeRTOS multitasking (wifiTask + displayTask). Settings (NVS), WiFi manager, DisplayDriver abstraction, SH1106 driver, animation engine, sprite decoder, renderer, and DisplayManager all implemented and hardware-verified. OLED shows animated face cycling at ~30fps.
+
+**Phase 3 (Companion Server) complete.** .NET 10 Minimal API with EF Core + SQLite running on port 5000. Full CRUD for all entities (nodes, displays, assignments, groups, sets, frames, frame elements, sprites, presets). Config export endpoint `GET /api/config/node?mac=...` returns per-node filtered JSON matching the PLAN.md contract. Builds and curl-verified. See [Phase 3 TODO](agents/docs/phase-3/TODO.md).
 
 **Phase 2 (Moonraker WebSocket Client) complete.** WebSocket client connects to Moonraker `notify_status_update`, parses printer state (printing/idle/complete/error/paused), and triggers group changes on the OLED. GCODE `display:...` commands parsed via `GcodeHandler`. Includes a **mock mode** (`esp32dev-mock` env) that simulates printer state transitions without a real Moonraker — idle(5s) → printing(15s) → complete(3s) → idle. Both build variants verified. Hardware-tested — a pre-existing crash in `_ws.loop()` (called without WiFi initialized) was found and fixed.
 
@@ -54,7 +56,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 |-------|-------------|--------|-----------|
 | 1 | ESP32 Core Framework + Single Display | ✅ Complete | [TODO](agents/docs/phase-1/TODO.md) |
 | 2 | Moonraker WebSocket Client | ✅ Complete | [TODO](agents/docs/phase-2/TODO.md) |
-| 3 | Companion Server — Data Layer | ⬜ Not Started | [TODO](agents/docs/phase-3/TODO.md) |
+| 3 | Companion Server — Data Layer | ✅ Complete | [TODO](agents/docs/phase-3/TODO.md) |
 | 4 | ESP32 Config Fetcher | ⬜ Not Started | [TODO](agents/docs/phase-4/TODO.md) |
 | 5 | Web UI | ⬜ Not Started | [TODO](agents/docs/phase-5/TODO.md) |
 | 6 | GCODE Macro Integration | ⬜ Not Started | [TODO](agents/docs/phase-6/TODO.md) |
