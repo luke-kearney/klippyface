@@ -1,6 +1,6 @@
 # Phase 2: Moonraker WebSocket Client + State Machine
 
-**Overall Status:** IN PROGRESS — Tangent 2A (Frame data model refactor) ✅ Complete, remaining: hardware test
+**Overall Status:** IN PROGRESS — Tangent 2B (Connection status + screen sleep) planned, awaiting implementation
 
 | # | Task | Files | Status | Notes |
 |---|------|-------|--------|-------|
@@ -19,6 +19,13 @@
 | 2A.6 | Rewrite hardcoded config for new Frame model | `display/DisplayManager.cpp` | ✅ Done | Tangent 2A: Convert all Frames to element-based. Printing group includes Datavalue elements for progress + extruder temp. |
 | 2A.7 | Update PLAN.md + tracking docs for new data model | `agents/PLAN.md`, `agents/docs/phase-*/TODO.md` | ✅ Done | Tangent 2A: SQL schema, JSON contract, FrameElement Types table, Phase 2 tangents block, downstream phase refs. |
 | 2A.8 | Build verification | - | ✅ Done | Code verified — no stale FrameType/x_offset/y_offset references remain. PlatformIO unavailable in this environment for compilation. |
+| 2B.1 | Add moonrakerConnected to PrinterState + resolve key | `engine/Config.h/.cpp` | ⬜ Not Started | Tangent 2B: `bool moonrakerConnected = false`. Resolve `moonraker.connected` → "Online"/"Offline". |
+| 2B.2 | Add connection status groups + screen sleep to hardcoded config | `display/DisplayManager.cpp` | ⬜ Not Started | Tangent 2B: New groups `wifi_offline`, `moonraker_offline`, `screen_sleep`. Trigger mappings for `wifi:disconnected`, `moonraker:disconnected`. Update idle frame with `moonraker.connected` DataValue. |
+| 2B.3 | Screen sleep timeout + wake logic in DisplayManager | `display/DisplayManager.h/.cpp` | ⬜ Not Started | Tangent 2B: `_lastActivity`, `_screenSaverActive` members. 30s timeout in tickAll(). Wake on CmdMessage. Calls powerSave(true/false). |
+| 2B.4 | Connection state monitoring in main.cpp | `main.cpp` | ⬜ Not Started | Tangent 2B: Priority-based WiFi/Moonraker state machine. Sends `wifi:disconnected` / `moonraker:disconnected` triggers. |
+| 2B.5 | Copy moonrakerConnected in updateState() | `display/DisplayManager.cpp` | ⬜ Not Started | Tangent 2B: `_printerState.moonrakerConnected = event.connected` |
+| 2B.6 | Update tracking docs | `agents/PLAN.md`, `agents/docs/phase-2/TODO.md` | ⬜ Not Started | Tangent 2B: PLAN.md tangents block, TODO.md sub-task rows, notes.md |
+| 2B.7 | Build verification | - | ⬜ Not Started | Tangent 2B: Both envs compile |
 
 ## Build Results
 

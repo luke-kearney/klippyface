@@ -59,3 +59,55 @@ GCODE response (received):
 ```json
 {"jsonrpc":"2.0","method":"notify_gcode_response","params":["display:group=celebration set=party loop=3"]}
 ```
+
+## 2026-05-11: Tangent 2B — Connection status handling + screen sleep
+
+### Problem
+When Moonraker disconnected, the display stayed frozen on the last group with no user feedback. WiFi drops silently halted all Moonraker activity. No screen saver or power saving.
+
+### Solution architecture
+
+Three new dedicated display groups for connection states:
+
+| Group | Content | Trigger |
+|-------|---------|---------|
+| `wifi_offline` | "WiFi Offline" + "Check network" | `wifi:disconnected` |
+| `moonraker_offline` | "Moonraker Down" + "Reconnecting..." | `moonraker:disconnected` |
+| `screen_sleep` | Blank (no elements) + OLED powerSave(true) | Internal timeout (30s) |
+
+Priority-based connection state machine in main.cpp's moonrakerTask loop:
+
+```
+WiFi off          → WIFI_OFFLINE    → send "wifi:disconnected"
+WiFi on, MR off   → MOONRAKER_OFFLINE → send "moonraker:disconnected"
+WiFi on, MR on    → ONLINE          → no trigger (status update drives normal flow)
+```
+
+Screen sleep: DisplayManager tracks `_lastActivity` (updated on every CmdMessage from tickAll, Core 1 only — no cross-core access). After 30s, switches to `screen_sleep` group and calls `powerSave(true)`. Any CmdMessage wakes: `powerSave(false)` + reset to default group.
+
+PrinterState adds `bool moonrakerConnected` flag + resolve key `moonraker.connected` → "Online"/"Offline". Idle frame 1 shows this DataValue.
+
+### Tasks
+
+| ID | Task | Files |
+|----|------|-------|
+| 2B.1 | Add moonrakerConnected field + resolve key | `Config.h/.cpp` |
+| 2B.2 | Add connection status groups + screen sleep group + triggers to hardcoded config | `DisplayManager.cpp` |
+| 2B.3 | Screen sleep timeout + wake logic | `DisplayManager.h/.cpp` |
+| 2B.4 | Connection state monitoring in moonrakerTask | `main.cpp` |
+| 2B.5 | Copy moonrakerConnected in updateState() | `DisplayManager.cpp` |
+| 2B.6 | Tracking docs | `PLAN.md`, `TODO.md` |
+| 2B.7 | Build verification | — |
+
+### Behavior per scenario (correctness trace)
+
+| Scenario | State transition | Trigger sent | Display |
+|----------|-----------------|--------------|---------|
+| Boot, WiFi connecting | ONLINE → WIFI_OFFLINE | `wifi:disconnected` | Shows "No WiFi" |
+| WiFi connects, MR connecting | WIFI_OFFLINE → MOONRAKER_OFFLINE | `moonraker:disconnected` | Shows "Moonraker Down" |
+| MR connects | MOONRAKER_OFFLINE → ONLINE | (none) | First status update drives correct group |
+| WiFi drops during print | ONLINE → WIFI_OFFLINE | `wifi:disconnected` | Shows "No WiFi" |
+| WiFi reconnects | WIFI_OFFLINE → MOONRAKER_OFFLINE | `moonraker:disconnected` | Shows "Moonraker Down" (WS reconnecting) |
+| MR reconnects | MOONRAKER_OFFLINE → ONLINE | (none) | Status update restores correct group |
+| 30s idle on idle_faces | — | (internal) | OLED powers off |
+| State change (print starts) | — | `state:printing` via CmdMessage | OLED wakes, shows printing_faces |
