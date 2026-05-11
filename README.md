@@ -29,7 +29,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 | ESP32 firmware with FreeRTOS multitasking | 🟡 In Progress |
 | Display driver abstraction (SH1106, SSD1306, ST7789, ILI9341) | 🟡 In Progress — SH1106 implemented |
 | Real-time Moonraker WebSocket integration | ⬜ Planned |
-| Configurable animations (Groups → Sets → Frames) | ⬜ Planned |
+| Configurable animations (Groups → Sets → Frames) | 🟡 In Progress — Config structs + AnimationEngine built |
 | Klipper GCODE macro integration | ⬜ Planned |
 | .NET 10 companion server with SQLite | ⬜ Planned |
 | Web UI — node/display management | ⬜ Planned |
@@ -40,7 +40,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 
 ## Current Status
 
-**Phase 1 (ESP32 Core Framework) in progress.** PlatformIO build system working, FreeRTOS task skeleton running. Settings (NVS), WiFi manager, DisplayDriver abstraction, and SH1106 driver implemented and hardware-verified (OLED shows text). Config data model structs (Frame, Set, Group, NodeConfig) and hex color parser added.
+**Phase 1 (ESP32 Core Framework) in progress.** PlatformIO build system working, FreeRTOS task skeleton running. Settings (NVS), WiFi manager, DisplayDriver abstraction, and SH1106 driver implemented and hardware-verified (OLED shows text). Config data model structs (Frame, Set, Group, NodeConfig) and hex color parser added. AnimationEngine (per-display state machine with looping, trigger-to-group mapping, and frame timing) implemented.
 
 ## Phase Tracking
 

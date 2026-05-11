@@ -11,7 +11,7 @@
 | 1.4 | Sh1106Driver | `display/Sh1106Driver.h/.cpp` | ✅ Done | Wraps Adafruit_SH1106G. I2C, 128×64, 1-bit mono. 2026-05-09 |
 | 1.5 | DisplayFactory | `display/DisplayFactory.h/.cpp` | ✅ Done | `createDriver("sh1106", ...)` returns `Sh1106Driver*`. Parses I2C addr from JSON. 2026-05-09 |
 | 1.6 | Config data structs | `engine/Config.h/.cpp` | ✅ Done | `Frame`, `Set`, `Group`, `NodeConfig`, `DisplaySlotConfig` structs, `FrameType` enum, hex color parser. 2026-05-09 |
-| 1.7 | AnimationEngine | `engine/AnimationEngine.h/.cpp` | ⬜ Not Started | `tick(now)` → returns current `Frame*`. Handles looping. Listens for state changes. |
+| 1.7 | AnimationEngine | `engine/AnimationEngine.h/.cpp` | ✅ Done | `tick(now)` → `const Frame*`. `configure()`, `onTrigger()`, `switchToGroup()`, `resetToDefault()`. Handles looping (loop_forever, loop_count 0=inf, 1=play-once, N=play-N). Set-level frame_time override. 2026-05-11 |
 | 1.8 | Renderer | `display/Renderer.h/.cpp` | ⬜ Not Started | `renderFrame(Frame*, DisplayDriver*)`. Handles text + sprite frame types. |
 | 1.9 | Sprite decode | `display/Sprite.h/.cpp` | ⬜ Not Started | Base64 → raw bitmap. Store in map by ID. |
 | 1.10 | DisplayManager | `display/DisplayManager.h/.cpp` | ⬜ Not Started | Owns `vector<DisplaySlot>`. Each slot = driver + engine. `onStateChange()` fans out. `tickAll()` renders all. |

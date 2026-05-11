@@ -551,7 +551,7 @@ klippyface/
 | 1.4 | Sh1106Driver | `display/Sh1106Driver.h/.cpp` | Wraps Adafruit_SH1106G. Implements all DisplayDriver methods. |
 | 1.5 | DisplayFactory | `display/DisplayFactory.h/.cpp` | `createDriver("sh1106", ...)` returns `Sh1106Driver*`. |
 | 1.6 | Config data structs | `engine/Config.h/.cpp` | `Frame`, `Set`, `Group`, `NodeConfig`, `DisplaySlotConfig` structs. |
-| 1.7 | AnimationEngine | `engine/AnimationEngine.h/.cpp` | `tick(now)` → returns current `Frame*`. Handles looping. Listens for state changes. |
+| 1.7 | AnimationEngine | `engine/AnimationEngine.h/.cpp` | `tick(now)` → returns current `const Frame*`. Handles looping, trigger→group mapping, set-level frame_time override. Listens for state changes via `onTrigger()`. |
 | 1.8 | Renderer | `display/Renderer.h/.cpp` | `renderFrame(Frame*, DisplayDriver*)`. Handles text + sprite frame types. |
 | 1.9 | Sprite decode | `display/Sprite.h/.cpp` | Base64 → raw bitmap. Store in map by ID. |
 | 1.10 | DisplayManager | `display/DisplayManager.h/.cpp` | Owns `vector<DisplaySlot>`. Each slot = driver + engine. `onStateChange()` fans out. `tickAll()` renders all. |
