@@ -740,8 +740,8 @@ klippyface/
 | # | Task | Files | Key detail | Status |
 |---|------|-------|------------|--------|
 | 7.0 | `setProvisioned()` + GPIO0 reset | `config/Settings.h/.cpp`, `main.cpp` | Add `setProvisioned(bool)` method. GPIO0 factory reset erases NVS + reboots. | ✅ Done |
-| 7.1 | CaptivePortal | `wifi/CaptivePortal.h/.cpp` | WiFi AP + DNSServer catch-all → ESP IP. Built-in WebServer (not Async). Open AP. 30-min idle timeout. | ⬜ Not Started |
-| 7.2 | SetupServer | `wifi/SetupServer.h/.cpp` | HTTP routes: GET `/`, POST `/save` (save + reboot), GET `/scan` (WiFi scan JSON). Server-side validation. | ⬜ Not Started |
+| 7.1 | CaptivePortal | `wifi/CaptivePortal.h/.cpp` | WiFi AP + DNSServer catch-all → ESP IP. Built-in WebServer (not Async). Open AP. 30-min idle timeout. | ✅ Done |
+| 7.2 | SetupServer | `wifi/SetupServer.h/.cpp` | HTTP routes: GET `/`, POST `/save` (save + reboot), GET `/scan` (WiFi scan JSON). Server-side validation. | ✅ Done |
 | 7.3 | setup_html.h | `wifi/setup_html.h` | PROGMEM HTML: WiFi scan, SSID/password, Moonraker host/port, friendly name. Mobile-first dark theme. JS `fetch` for scan + POST. | ✅ Done |
 | 7.4 | Provisioning flow | `main.cpp` | If `!Settings.isProvisioned()` → start captive portal task (Core 0, pri 5) instead of normal boot. | ⬜ Not Started |
 | 7.5 | Verify build | `platformio.ini` | DNSServer + WebServer are built-in — no PlatformIO deps needed. Verify both build targets compile. | ⬜ Not Started |
