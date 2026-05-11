@@ -6,6 +6,7 @@
 #include "display/DisplayManager.h"
 #include "comms/MoonrakerClient.h"
 #include "comms/GcodeHandler.h"
+#include "wifi/CaptivePortal.h"
 
 // -------------------------------------------------------------------
 // Global instances
@@ -22,6 +23,7 @@ TaskHandle_t wifiTaskHandle = nullptr;
 TaskHandle_t displayTaskHandle = nullptr;
 TaskHandle_t moonrakerTaskHandle = nullptr;
 TaskHandle_t gcodeHandlerTaskHandle = nullptr;
+TaskHandle_t captivePortalTaskHandle = nullptr;
 
 // -------------------------------------------------------------------
 // Inter-task queues
@@ -135,6 +137,23 @@ void gcodeHandlerTask(void *pvParameters) {
 }
 
 // -------------------------------------------------------------------
+// Captive Portal Task (Core 0) — only active when not provisioned
+// -------------------------------------------------------------------
+void captivePortalTask(void *pvParameters) {
+    CaptivePortal portal;
+    if (!portal.begin()) {
+        Serial.println("[PORTAL] Failed to start — rebooting");
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        ESP.restart();
+    }
+
+    for (;;) {
+        portal.tick();
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+}
+
+// -------------------------------------------------------------------
 // Display Task (Core 1) — ~30fps tick
 // -------------------------------------------------------------------
 void displayTask(void *pvParameters) {
@@ -166,6 +185,15 @@ void setup() {
         Serial.println("[BOOT] GPIO0 held LOW — factory reset");
         Settings::clear();
         ESP.restart();
+    }
+
+    // Provisioning check: if not configured, start captive portal
+    if (!Settings::isProvisioned()) {
+        Serial.println("[BOOT] Not provisioned — starting captive portal");
+        xTaskCreatePinnedToCore(
+            captivePortalTask, "captivePortalTask", 4096, nullptr, 5,
+            &captivePortalTaskHandle, 0);
+        return;
     }
 
     // Create inter-task queues

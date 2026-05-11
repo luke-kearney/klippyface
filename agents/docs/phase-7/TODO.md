@@ -1,6 +1,6 @@
 # Phase 7: Captive Portal First-Boot Setup
 
-**Overall Status:** 🟡 IN PROGRESS — Design complete, ready to implement
+**Overall Status:** 🟡 In Progress — Implementation complete, ready for build verification (7.5)
 
 | # | Task | Files | Status | Notes |
 |---|------|-------|--------|-------|
@@ -8,7 +8,7 @@
 | 7.1 | CaptivePortal | `wifi/CaptivePortal.h/.cpp` | ✅ Done | AP "Klippyface-Setup" (open). DNSServer catch-all → ESP IP. WebServer port 80 with lambdas. 30-min idle timeout → auto-reboot. Reboot pending flag on save. 2026-05-11 |
 | 7.2 | SetupServer | `wifi/SetupServer.h/.cpp` | ✅ Done | `saveConfig()` writes SSID/pass/host/port/friendly to NVS via Settings. `scanNetworks()` returns JSON array with SSID + RSSI. 2026-05-11 |
 | 7.3 | setup_html.h | `wifi/setup_html.h` | ✅ Done | PROGMEM embedded HTML page with WiFi scan, SSID/password (show/hide), Moonraker host+port, friendly name, save button with loading state + reboot countdown. Mobile-first dark theme. 2026-05-11 |
-| 7.4 | Provisioning flow | `main.cpp` | ⬜ Not Started | If `!Settings.isProvisioned()` → start captive portal as a task (Core 0, pri 5) instead of normal boot. |
+| 7.4 | Provisioning flow | `main.cpp` | ✅ Done | After GPIO0 check: `!isProvisioned()` → create captivePortalTask (Core 0, pri 5) → return from setup(). Normal boot skipped. 2026-05-11 |
 | 7.5 | Verify build | `platformio.ini` | ⬜ Not Started | DNSServer + WebServer are built into ESP32 Arduino core — no PlatformIO deps needed. Verify both `esp32dev` and `esp32dev-mock` builds compile. |
 
 ## Definition of Done
