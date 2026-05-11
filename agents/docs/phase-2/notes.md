@@ -95,9 +95,27 @@ PrinterState adds `bool moonrakerConnected` flag + resolve key `moonraker.connec
 | 2B.2 | Add connection status groups + screen sleep group + triggers to hardcoded config | `DisplayManager.cpp` |
 | 2B.3 | Screen sleep timeout + wake logic | `DisplayManager.h/.cpp` |
 | 2B.4 | Connection state monitoring in moonrakerTask | `main.cpp` |
-| 2B.5 | Copy moonrakerConnected in updateState() | `DisplayManager.cpp` |
+| 2B.5 | Copy moonrakerConnected in updateState() + setMoonrakerConnected() + StateEvent.connected | `DisplayManager.cpp`, `MoonrakerClient.h/.cpp` |
 | 2B.6 | Tracking docs | `PLAN.md`, `TODO.md` |
 | 2B.7 | Build verification | — |
+
+### 2026-05-11: Hardware test findings
+
+Flashed `esp32dev` to real hardware (no credentials saved). Observed:
+
+- **OLED initialized correctly**, showed `idle_faces` briefly
+- **Connection monitor correctly detected WiFi offline** → switched to `wifi_offline` group ✓
+- **CRASH: `tcpip_send_msg_wait_sem` assert** — `MoonrakerClient::tick()` called `_ws.loop()` when WiFi was never initialized (no credentials), causing WebSocket library to call `WiFiClient::connect()` on a dead TCP/IP stack.
+
+**Fix:** Guarded `_ws.loop()` behind `WiFi.isConnected()` in `MoonrakerClient::tick()`. If WiFi isn't up, there's nothing for the WebSocket to do.
+
+### 2026-05-11: Implementation notes
+
+1. **StateEvent.connected field added** — The `StateEvent` struct in `MoonrakerClient.h` needed a `bool connected` field so `updateState()` can copy `event.connected` into `_printerState.moonrakerConnected`. Both the real and mock branches of `MoonrakerClient.cpp` set `event.connected = _connected`.
+
+2. **setMoonrakerConnected() helper** — Added a separate public method `DisplayManager::setMoonrakerConnected(bool)` so the connection monitor in `main.cpp` can update the flag directly on WiFi/Moonraker transitions, even when no `StateEvent` is flowing (e.g. WiFi drops during a print — no Moonraker events arrive, but we need to update the DataValue).
+
+3. **Screen sleep wake timing** — `_lastActivity` is updated only when a `CmdMessage` is received, not on every tick. This means during a long print with data-only updates (no state transitions), the screen will sleep 30s after the last trigger. This is intentional — during quiet prints the OLED doesn't need to stay on, and any new state change (e.g. print complete) wakes it. The idle cycles of the `idle_faces` animation don't generate `CmdMessage`s, so the 30s timer starts after the idle trigger has been processed.
 
 ### Behavior per scenario (correctness trace)
 

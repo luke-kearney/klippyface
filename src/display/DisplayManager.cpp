@@ -26,11 +26,18 @@ void DisplayManager::buildHardcodedConfig() {
     statusEl.type = FrameElement::Text;
     statusEl.value = "printer idle";
     statusEl.x = 64;
-    statusEl.y = 32;
+    statusEl.y = 24;
+
+    FrameElement mrStatus;
+    mrStatus.type = FrameElement::DataValue;
+    mrStatus.value = "moonraker.connected";
+    mrStatus.x = 64;
+    mrStatus.y = 48;
 
     Frame statusFrame;
     statusFrame.duration_ms = 3000;
     statusFrame.elements.push_back(statusEl);
+    statusFrame.elements.push_back(mrStatus);
 
     FrameElement infoLine1;
     infoLine1.type = FrameElement::Text;
@@ -151,6 +158,76 @@ void DisplayManager::buildHardcodedConfig() {
     celebGroup.label = "Celebration Faces";
     celebGroup.sets.push_back(celebSet);
 
+    // WiFi offline group
+    FrameElement wifiLine1;
+    wifiLine1.type = FrameElement::Text;
+    wifiLine1.value = "WiFi Offline";
+    wifiLine1.x = 64;
+    wifiLine1.y = 24;
+
+    FrameElement wifiLine2;
+    wifiLine2.type = FrameElement::Text;
+    wifiLine2.value = "Check network";
+    wifiLine2.x = 64;
+    wifiLine2.y = 44;
+
+    Frame wifiFrame;
+    wifiFrame.duration_ms = 2000;
+    wifiFrame.elements.push_back(wifiLine1);
+    wifiFrame.elements.push_back(wifiLine2);
+
+    Set wifiSet;
+    wifiSet.id = "default";
+    wifiSet.loop_forever = true;
+    wifiSet.frames.push_back(wifiFrame);
+
+    Group wifiOfflineGroup;
+    wifiOfflineGroup.id = "wifi_offline";
+    wifiOfflineGroup.label = "WiFi Offline";
+    wifiOfflineGroup.sets.push_back(wifiSet);
+
+    // Moonraker offline group
+    FrameElement mrLine1;
+    mrLine1.type = FrameElement::Text;
+    mrLine1.value = "Moonraker Down";
+    mrLine1.x = 64;
+    mrLine1.y = 24;
+
+    FrameElement mrLine2;
+    mrLine2.type = FrameElement::Text;
+    mrLine2.value = "Reconnecting...";
+    mrLine2.x = 64;
+    mrLine2.y = 44;
+
+    Frame mrFrame;
+    mrFrame.duration_ms = 2000;
+    mrFrame.elements.push_back(mrLine1);
+    mrFrame.elements.push_back(mrLine2);
+
+    Set mrSet;
+    mrSet.id = "default";
+    mrSet.loop_forever = true;
+    mrSet.frames.push_back(mrFrame);
+
+    Group mrOfflineGroup;
+    mrOfflineGroup.id = "moonraker_offline";
+    mrOfflineGroup.label = "Moonraker Offline";
+    mrOfflineGroup.sets.push_back(mrSet);
+
+    // Screen sleep group — blank frame, no elements
+    Frame sleepFrame;
+    sleepFrame.duration_ms = 1000;
+
+    Set sleepSet;
+    sleepSet.id = "default";
+    sleepSet.loop_forever = true;
+    sleepSet.frames.push_back(sleepFrame);
+
+    Group sleepGroup;
+    sleepGroup.id = "screen_sleep";
+    sleepGroup.label = "Screen Sleep";
+    sleepGroup.sets.push_back(sleepSet);
+
     DisplayDriver* driver = new Sh1106Driver(128, 64, 0x3C, 0);
     if (!driver->init()) {
         Serial.printf("[%s] Hardcoded SH1106 init failed\n", TAG);
@@ -162,6 +239,9 @@ void DisplayManager::buildHardcodedConfig() {
     groups[idleGroup.id] = idleGroup;
     groups[printGroup.id] = printGroup;
     groups[celebGroup.id] = celebGroup;
+    groups[wifiOfflineGroup.id] = wifiOfflineGroup;
+    groups[mrOfflineGroup.id] = mrOfflineGroup;
+    groups[sleepGroup.id] = sleepGroup;
 
     std::map<String, String> triggers;
     triggers["state:idle"] = "idle_faces";
@@ -169,6 +249,8 @@ void DisplayManager::buildHardcodedConfig() {
     triggers["state:complete"] = "celebration_faces";
     triggers["state:error"] = "idle_faces";
     triggers["state:paused"] = "idle_faces";
+    triggers["wifi:disconnected"] = "wifi_offline";
+    triggers["moonraker:disconnected"] = "moonraker_offline";
 
     DisplaySlot slot;
     slot.id = "face_oled";
@@ -187,13 +269,27 @@ bool DisplayManager::begin() {
         Serial.printf("[%s] Failed to create command queue\n", TAG);
     }
     buildHardcodedConfig();
+    _lastActivity = millis();
+    _screenSaverActive = false;
     return !_slots.empty();
 }
 
 void DisplayManager::tickAll(uint32_t now) {
+    // Phase A — Process CmdMessage queue (wake if sleeping)
     if (_cmdQueue) {
         CmdMessage cmd;
         while (xQueueReceive(_cmdQueue, &cmd, 0) == pdTRUE) {
+            if (_screenSaverActive) {
+                for (auto& slot : _slots) {
+                    if (slot.driver) {
+                        slot.driver->powerSave(false);
+                    }
+                    slot.engine.resetToDefault();
+                }
+                _screenSaverActive = false;
+                Serial.printf("[%s] Woken from screen sleep\n", TAG);
+            }
+
             switch (cmd.type) {
                 case CmdMessage::TriggerChange:
                     for (auto& slot : _slots) {
@@ -211,8 +307,25 @@ void DisplayManager::tickAll(uint32_t now) {
                     }
                     break;
             }
+            _lastActivity = now;
         }
     }
+
+    // Phase B — Check sleep timeout
+    if (!_screenSaverActive && (now - _lastActivity >= SCREEN_SAVER_TIMEOUT)) {
+        for (auto& slot : _slots) {
+            slot.engine.switchToGroup("screen_sleep");
+            if (slot.driver) {
+                slot.driver->powerSave(true);
+            }
+        }
+        _screenSaverActive = true;
+        Serial.printf("[%s] Screen sleep after %lums inactivity\n",
+                      TAG, (unsigned long)SCREEN_SAVER_TIMEOUT);
+    }
+
+    // Phase C — Render (skip if sleeping)
+    if (_screenSaverActive) return;
 
     for (auto& slot : _slots) {
         if (!slot.driver) continue;
@@ -231,6 +344,11 @@ void DisplayManager::updateState(const StateEvent& event) {
     _printerState.bedTemp = event.bedTemp;
     _printerState.nozzleTarget = event.nozzleTarget;
     _printerState.bedTarget = event.bedTarget;
+    _printerState.moonrakerConnected = event.connected;
+}
+
+void DisplayManager::setMoonrakerConnected(bool connected) {
+    _printerState.moonrakerConnected = connected;
 }
 
 void DisplayManager::onStateChange(const String& trigger) {

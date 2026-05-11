@@ -42,6 +42,7 @@ struct PrinterState {
     float bedTemp       = 0.0f;
     float nozzleTarget  = 0.0f;
     float bedTarget     = 0.0f;
+    bool  moonrakerConnected = false;
 
     String resolve(const String& key) const;
 };

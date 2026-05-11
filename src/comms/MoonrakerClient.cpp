@@ -32,7 +32,9 @@ bool MoonrakerClient::begin(const String& host, uint16_t port) {
 }
 
 void MoonrakerClient::tick() {
-    _ws.loop();
+    if (WiFi.isConnected()) {
+        _ws.loop();
+    }
 
     if (!_connected && WiFi.isConnected()
         && millis() - _lastReconnectAttempt > _reconnectInterval) {
@@ -166,6 +168,7 @@ void MoonrakerClient::handleStatusUpdate(const JsonDocument& doc) {
         event.bedTemp = bedTemp;
         event.nozzleTarget = nozzleTarget;
         event.bedTarget = bedTarget;
+        event.connected = _connected;
 
         if (xQueueSend(_stateQueue, &event, 0) != pdTRUE) {
             Serial.printf("[%s] State queue full — dropping event\n", TAG);
@@ -249,6 +252,7 @@ void MoonrakerClient::tick() {
         event.bedTemp = (mockState == MOCK_PRINTING) ? 60.0f : 25.0f;
         event.nozzleTarget = (mockState == MOCK_PRINTING) ? 220.0f : 0.0f;
         event.bedTarget = (mockState == MOCK_PRINTING) ? 65.0f : 0.0f;
+        event.connected = _connected;
 
         if (newTrigger[0] != '\0') {
             Serial.printf("[%s] MOCK state: %s (progress: %.1f%%)\n",

@@ -23,6 +23,7 @@ public:
     void tickAll(uint32_t now);
     void onStateChange(const String& trigger);
     void updateState(const StateEvent& event);
+    void setMoonrakerConnected(bool connected);
     void directCommand(const String& groupId,
                        const String& setId = "",
                        int16_t loopCount = 0);
@@ -52,6 +53,10 @@ private:
     std::map<String, Sprite> _sprites;
     QueueHandle_t _cmdQueue = nullptr;
     PrinterState _printerState;
+
+    unsigned long _lastActivity = 0;
+    bool _screenSaverActive = false;
+    static const unsigned long SCREEN_SAVER_TIMEOUT = 30000;
 
     void buildHardcodedConfig();
     void cleanup();

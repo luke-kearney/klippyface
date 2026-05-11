@@ -61,6 +61,13 @@ void moonrakerTask(void *pvParameters) {
     moonrakerClient.setGcodeQueue(gcodeQueue);
     moonrakerClient.begin(host, port);
 
+    enum ConnMonitor : uint8_t {
+        CONN_ONLINE,
+        CONN_WIFI_OFFLINE,
+        CONN_MOONRAKER_OFFLINE
+    };
+    ConnMonitor lastConn = CONN_ONLINE;
+
     StateEvent event;
     for (;;) {
         moonrakerClient.tick();
@@ -71,6 +78,35 @@ void moonrakerTask(void *pvParameters) {
             displayManager.updateState(event);
             if (event.trigger[0] != '\0') {
                 displayManager.onStateChange(String(event.trigger));
+            }
+        }
+
+        // Connection state monitor — priority: WiFi > Moonraker > Online
+        bool wifiOk = WiFi.isConnected();
+        bool mrOk = moonrakerClient.isConnected();
+
+        ConnMonitor newConn;
+        if (!wifiOk)                     newConn = CONN_WIFI_OFFLINE;
+        else if (!mrOk)                  newConn = CONN_MOONRAKER_OFFLINE;
+        else                             newConn = CONN_ONLINE;
+
+        if (newConn != lastConn) {
+            lastConn = newConn;
+            switch (newConn) {
+                case CONN_WIFI_OFFLINE:
+                    Serial.println("[MAIN] Connection: WIFI_OFFLINE");
+                    displayManager.setMoonrakerConnected(false);
+                    displayManager.onStateChange("wifi:disconnected");
+                    break;
+                case CONN_MOONRAKER_OFFLINE:
+                    Serial.println("[MAIN] Connection: MOONRAKER_OFFLINE");
+                    displayManager.setMoonrakerConnected(false);
+                    displayManager.onStateChange("moonraker:disconnected");
+                    break;
+                case CONN_ONLINE:
+                    Serial.println("[MAIN] Connection: ONLINE");
+                    displayManager.setMoonrakerConnected(true);
+                    break;
             }
         }
 

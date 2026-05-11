@@ -15,6 +15,7 @@ struct StateEvent {
     float bedTemp;
     float nozzleTarget;
     float bedTarget;
+    bool  connected;
 };
 
 class MoonrakerClient {

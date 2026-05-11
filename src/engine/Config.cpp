@@ -74,6 +74,10 @@ String PrinterState::resolve(const String& key) const {
         return String(buf);
     }
 
+    if (key == "moonraker.connected") {
+        return moonrakerConnected ? "Online" : "Offline";
+    }
+
     Serial.printf("[%s] Unknown binding key: %s\n", TAG, key.c_str());
     return "?";
 }

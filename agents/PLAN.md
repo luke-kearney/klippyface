@@ -635,11 +635,11 @@ klippyface/
 | ID | Insert After | Description | Files | Status |
 |----|-------------|-------------|-------|--------|
 | 2A | Task 2.5 | **Refactor Frame data model for element composition.** The original Frame was a single atomic renderable (one type, one value, one position). The system needs frames as canvases of N independently positioned elements (text, sprites, live data bindings). Also adds `PrinterState` runtime struct with `resolve()` for data binding keys, continuous Moonraker event forwarding, and Progress/Temp frame types subsumed into `FrameElement::DataValue`. | `engine/Config.h/.cpp`, `display/Renderer.h/.cpp`, `display/DisplayManager.h/.cpp`, `comms/MoonrakerClient.cpp`, `main.cpp` | ✅ Done |
-| 2B | Task 2.6 | **Connection status handling + screen sleep.** Add dedicated `wifi_offline`, `moonraker_offline`, and `screen_sleep` display groups. Priority-based connection state machine in `main.cpp` monitors WiFi/Moonraker status and sends triggers. Screen powers off after 30s idle, wakes on any activity. Adds `moonraker.connected` DataValue key. | `engine/Config.h/.cpp`, `display/DisplayManager.h/.cpp`, `main.cpp`, `agents/docs/phase-2/TODO.md` | 🟡 In Progress |
+| 2B | Task 2.6 | **Connection status handling + screen sleep.** Add dedicated `wifi_offline`, `moonraker_offline`, and `screen_sleep` display groups. Priority-based connection state machine in `main.cpp` monitors WiFi/Moonraker status and sends triggers. Screen powers off after 30s idle, wakes on any activity. Adds `moonraker.connected` DataValue key. | `engine/Config.h/.cpp`, `display/DisplayManager.h/.cpp`, `main.cpp`, `agents/docs/phase-2/TODO.md` | ✅ Done |
 
 **Definition of done:** Printer starts printing → OLED shows printing face. Print completes → OLED switches to complete face. No polling — all WebSocket driven.
 
-**Phase 2 status:** 🟡 In Progress — code complete, both build variants pass, awaiting hardware integration test with real Moonraker.
+**Phase 2 status:** 🟡 In Progress — Tangent 2B code complete, awaiting build verification. Both build variants previously passed (pre-Tangent 2B).
 
 **Agent tracking:** See `agents/docs/phase-2/TODO.md` for task details.
 
