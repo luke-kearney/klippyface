@@ -7,37 +7,50 @@
 #include <vector>
 
 // -------------------------------------------------------------------
-// FrameType enum
+// FrameElement — a single positioned element within a Frame
 // -------------------------------------------------------------------
-enum class FrameType : uint8_t {
-    Text,
-    Sprite,
-    Clear,
-    Progress,
-    Temp
+struct FrameElement {
+    enum Type : uint8_t {
+        Text,
+        Sprite,
+        DataValue
+    };
+
+    Type        type    = Type::Text;
+    String      value;       // text content, sprite name, or binding key
+    String      label;       // optional display label
+    uint32_t    color   = 0xFFFFFF;
+    int16_t     x       = 0;
+    int16_t     y       = 0;
 };
 
-const char* frameTypeToString(FrameType t);
-FrameType stringToFrameType(const char* s);
+// -------------------------------------------------------------------
+// Frame — a container of elements rendered on one screen
+// -------------------------------------------------------------------
+struct Frame {
+    uint32_t                    duration_ms = 1000;
+    uint32_t                    bg_color    = 0x000000;
+    std::vector<FrameElement>   elements;
+};
+
+// -------------------------------------------------------------------
+// PrinterState — live runtime values from Moonraker
+// -------------------------------------------------------------------
+struct PrinterState {
+    float progress      = 0.0f;
+    float nozzleTemp    = 0.0f;
+    float bedTemp       = 0.0f;
+    float nozzleTarget  = 0.0f;
+    float bedTarget     = 0.0f;
+
+    String resolve(const String& key) const;
+};
 
 // -------------------------------------------------------------------
 // Utility: hex color "#RRGGBB" → uint32_t 0xRRGGBB
 // Returns 0x000000 on parse failure.
 // -------------------------------------------------------------------
 uint32_t hexColorToUint32(const char* hex);
-
-// -------------------------------------------------------------------
-// Frame — a single renderable element
-// -------------------------------------------------------------------
-struct Frame {
-    FrameType   type        = FrameType::Text;
-    String      value;
-    uint32_t    duration_ms = 1000;
-    uint32_t    color       = 0xFFFFFF;
-    uint32_t    bg_color    = 0x000000;
-    int16_t     x_offset    = 0;
-    int16_t     y_offset    = 0;
-};
 
 // -------------------------------------------------------------------
 // Set — a sequence of frames with loop control

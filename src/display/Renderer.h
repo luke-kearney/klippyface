@@ -9,6 +9,7 @@
 #include "display/Sprite.h"
 
 void renderFrame(const Frame& frame, DisplayDriver& display,
-                 const std::map<String, Sprite>* sprites = nullptr);
+                 const std::map<String, Sprite>* sprites = nullptr,
+                 const PrinterState* state = nullptr);
 
 #endif

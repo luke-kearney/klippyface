@@ -4,28 +4,6 @@
 static const char* TAG = "CONFIG";
 
 // -------------------------------------------------------------------
-// FrameType <-> string conversion
-// -------------------------------------------------------------------
-const char* frameTypeToString(FrameType t) {
-    switch (t) {
-        case FrameType::Text:     return "text";
-        case FrameType::Sprite:   return "sprite";
-        case FrameType::Clear:    return "clear";
-        case FrameType::Progress: return "progress";
-        case FrameType::Temp:     return "temp";
-    }
-    return "text";
-}
-
-FrameType stringToFrameType(const char* s) {
-    if (strcasecmp(s, "sprite") == 0)   return FrameType::Sprite;
-    if (strcasecmp(s, "clear") == 0)    return FrameType::Clear;
-    if (strcasecmp(s, "progress") == 0) return FrameType::Progress;
-    if (strcasecmp(s, "temp") == 0)     return FrameType::Temp;
-    return FrameType::Text;
-}
-
-// -------------------------------------------------------------------
 // Hex color parser "#RRGGBB" → 0xRRGGBB
 // -------------------------------------------------------------------
 uint32_t hexColorToUint32(const char* hex) {
@@ -33,7 +11,6 @@ uint32_t hexColorToUint32(const char* hex) {
         return 0x000000;
     }
 
-    // Skip leading '#'
     if (*hex == '#') {
         hex++;
     }
@@ -61,4 +38,42 @@ uint32_t hexColorToUint32(const char* hex) {
     }
 
     return result;
+}
+
+// -------------------------------------------------------------------
+// PrinterState::resolve — maps Moonraker keys to formatted display strings
+// -------------------------------------------------------------------
+String PrinterState::resolve(const String& key) const {
+    if (key == "print_stats.progress") {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%.1f%%", progress);
+        return String(buf);
+    }
+
+    if (key == "extruder.temperature") {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%.0f°C", nozzleTemp);
+        return String(buf);
+    }
+
+    if (key == "heater_bed.temperature") {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%.0f°C", bedTemp);
+        return String(buf);
+    }
+
+    if (key == "extruder.target") {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%.0f°C", nozzleTarget);
+        return String(buf);
+    }
+
+    if (key == "heater_bed.target") {
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%.0f°C", bedTarget);
+        return String(buf);
+    }
+
+    Serial.printf("[%s] Unknown binding key: %s\n", TAG, key.c_str());
+    return "?";
 }
