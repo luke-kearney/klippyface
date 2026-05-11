@@ -9,6 +9,7 @@ class Settings {
 public:
     static bool begin();
     static bool isProvisioned();
+    static void setProvisioned(bool provisioned);
 
     // WiFi
     static String getWifiSsid();

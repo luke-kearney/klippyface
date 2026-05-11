@@ -46,6 +46,13 @@ bool Settings::isProvisioned() {
     return val == 1;
 }
 
+void Settings::setProvisioned(bool provisioned) {
+    if (!_ready) return;
+    nvs_set_u8(_handle, KEY_PROVISIONED, provisioned ? 1 : 0);
+    commit();
+    Serial.printf("[%s] Provisioned: %s\n", TAG, provisioned ? "yes" : "no");
+}
+
 // ---- WiFi ----
 
 String Settings::getWifiSsid()       { return readString(KEY_WIFI_SSID, ""); }

@@ -160,6 +160,14 @@ void setup() {
 
     Settings::begin();
 
+    // Factory reset: hold GPIO0 (BOOT button) during power-on
+    pinMode(0, INPUT_PULLUP);
+    if (digitalRead(0) == LOW) {
+        Serial.println("[BOOT] GPIO0 held LOW — factory reset");
+        Settings::clear();
+        ESP.restart();
+    }
+
     // Create inter-task queues
     stateQueue = xQueueCreate(5, sizeof(StateEvent));
     gcodeQueue = xQueueCreate(5, sizeof(GcodeMessage));
