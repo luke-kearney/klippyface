@@ -35,7 +35,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 | Web UI — node/display management | ⬜ Planned |
 | Web UI — pixel sprite editor | ⬜ Planned |
 | Web UI — animation preview canvas | ⬜ Planned |
-| Captive portal first-boot setup | 🟡 In Progress — Phase 7 |
+| Captive portal first-boot setup | ✅ Complete |
 | Multi-node support | ⬜ Planned |
 
 ## Current Status

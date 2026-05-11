@@ -43,7 +43,7 @@ void CaptivePortal::tick() {
         ESP.restart();
     }
 
-    _dns.processNext();
+    _dns.processNextRequest();
     _server.handleClient();
 
     if (millis() - _lastActivity > IDLE_TIMEOUT_MS) {
