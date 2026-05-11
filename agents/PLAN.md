@@ -750,6 +750,12 @@ klippyface/
 
 **Phase 7 status:** ✅ Complete — see `agents/docs/phase-7/TODO.md` for task details.
 
+**Tangents:**
+
+| ID | Insert After | Description | Files | Status |
+|----|-------------|-------------|-------|--------|
+| 7A | Task 7.5 | **WebSocket handshake diagnostic.** Raw TCP to Moonraker succeeds but library upgrade handshake fails. PC-side test confirms Moonraker WS endpoint works. Root cause: outdated `links2004/WebSockets` library (`^2.4.2` → `^2.7.3`) combined with ignored disconnect reason. Fixes: bump library version, add disconnect reason logging, fix WiFi readiness race, remove duplicate reconnect logic. | `platformio.ini`, `src/comms/MoonrakerClient.cpp`, `src/comms/MoonrakerClient.h`, `src/main.cpp` | 🟡 In Progress |
+
 ---
 
 ### Phase 8: Multi-Node & Polish (Low Priority)
@@ -1141,6 +1147,7 @@ To assess the current state of the project:
 - **WebSocket command channel** — companion server can push commands to nodes
 - **Node grouping** — assign the same content to multiple nodes at once
 - **Config versioning** — history of config changes, rollback support
+- **FQDN Moonraker host support** — the Moonraker host field currently accepts IP:port (e.g. `192.168.2.21:7125`). Extend `Settings` parsing + captive portal form validation to accept FQDNs (e.g. `moonraker.domain.com:7125`). The captive portal's IP-format validation in the setup HTML would need updating to allow hostnames.
 
 ---
 

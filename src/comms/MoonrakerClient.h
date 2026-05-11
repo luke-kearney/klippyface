@@ -35,12 +35,11 @@ private:
     WebSocketsClient _ws;
     String _host;
     uint16_t _port;
+    String _originHeader;
     QueueHandle_t _stateQueue = nullptr;
     QueueHandle_t _gcodeQueue = nullptr;
     bool _connected = false;
 
-    unsigned long _lastReconnectAttempt = 0;
-    unsigned long _reconnectInterval = 5000;
     unsigned long _lastPing = 0;
     static const unsigned long PING_INTERVAL = 30000;
 

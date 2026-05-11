@@ -60,7 +60,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 | 4 | ESP32 Config Fetcher | ⬜ Not Started | [TODO](agents/docs/phase-4/TODO.md) |
 | 5 | Web UI | ⬜ Not Started | [TODO](agents/docs/phase-5/TODO.md) |
 | 6 | GCODE Macro Integration | ⬜ Not Started | [TODO](agents/docs/phase-6/TODO.md) |
-| 7 | Captive Portal Setup | ⬜ Not Started | [TODO](agents/docs/phase-7/TODO.md) |
+| 7 | Captive Portal Setup | ✅ Complete | [TODO](agents/docs/phase-7/TODO.md) |
 | 8 | Multi-Node & Polish | ⬜ Not Started | [TODO](agents/docs/phase-8/TODO.md) |
 
 ## Project Structure

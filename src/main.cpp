@@ -55,7 +55,10 @@ void wifiTask(void *pvParameters) {
 // -------------------------------------------------------------------
 void moonrakerTask(void *pvParameters) {
     // Wait for WiFi before connecting to Moonraker
-    wifiManager.waitForConnection();
+    while (!wifiManager.waitForConnection(pdMS_TO_TICKS(1000))) {
+        Serial.println("[MAIN] Waiting for WiFi...");
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
 
     String host = Settings::getMoonrakerHost();
     uint16_t port = Settings::getMoonrakerPort();

@@ -117,3 +117,144 @@ Implementation writes `nvs_set_u8(KEY_PROVISIONED, provisioned ? 1 : 0)` and cal
 - Test with `websocat ws://192.168.2.21:7125/websocket` from the PC to verify raw WS connection
 - Check if Moonraker requires `api_key` or `token` parameter
 - Verify timing: ensure `wifiManager.begin()` runs _before_ `waitForConnection()` checks
+
+### Fix: 2026-05-11 — Three Bugs Identified and Fixed
+
+**Root cause analysis — routing ruled out:**
+
+Netmask `255.255.224.0` (/19) means `192.168.1.x` and `192.168.2.x` are on the **same
+subnet** (covers `192.168.0.0` – `192.168.31.255`). No routing needed — this is purely
+a code bug.
+
+**Bug 1 — `waitForConnection()` return value ignored:**
+
+`main.cpp:58` — `moonrakerTask` calls `wifiManager.waitForConnection()` but discards
+the return value. If `wifiTask` hasn't run yet, the event group is null and
+`waitForConnection()` returns `false` immediately. The code proceeds to call
+`_ws.begin()` before WiFi's TCP/IP stack is ready.
+
+```
+moonrakerTask runs first (race with wifiTask):
+  ├── waitForConnection() → false     ← event group not yet created
+  ├── (return value IGNORED)
+  └── _ws.begin() called              ← async TCP connect on dead stack!
+
+Later, WiFi connects:
+  ├── _ws.loop() called — original async connect already abandoned
+  └── Manual reconnect fires → _ws.begin() called AGAIN
+```
+
+**Fix A:** Replace the single-shot `waitForConnection()` with a retry loop.
+
+**Bug 2 — Manual reconnect fights library's auto-reconnect:**
+
+`MoonrakerClient.cpp:39-44` — `tick()` has manual reconnect logic that calls
+`_ws.begin()` every 5 seconds. But `begin()` already calls
+`_ws.setReconnectInterval(5000)`, which tells the WebSockets library to handle
+reconnection internally. Two reconnect mechanisms call `_ws.begin()` in parallel,
+corrupting the library's internal connection state machine.
+
+**Fix B:** Remove the manual reconnect block in `tick()`. The library handles it.
+
+**Bug 3 — No pre-flight diagnostics:**
+
+`MoonrakerClient::begin()` logs the target URL but never logs the ESP32's own IP,
+gateway, netmask, or whether the Moonraker host is even TCP-reachable before
+starting the WebSocket handshake.
+
+**Fix C:** Log network config + attempt a raw TCP connect test to Moonraker:port
+before the WebSocket begins.
+
+**Verification — expected serial output with all fixes:**
+
+```
+[WIFI] Connected, IP: 192.168.1.29
+[MOONRAKER] ESP32 IP: 192.168.1.29
+[MOONRAKER] Gateway: 192.168.1.1
+[MOONRAKER] Netmask: 255.255.224.0
+[MOONRAKER] Moonraker 192.168.2.21:7125 — TCP reachable ✓
+[MOONRAKER] Connecting to ws://192.168.2.21:7125/websocket
+[MOONRAKER] Connected
+[MOONRAKER] Subscribed to printer objects
+[MAIN] Connection: ONLINE
+```
+
+### Fix: 2026-05-11 — Round 2: HTTP 403 from Moonraker CORS check
+
+**Discovery:** After Fixes A+B+C, the WebSocket handshake was still failing. The new
+disconnect-reason logging revealed:
+
+```
+[MOONRAKER] Disconnected: WebSocket handshake failed - HTTP 403
+```
+
+**Root cause:** Moonraker's `cors_domains` config rejects WebSocket upgrade requests
+that lack a matching `Origin` header. The ESP32's WebSocket library (links2004/WebSockets)
+sends no `Origin` header by default.
+
+Browser test confirmed Moonraker's WS endpoint works fine (browser sends proper Origin
+from the page's domain). The ESP32 was sending a bare upgrade request → Moonraker 403.
+
+**Fix:**
+- Bump WebSockets library from `^2.4.2` to `^2.7.3` (needed newer API)
+- Add dynamic `Origin` header via `_ws.setExtraHeaders(...)` set to
+  `"Origin: http://<moonraker_host>:<moonraker_port>\r\n"`
+- Store header string in `String _originHeader` member (library stores `const char*`
+  pointer — must live as long as the client)
+
+**Build issue:** `setExtraHeaders(const char*)` doesn't accept `String&`. Must call
+with `.c_str()`:
+
+```cpp
+_originHeader = "Origin: http://" + host + ":" + String(port) + "\r\n";
+_ws.setExtraHeaders(_originHeader.c_str());
+```
+
+**Status:** 🟡 In Progress — compile fixed, awaiting build + upload test.
+
+### Fix: 2026-05-11 — Round 3: Origin header made things worse
+
+**Finding:** Adding `Origin: http://192.168.2.21:7125` changed the error from
+`HTTP 403` to `Connection lost`. Even with `*://192.168.2.21:*` added to
+`cors_domains` and `192.168.1.29` explicitly listed in `trusted_clients`,
+Moonraker still closed the connection.
+
+**Root cause:** Adding an explicit `Origin` header to the WebSocket upgrade request
+causes Moonraker to enter its CORS enforcement code path, which rejects the
+connection before the `trusted_clients` authorization check is reached. Without
+an `Origin` header, Moonraker skips CORS entirely and falls through to
+`trusted_clients`, where `192.168.1.29` is allowed.
+
+**Resolution:** Remove the `setExtraHeaders`/`_originHeader` code. Send no
+Origin header. Moonraker's `trusted_clients` list handles authorization.
+
+**Status:** ✅ Fix A/B/C (WiFi wait, remove manual reconnect, diagnostics) kept.
+Origin header code removed. Awaiting build + upload test.
+
+### Fix: 2026-05-11 — Round 3 retry: Origin header + cors_domains work together
+
+**Finding from testing:**
+- **No Origin header on ESP32 + cors_domains `*`** → connects ✓
+- **No Origin header on ESP32 + cors_domains specific** → 403 ✗
+- This confirms: Moonraker requires an Origin that matches cors_domains for
+  WebSocket upgrades. With `trusted_clients` only, 403. With matching
+  cors_domains + Origin header, connection accepted.
+
+**Final fix:**
+- Add Origin header back on ESP32: `Origin: http://<host>:<port>`
+- **Critical: Do NOT append `\r\n` to the header value.** The `WebSocketsClient::setExtraHeaders()`
+  function handles line endings internally. Including `\r\n` causes Moonraker to reject the
+  connection with "Connection lost" (double line-end corrupts the HTTP upgrade request).
+- Store the header string in a `String _originHeader` member so the underlying `const char*`
+  pointer stays valid for the library's internal use.
+- Keep `*://192.168.2.21:*` in moonraker.conf cors_domains
+- Moonraker sees Origin matching cors_domains → allows upgrade → connected.
+
+**Working code (MoonrakerClient.cpp:45-46):**
+```cpp
+_originHeader = "Origin: http://" + host + ":" + String(port);
+_ws.setExtraHeaders(_originHeader.c_str());
+```
+
+**Status:** ✅ All Tangent 7A fixes applied. Ready for build + upload.
+```

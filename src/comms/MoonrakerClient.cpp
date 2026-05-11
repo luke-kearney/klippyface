@@ -21,10 +21,29 @@ bool MoonrakerClient::begin(const String& host, uint16_t port) {
     _host = host;
     _port = port;
 
+    Serial.printf("[%s] ESP32 IP: %s\n",
+                  TAG, WiFi.localIP().toString().c_str());
+    Serial.printf("[%s] Gateway: %s\n",
+                  TAG, WiFi.gatewayIP().toString().c_str());
+    Serial.printf("[%s] Netmask: %s\n",
+                  TAG, WiFi.subnetMask().toString().c_str());
+
+    WiFiClient tcpTest;
+    if (tcpTest.connect(host.c_str(), port, 3000)) {
+        Serial.printf("[%s] Moonraker %s:%u — TCP reachable ✓\n",
+                      TAG, host.c_str(), port);
+        tcpTest.stop();
+    } else {
+        Serial.printf("[%s] Moonraker %s:%u — TCP unreachable ✗\n",
+                      TAG, host.c_str(), port);
+    }
+
     Serial.printf("[%s] Connecting to ws://%s:%u/websocket\n",
                   TAG, host.c_str(), port);
 
     _ws.begin(host, port, "/websocket");
+    _originHeader = "Origin: http://" + host + ":" + String(port);
+    _ws.setExtraHeaders(_originHeader.c_str());
     _ws.onEvent(onWSEvent);
     _ws.setReconnectInterval(5000);
 
@@ -34,13 +53,6 @@ bool MoonrakerClient::begin(const String& host, uint16_t port) {
 void MoonrakerClient::tick() {
     if (WiFi.isConnected()) {
         _ws.loop();
-    }
-
-    if (!_connected && WiFi.isConnected()
-        && millis() - _lastReconnectAttempt > _reconnectInterval) {
-        _lastReconnectAttempt = millis();
-        Serial.printf("[%s] Attempting reconnect...\n", TAG);
-        _ws.begin(_host, _port, "/websocket");
     }
 
     if (_connected && millis() - _lastPing > PING_INTERVAL) {
@@ -64,12 +76,15 @@ void MoonrakerClient::handleWSEvent(WStype_t type, uint8_t* payload, size_t leng
     switch (type) {
         case WStype_DISCONNECTED:
             _connected = false;
-            Serial.printf("[%s] Disconnected\n", TAG);
+            if (payload && length > 0) {
+                Serial.printf("[%s] Disconnected: %s\n", TAG, (const char*)payload);
+            } else {
+                Serial.printf("[%s] Disconnected\n", TAG);
+            }
             break;
 
         case WStype_CONNECTED:
             _connected = true;
-            _lastReconnectAttempt = millis();
             Serial.printf("[%s] Connected\n", TAG);
             sendSubscribe();
             break;
