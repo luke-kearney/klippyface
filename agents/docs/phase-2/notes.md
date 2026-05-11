@@ -11,6 +11,21 @@
 
 2. **ArduinoJson 7 `JsonVariantConst` vs `JsonObject`** — `doc["params"][0]` returns `JsonVariantConst`, not `JsonObject`. Cannot use `const JsonObject&` to capture it. Fixed by using `JsonVariantConst params0 = doc["params"][0];` which supports the same access patterns.
 
+## 2026-05-11: Tangent 2A — Frame data model oversight
+
+**The problem:** Original `Frame` struct was designed for face cycling (one type, one value, one position). Could not express "draw an icon at (0,0) and a temperature at (18,0) on the same canvas." The `Progress` and `Temp` frame types were stubs with no data plumbing.
+
+**The fix:** Replace atomic Frame with element composition model:
+- `Frame` becomes a container: `{duration_ms, bg_color, elements: [...]}`
+- `FrameElement` has types: Text, Sprite, DataValue
+- `DataValue` resolves Moonraker keys via `PrinterState::resolve()`
+- `PrinterState` carries latest progress + temps, stored in DisplayManager
+- MoonrakerClient sends on every `notify_status_update` (not just transitions)
+
+**Pipeline change:** `main.cpp` now calls `displayManager.updateState(event)` on every event. `tickAll()` passes `PrinterState` to `renderFrame()`. DataValue elements use `state->resolve(key)`.
+
+**Key insight:** The old `FrameType` enum (Text, Sprite, Clear, Progress, Temp) is replaced by `FrameElement::Type` (Text, Sprite, DataValue). Progress and Temp are now handled by DataValue with binding keys — no separate frame types needed. Clear is handled by `Frame::bg_color`.
+
 ## 2026-05-11: Architecture summary
 
 ```

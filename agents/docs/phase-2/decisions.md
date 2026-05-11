@@ -25,6 +25,29 @@
 - **Fix:** Use `JsonVariantConst params0 = doc["params"][0];` — `JsonVariantConst` supports `.isNull()`, `.as<>()`, and bracket-access chaining for sub-properties.
 - **Lesson:** In ArduinoJson 7, always use `JsonVariantConst` (or `JsonVariant`) for intermediate access, not `JsonObject`/`JsonArray`.
 
+## 2026-05-11: Tangent 2A — Frame data model refactor (element composition)
+
+- **Context:** Original `Frame` was a single atomic renderable (one type, one value, one position). This was designed for simple face cycling but fundamentally couldn't express dashboards with multiple positioned elements (icons + labels + live data) on one canvas. Changing this now avoids baking a wrong API into downstream phases (server schema, config deserializer, Web UI frame editor).
+- **Old model:** `Frame{type, value, duration_ms, color, bg_color, x_offset, y_offset}` — one type per frame
+- **New model:** `Frame{duration_ms, bg_color, elements: [FrameElement{type, value, label, color, x, y}]}` — N elements per frame
+- **FrameElement types:** `Text` (static string), `Sprite` (named bitmap), `DataValue` (live Moonraker binding)
+- **DataValue binding:** `PrinterState::resolve(key)` maps keys like `"extruder.temperature"` → `"210°C"`
+- **Rationale:** The canvas model is more flexible, matches how the Web UI frame builder will work, and requires only a mechanical conversion of existing content (face frames become single-element frames). Downstream phases build on the right model from day one.
+
+## 2026-05-11: Cross-core PrinterState passing — direct struct store (no mutex)
+
+- **Context:** `PrinterState` is written by `moonrakerTask` (Core 0) and read by `displayTask` (Core 1) via `DisplayManager::tickAll()`.
+- **Option A:** Mutex — correct but adds lock overhead on the 30fps tick path
+- **Option B:** Queue — follows established pattern but adds queue pressure for 5Hz updates
+- **Option C:** Direct struct store — each float is 32-bit aligned, write is atomic on Xtensa LX6 ← **Chosen**
+- **Rationale:** Individual float writes are atomic. The risk of reading mixed old/new values across fields is visually imperceptible at display timescales. No locks, no queue pressure, minimal code.
+
+## 2026-05-11: Continuous Moonraker event sending
+
+- **Context:** Previously `StateEvent` was only sent on printer state *transitions*. This meant progress/temp data was never forwarded during a print, making data binding useless.
+- **Decision:** Always send `StateEvent` on every `notify_status_update`, regardless of whether the printer state changed. The `trigger` field is empty for data-only updates; `main.cpp` skips `onStateChange()` when trigger is empty but always calls `updateState()`.
+- **Rationale:** Simple. Queue depth 5 + drain at 30fps >> send rate at ~5fps. Queue drops are silent and non-destructive (just use previous value).
+
 ## 2026-05-11: Mock mode architecture
 
 - **Context:** Need to test the full pipeline (state changes → triggers → group switching → rendering) without a real Moonraker instance.

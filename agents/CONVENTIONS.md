@@ -203,7 +203,7 @@ All `uint32_t` color parameters across the codebase are **RGB888** (8-8-8):
 
 ### Storage in Config Structs
 
-Colors are stored pre-parsed as `uint32_t` in `Frame` structs. Hex string `"#FFFFFF"` → `0xFFFFFF` conversion happens once in `ConfigDeserializer` (Phase 4).
+Colors are stored pre-parsed as `uint32_t` in `FrameElement::color` and `Frame::bg_color`. Hex string `"#FFFFFF"` → `0xFFFFFF` conversion happens once in `ConfigDeserializer` (Phase 4).
 
 ### Common Color Constants
 
@@ -287,9 +287,9 @@ src/
 ```
 Add Phase 1.6: config data structs + coding conventions
 
-- Create engine/Config.h with Frame, Set, Group, NodeConfig structs
-  and FrameType enum
-- Create engine/Config.cpp with hex color parser helpers
+- Create engine/Config.h with FrameElement, Frame, Set, Group, NodeConfig,
+  PrinterState structs and hex color parser
+- Create engine/Config.cpp with hex color parser and PrinterState::resolve() helpers
 - Add agents/CONVENTIONS.md covering firmware coding conventions
 - Update PLAN.md with convention references
 - Mark Task 1.6 complete in phase-1/TODO.md
@@ -320,3 +320,52 @@ Before submitting any firmware change, verify:
 - [ ] Member variables use `_` prefix
 - [ ] Color values use `uint32_t` RGB888 format in public API
 - [ ] `new` has matching `delete` in destructor or cleanup
+
+---
+
+## 11. Tangent Convention
+
+When implementation of a phase produces extra work that wasn't in the original plan,
+document it as a **Tangent** so the original task numbering stays untouched.
+
+### Naming
+
+```
+Tangent {Phase}{Letter}: {Brief Title}
+   e.g. "Tangent 2A: Config Validation Helpers"
+
+Sub-tasks: {Tangent ID}.{N}
+   e.g. "2A.1", "2A.2"
+```
+
+Letters progress per phase: 2A, 2B, 2C ...
+
+### Where to Document
+
+| File | What to add |
+|------|-------------|
+| `PLAN.md` | Add a **Tangents** block below the phase's main task table with columns: ID, Insert After, Description, Files, Status |
+| `agents/docs/phase-N/TODO.md` | Insert tangent sub-task rows directly into the main task table (after the task they follow). Prefix the Notes column with `"Tangent NX: "`. |
+
+### PLAN.md Tangents Block Template
+
+```markdown
+**Tangents:**
+
+| ID | Insert After | Description | Files | Status |
+|----|-------------|-------------|-------|--------|
+| 2A | Task 2.5 | What these extra steps do and why they were needed | `path/to/file` | 🟡 In Progress |
+```
+
+### TODO.md Tangent Rows Template
+
+```
+| 2A.1 | Sub-task description | `file` | ✅ Done | Tangent 2A: brief explanation |
+| 2A.2 | Sub-task description | `file` | ⏳ In Progress | Tangent 2A: brief explanation |
+```
+
+### Rules
+
+- **Never renumber** existing tasks to make room. The tangent ID sits alongside them.
+- The `Insert After` field in PLAN.md is the only thing that establishes sequence.
+- If a tangent has significant design decisions, record them in the phase's existing `decisions.md` (do not create a separate file).

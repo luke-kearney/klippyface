@@ -80,7 +80,8 @@
 | **Library** | Shared pool of all Groups, Sets, Frames, Sprites. Created once, used by many nodes. | |
 | **Group** | A named collection of Sets. Represents a mood/state. | `"printing_faces"`, `"celebration"` |
 | **Set** | A sequence of Frames with loop control. | `"blink_cycle"`: [":)", blink sprite]×3 |
-| **Frame** | A single renderable element. Has type, value, duration, position. | `{type:"sprite", value:"blink", duration_ms:200}` |
+| **Frame** | A container of positioned elements (text, sprites, data bindings). Has duration and background color. | `{duration_ms:2000, bg_color:"#000000", elements:[{type:"sprite", value:"blink", x:0, y:0}]}` |
+| **FrameElement** | A single positioned element within a frame. Has type (text/sprite/datavalue), value, color, x/y position, and optional label. | `{type:"datavalue", value:"extruder.temperature", label:"Ext", x:18, y:0}` |
 | **Preset** | Named overrides that modify node behavior (time-based or manual). | `night_mode`: dim brightness, swap to quiet groups |
 
 ---
@@ -180,13 +181,21 @@ CREATE TABLE frames (
     id          TEXT PRIMARY KEY,
     set_id      TEXT NOT NULL REFERENCES sets(id) ON DELETE CASCADE,
     sort_order  INTEGER NOT NULL DEFAULT 0,
-    type        TEXT NOT NULL CHECK(type IN ('text','sprite','clear','progress','temp')),
-    value       TEXT NOT NULL DEFAULT '',         -- text content, sprite ID, or format string
-    duration_ms INTEGER NOT NULL DEFAULT 1000,
+    duration_ms INTEGER NOT NULL DEFAULT 1000,   -- overridden by set-level frame_time if set
+    bg_color    TEXT NOT NULL DEFAULT '#000000'
+);
+
+-- Positioned elements within a frame (a frame is a canvas of N elements)
+CREATE TABLE frame_elements (
+    id          TEXT PRIMARY KEY,
+    frame_id    TEXT NOT NULL REFERENCES frames(id) ON DELETE CASCADE,
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    type        TEXT NOT NULL CHECK(type IN ('text','sprite','datavalue')),
+    value       TEXT NOT NULL DEFAULT '',         -- text string, sprite ID, or data binding key
+    label       TEXT NOT NULL DEFAULT '',         -- optional prefix label (e.g. "Ext:", "Bed:")
     color       TEXT NOT NULL DEFAULT '#FFFFFF',
-    bg_color    TEXT NOT NULL DEFAULT '#000000',
-    x_offset    INTEGER NOT NULL DEFAULT 0,
-    y_offset    INTEGER NOT NULL DEFAULT 0
+    x           INTEGER NOT NULL DEFAULT 0,      -- absolute pixel X position
+    y           INTEGER NOT NULL DEFAULT 0       -- absolute pixel Y position
 );
 
 CREATE TABLE sprites (
@@ -297,8 +306,20 @@ GET /api/config/node?mac=AA:BB:CC:DD:EE:01
             "loop_forever": true,
             "frame_time": 0,
             "frames": [
-              { "type": "text", "value": "zzz", "duration_ms": 3000 },
-              { "type": "sprite", "value": "blink", "duration_ms": 200 }
+              {
+                "duration_ms": 3000,
+                "bg_color": "#000000",
+                "elements": [
+                  { "type": "text", "value": "zzz", "x": 64, "y": 32, "color": "#FFFFFF" }
+                ]
+              },
+              {
+                "duration_ms": 200,
+                "bg_color": "#000000",
+                "elements": [
+                  { "type": "sprite", "value": "blink", "x": 64, "y": 32, "color": "#FFFFFF" }
+                ]
+              }
             ]
           }
         ]
@@ -313,9 +334,27 @@ GET /api/config/node?mac=AA:BB:CC:DD:EE:01
             "loop_forever": true,
             "frame_time": 600,
             "frames": [
-              { "type": "sprite", "value": "face_happy", "duration_ms": 600 },
-              { "type": "sprite", "value": "face_excited", "duration_ms": 600 },
-              { "type": "sprite", "value": "face_wow", "duration_ms": 600 }
+              {
+                "duration_ms": 600,
+                "bg_color": "#000000",
+                "elements": [
+                  { "type": "sprite", "value": "face_happy", "x": 64, "y": 32, "color": "#FFFFFF" }
+                ]
+              },
+              {
+                "duration_ms": 600,
+                "bg_color": "#000000",
+                "elements": [
+                  { "type": "sprite", "value": "face_excited", "x": 64, "y": 32, "color": "#FFFFFF" }
+                ]
+              },
+              {
+                "duration_ms": 600,
+                "bg_color": "#000000",
+                "elements": [
+                  { "type": "sprite", "value": "face_wow", "x": 64, "y": 32, "color": "#FFFFFF" }
+                ]
+              }
             ]
           }
         ]
@@ -331,15 +370,26 @@ GET /api/config/node?mac=AA:BB:CC:DD:EE:01
 }
 ```
 
-### Frame Types
+### FrameElement Types
+
+Each frame contains an ordered list of elements. `Frame::bg_color` is applied once (the canvas clear), then elements are composited on top at their absolute `(x, y)` positions.
 
 | Type | `value` behavior |
 |------|-----------------|
-| `text` | Renders text string. Color from `color` field. Centered on (x_offset, y_offset). |
-| `sprite` | Renders named sprite from `sprites` dict at (x_offset, y_offset). |
-| `clear` | Clears display (value ignored). |
-| `progress` | Draws a progress bar using Moonraker `print_stats.progress`. |
-| `temp` | Draws temperature text (nozzle/bed) at position. |
+| `text` | Draws static text string. Color from `color` field. |
+| `sprite` | Draws a named sprite from `sprites` dict at `(x, y)`. |
+| `datavalue` | Resolves a Moonraker data binding key (e.g. `extruder.temperature`), formats the value, and draws `label: value` at `(x, y)`. |
+
+Data binding keys supported by `PrinterState::resolve()`:
+
+| Key | Source | Example output |
+|-----|--------|----------------|
+| `print_stats.progress` | Moonraker progress | `"73%"` |
+| `print_stats.state` | Printer state string | `"printing"` |
+| `extruder.temperature` | Nozzle temp | `"210°C"` |
+| `extruder.target` | Nozzle target | `"220°C"` |
+| `heater_bed.temperature` | Bed temp | `"60°C"` |
+| `heater_bed.target` | Bed target | `"65°C"` |
 
 ---
 
@@ -459,10 +509,9 @@ klippyface/
 │   │   └── Sprite.h/.cpp               # Base64 decode + blit to DisplayDriver
 │   │
 │   ├── engine/
-│   │   ├── Config.h/.cpp               # Data structs: Frame, Set, Group, NodeConfig
+│   │   ├── Config.h/.cpp               # Data structs: FrameElement, Frame, Set, Group, NodeConfig, PrinterState
 │   │   ├── ConfigDeserializer.h/.cpp   # JSON → structs (ArduinoJson)
-│   │   ├── AnimationEngine.h/.cpp      # Per-display state machine, tick(), looping
-│   │   └── DataBinding.h/.cpp          # Moonraker data injection into frames
+│   │   └── AnimationEngine.h/.cpp      # Per-display state machine, tick(), looping
 │   │
 │   ├── comms/
 │   │   ├── MoonrakerClient.h/.cpp      # WebSocket client (own task)
@@ -490,6 +539,7 @@ klippyface/
 │   │   ├── Group.cs
 │   │   ├── Set.cs
 │   │   ├── Frame.cs
+│   │   ├── FrameElement.cs
 │   │   ├── Sprite.cs
 │   │   └── Preset.cs
 │   ├── Api/
@@ -552,9 +602,9 @@ klippyface/
 | 1.3 | DisplayDriver interface | `display/DisplayDriver.h` | Pure virtual. All methods documented. |
 | 1.4 | Sh1106Driver | `display/Sh1106Driver.h/.cpp` | Wraps Adafruit_SH1106G. Implements all DisplayDriver methods. |
 | 1.5 | DisplayFactory | `display/DisplayFactory.h/.cpp` | `createDriver("sh1106", ...)` returns `Sh1106Driver*`. |
-| 1.6 | Config data structs | `engine/Config.h/.cpp` | `Frame`, `Set`, `Group`, `NodeConfig`, `DisplaySlotConfig` structs. |
+| 1.6 | Config data structs | `engine/Config.h/.cpp` | `FrameElement`, `Frame`, `Set`, `Group`, `NodeConfig`, `DisplaySlotConfig` structs. (FrameElement added in Tangent 2A, refactoring the original atomic Frame model.) |
 | 1.7 | AnimationEngine | `engine/AnimationEngine.h/.cpp` | `tick(now)` → returns current `const Frame*`. Handles looping, trigger→group mapping, set-level frame_time override. Listens for state changes via `onTrigger()`. |
-| 1.8 | Renderer | `display/Renderer.h/.cpp` | Stateless `renderFrame(Frame&, DisplayDriver&, sprites?)`. Handles text (centered), sprite (drawBitmap), clear, progress/temp skip. |
+| 1.8 | Renderer | `display/Renderer.h/.cpp` | Stateless `renderFrame()`. Iterates frame elements (text/sprite/datavalue). Clears canvas once to `bg_color`, then composites all positioned elements. DataValue type uses `PrinterState::resolve()`. |
 | 1.9 | Sprite decode | `display/Sprite.h/.cpp` | `Sprite` struct (width, height, decoded data vector). `decodeBase64Sprite()` — base64 → monochrome bitmap with size validation. |
 | 1.10 | DisplayManager | `display/DisplayManager.h/.cpp` | Owns `vector<DisplaySlot>` (driver + engine per display). `tickAll()` renders all. `onStateChange()` fans out to engines. `begin()` loads hardcoded Phase 1 config. |
 | 1.11 | main.cpp | `main.cpp` | Init hardware. Create tasks: wifi, displayManager. `displayManager.tickAll()` in displayTask with `vTaskDelayUntil` for ~30fps. Hardcoded config via DisplayManager::begin(). |
@@ -574,11 +624,17 @@ klippyface/
 |---|------|-------|------------|--------|
 | 2.0 | Add WebSocket lib | `platformio.ini` | `links2004/WebSockets@^2.4.2`. Added `esp32dev-mock` env. | ✅ Done |
 | 2.1 | MoonrakerClient | `comms/MoonrakerClient.h/.cpp` | WebSocket connect, auto-reconnect. Subscribe to `notify_status_update`. gInstance pattern (like WifiManager). | ✅ Done |
-| 2.2 | State parsing | `comms/MoonrakerClient.cpp` | Parse print_stats, extruder, heater_bed. Publish `StateEvent` struct to FreeRTOS stateQueue. Only on state transition. | ✅ Done |
+| 2.2 | State parsing | `comms/MoonrakerClient.cpp` | Parse print_stats, extruder, heater_bed. Publish `StateEvent` struct to FreeRTOS stateQueue. Only on state transition. | ✅ Done | Tangent 2A: changed to send on every update (not just transitions) for continuous data binding |
 | 2.3 | GcodeHandler | `comms/GcodeHandler.h/.cpp` | Parse `notify_gcode_response`. Look for `display:group=... set=... loop=...` patterns. | ✅ Done |
 | 2.4 | Moonraker + Gcode tasks | `main.cpp` | `moonrakerTask` (Core 0, pri 9) ticks WS + drains stateQueue. `gcodeHandlerTask` (Core 0, pri 7) drains gcodeQueue. | ✅ Done |
-| 2.5 | Hardcoded triggers + queue safety | `display/DisplayManager.cpp`, `engine/AnimationEngine.cpp` | 3 groups with trigger map. Queue-based `CmdMessage` dispatch for cross-core safety (no shared mutable state). | ✅ Done |
+| 2.5 | Hardcoded triggers + queue safety | `display/DisplayManager.cpp`, `engine/AnimationEngine.cpp` | 3 groups with trigger map. Queue-based `CmdMessage` dispatch for cross-core safety (no shared mutable state). | ✅ Done | Tangent 2A: rewrote hardcoded config for element-based Frame model; added PrinterState plumbing |
 | 2.6 | Mock mode + verification | `comms/MoonrakerClient.cpp` (#ifdef branch) | `#ifdef MOONRAKER_MOCK` replaces WS with timer: idle(5s)→printing(15s)→complete(3s)→idle. Both builds verified. | ✅ Done |
+
+**Tangents:**
+
+| ID | Insert After | Description | Files | Status |
+|----|-------------|-------------|-------|--------|
+| 2A | Task 2.5 | **Refactor Frame data model for element composition.** The original Frame was a single atomic renderable (one type, one value, one position). The system needs frames as canvases of N independently positioned elements (text, sprites, live data bindings). Also adds `PrinterState` runtime struct with `resolve()` for data binding keys, continuous Moonraker event forwarding, and Progress/Temp frame types subsumed into `FrameElement::DataValue`. | `engine/Config.h/.cpp`, `display/Renderer.h/.cpp`, `display/DisplayManager.h/.cpp`, `comms/MoonrakerClient.cpp`, `main.cpp` | 🟡 In Progress |
 
 **Definition of done:** Printer starts printing → OLED shows printing face. Print completes → OLED switches to complete face. No polling — all WebSocket driven.
 
@@ -595,12 +651,12 @@ klippyface/
 | # | Task | Files | Key detail |
 |---|------|-------|------------|
 | 3.0 | Scaffold .NET project | `server/Klippyface.Server.csproj`, `Program.cs` | Minimal API + EF Core SQLite. |
-| 3.1 | EF models | `server/Models/*.cs` | All 8 entities with navigation properties. |
+| 3.1 | EF models | `server/Models/*.cs` | All entities with navigation properties (includes `FrameElement` model alongside `Frame`, `Set`, `Group`). |
 | 3.2 | DbContext | `server/Data/AppDbContext.cs` | Auto-migrate at startup. Seed default node + data. |
 | 3.3 | Nodes API | `server/Api/NodesApi.cs` | CRUD. Register node by MAC. |
 | 3.4 | Displays API | within NodesApi or separate | CRUD node_displays within a node. |
 | 3.5 | Assignments API | within NodesApi or separate | CRUD assignments per display per node. |
-| 3.6 | Library API | `server/Api/LibraryApi.cs` | CRUD groups/sets/frames. |
+| 3.6 | Library API | `server/Api/LibraryApi.cs` | CRUD groups/sets/frames/frame_elements. |
 | 3.7 | Sprites API | `server/Api/SpritesApi.cs` | CRUD. PNG upload endpoint that converts to native format. |
 | 3.8 | Presets API | `server/Api/PresetsApi.cs` | CRUD. |
 | 3.9 | Config export | `server/Api/ConfigApi.cs` | `GET /api/config/node?mac=...` — the endpoint ESP32 calls. Assembles per-node JSON. |
@@ -619,7 +675,7 @@ klippyface/
 | # | Task | Files | Key detail |
 |---|------|-------|------------|
 | 4.1 | ConfigFetcher | `comms/ConfigFetcher.h/.cpp` | HTTP GET config endpoint. Parse JSON with ArduinoJson. |
-| 4.2 | ConfigDeserializer | `engine/ConfigDeserializer.h/.cpp` | Walk JSON tree. Allocate structs. Create DisplayDriver instances via factory. |
+| 4.2 | ConfigDeserializer | `engine/ConfigDeserializer.h/.cpp` | Walk JSON tree. Allocate structs (Frame → elements vector). Create DisplayDriver instances via factory. |
 | 4.3 | Sprite decode | `display/Sprite.cpp` (expand) | Decode base64 from config JSON. |
 | 4.4 | Dynamic DisplayManager init | `display/DisplayManager.cpp` | Re-init on config update. Supports hot-reload. |
 | 4.5 | Config fetcher task | `main.cpp` | Fetch at boot + every 5 minutes. Publish to configQueue. |
@@ -646,7 +702,7 @@ klippyface/
 | 5.6 | Group list | `wwwroot/js/components/group-list.js` | Library section. List of groups. |
 | 5.7 | Group editor | `wwwroot/js/components/group-editor.js` | Sets list. Add/reorder/delete sets. |
 | 5.8 | Set editor | `wwwroot/js/components/set-editor.js` | Frame list. Loop count, frame time. Add/reorder/delete frames. |
-| 5.9 | Frame editor | `wwwroot/js/components/frame-editor.js` | Type dropdown, value input, color picker, duration slider, x/y offset. |
+| 5.9 | Frame editor | `wwwroot/js/components/frame-editor.js` | Element list (add/reorder/delete positioned elements per frame). Per-element: type dropdown (text/sprite/datavalue), value input, label, color picker, x/y position. Frame-level: duration slider, bg_color picker. |
 | 5.10 | Sprite editor | `wwwroot/js/components/sprite-editor.js` | Pixel grid canvas. Click to toggle. Grid size (16/32/64/128). Import PNG. Export. |
 | 5.11 | Preview canvas | `wwwroot/js/components/preview-canvas.js` | **128×64 OLED simulation**. Renders current set's frames in sequence. Play/pause, speed control. |
 | 5.12 | Preset editor | `wwwroot/js/components/preset-editor.js` | Create presets. Conditions (time, manual). Overrides (dim, group swaps). |
@@ -668,7 +724,7 @@ klippyface/
 | 6.1 | Command format | - | `RESPOND MSG="display:node=printer_face display=face_oled group=celebration set=party loop=3"` |
 | 6.2 | Klipper macro examples | `docs/macros.cfg` | `DISPLAY_FACE`, `DISPLAY_ALERT`, `DISPLAY_CLEAR`, `PRINT_END` with celebration. |
 | 6.3 | `_KLIPPYFACE_STATUS` macro | docs | Similar to KNOMI's `_KNOMI_STATUS`. Set homing/probing/qgling/heating flags for display binding. |
-| 6.4 | Data bindings | `engine/DataBinding.h/.cpp` | Frames can reference Moonraker data: `{type:"temp", value:"hotend"}`, `{type:"progress"}` |
+| 6.4 | Data bindings | `engine/Config.h/.cpp` (PrinterState::resolve) | **Inherited from Tangent 2A.** `FrameElement::DataValue` already supports binding keys via `PrinterState::resolve()`. Expand the key set for new Moonraker data sources (e.g. filament sensors, fan speed). |
 
 **Definition of done:** A Klipper macro `DISPLAY_FACE GROUP=celebration SET=party` changes the face instantly. Progress bars render correctly during prints.
 
@@ -702,8 +758,8 @@ klippyface/
 |---|------|-------|------------|
 | 8.1 | Node online/offline tracking | `server/Services/NodeStatusService.cs` | Heartbeat endpoint. Show last seen on web UI. Alert on disconnect. |
 | 8.2 | Preset engine | `engine/AnimationEngine.cpp` + server | Time-based presets. Web UI toggle. |
-| 8.3 | Progress bar frame | `display/Renderer.cpp` | New frame type. Draws bar using Moonraker progress. |
-| 8.4 | Temperature frame | `display/Renderer.cpp` | New frame type. Shows hotend/bed temp. |
+| 8.3 | Progress bar frame | `display/Renderer.cpp` | **Covered by Tangent 2A.** `FrameElement::DataValue` with key `print_stats.progress` renders progress bar. Enhance visual style (custom bar height, border). |
+| 8.4 | Temperature frame | `display/Renderer.cpp` | **Covered by Tangent 2A.** `FrameElement::DataValue` with keys `extruder.temperature` / `heater_bed.temperature` renders temp readouts. Enhance with icon support from sprite library. |
 | 8.5 | Error handling | All | WiFi disconnect, Moonraker down, server down, corrupt config — graceful fallbacks. |
 | 8.6 | Performance | All | Heap profiling. Frame timing consistency. |
 
@@ -751,10 +807,15 @@ klippyface/
 | PUT    | `/api/sets/{sid}` | Update set |
 | DELETE | `/api/sets/{sid}` | Delete set + frames |
 | GET    | `/api/sets/{sid}/frames` | List frames |
-| POST   | `/api/sets/{sid}/frames` | Create frame |
-| PUT    | `/api/frames/{fid}` | Update frame |
+| POST   | `/api/sets/{sid}/frames` | Create frame (with optional elements) |
+| PUT    | `/api/frames/{fid}` | Update frame (duration_ms, bg_color) |
 | DELETE | `/api/frames/{fid}` | Delete frame |
 | PUT    | `/api/sets/{sid}/frames/reorder` | Reorder frames (send array of IDs) |
+| GET    | `/api/frames/{fid}/elements` | List frame elements |
+| POST   | `/api/frames/{fid}/elements` | Create frame element |
+| PUT    | `/api/elements/{eid}` | Update frame element |
+| DELETE | `/api/elements/{eid}` | Delete frame element |
+| PUT    | `/api/frames/{fid}/elements/reorder` | Reorder elements |
 
 ### Sprite Endpoints
 
