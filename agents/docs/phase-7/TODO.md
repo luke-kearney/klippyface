@@ -7,7 +7,7 @@
 | 7.0 | Add `setProvisioned()` + GPIO0 factory reset | `config/Settings.h/.cpp`, `main.cpp` | ✅ Done | Added `setProvisioned(bool)` — writes NVS flag + commits. GPIO0 factory reset check runs after `Settings::begin()`: erases NVS + `ESP.restart()`. 2026-05-11 |
 | 7.1 | CaptivePortal | `wifi/CaptivePortal.h/.cpp` | ⬜ Not Started | WiFi AP "Klippyface-Setup" (open). DNSServer catch-all → ESP IP. Owns HTTP server. `begin()`, `tick()`, `stop()`. 30-min idle timeout → auto-reboot. |
 | 7.2 | SetupServer | `wifi/SetupServer.h/.cpp` | ⬜ Not Started | HTTP routes: `GET /` (config form), `POST /save` (validate + save NVS + reboot), `GET /scan` (WiFi scan JSON). Server-side validation. |
-| 7.3 | setup_html.h | `wifi/setup_html.h` | ⬜ Not Started | PROGMEM embedded HTML. WiFi scan button, SSID dropdown/text, password (show/hide), Moonraker host+port, friendly name, save button. JS: fetch scan, POST form, countdown on success. Mobile-first dark theme CSS. |
+| 7.3 | setup_html.h | `wifi/setup_html.h` | ✅ Done | PROGMEM embedded HTML page with WiFi scan, SSID/password (show/hide), Moonraker host+port, friendly name, save button with loading state + reboot countdown. Mobile-first dark theme. 2026-05-11 |
 | 7.4 | Provisioning flow | `main.cpp` | ⬜ Not Started | If `!Settings.isProvisioned()` → start captive portal as a task (Core 0, pri 5) instead of normal boot. |
 | 7.5 | Verify build | `platformio.ini` | ⬜ Not Started | DNSServer + WebServer are built into ESP32 Arduino core — no PlatformIO deps needed. Verify both `esp32dev` and `esp32dev-mock` builds compile. |
 
