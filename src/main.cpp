@@ -1,12 +1,15 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <Wire.h>
 #include "config/Settings.h"
 #include "wifi/WifiManager.h"
+#include "display/DisplayManager.h"
 
 // -------------------------------------------------------------------
 // Global instances
 // -------------------------------------------------------------------
 WifiManager wifiManager;
+DisplayManager displayManager;
 
 // -------------------------------------------------------------------
 // Task handles
@@ -34,11 +37,13 @@ void wifiTask(void *pvParameters) {
 }
 
 // -------------------------------------------------------------------
-// Display Task (Core 1)
+// Display Task (Core 1) — ~30fps tick
 // -------------------------------------------------------------------
 void displayTask(void *pvParameters) {
+    TickType_t lastWake = xTaskGetTickCount();
     for (;;) {
-        vTaskDelay(pdMS_TO_TICKS(33));
+        displayManager.tickAll(millis());
+        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(33));
     }
 }
 
@@ -56,6 +61,10 @@ void setup() {
                   ESP.getFlashChipSize() / (1024 * 1024));
 
     Settings::begin();
+
+    Wire.begin(21, 22);
+    Serial.println("[BOOT] I2C: pins 21/22");
+    displayManager.begin();
 
     xTaskCreatePinnedToCore(
         wifiTask, "wifiTask", 4096, nullptr, 8, &wifiTaskHandle, 0);

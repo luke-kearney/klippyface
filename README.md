@@ -40,7 +40,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 
 ## Current Status
 
-**Phase 1 (ESP32 Core Framework) in progress.** PlatformIO build system working, FreeRTOS task skeleton running. Settings (NVS), WiFi manager, DisplayDriver abstraction, and SH1106 driver implemented and hardware-verified. Config data model structs (Frame, Set, Group, NodeConfig) and hex color parser added. AnimationEngine (per-display state machine with looping, triggers, frame timing) implemented. Sprite decoder (base64 → monochrome bitmap) and Renderer (stateless Frame→display drawing) implemented and hardware-verified. DisplayManager (owns driver+engine per display, tickAll/onStateChange) implemented with hardcoded Phase 1 config.
+**Phase 1 (ESP32 Core Framework) in progress.** PlatformIO build system working, FreeRTOS multitasking running (wifiTask + displayTask). Settings (NVS), WiFi manager, DisplayDriver abstraction, and SH1106 driver implemented and hardware-verified. Animation engine, sprite decoder, renderer, and DisplayManager all implemented. Hardcoded 2-frame animation wired into displayTask at ~30fps.
 
 ## Phase Tracking
 

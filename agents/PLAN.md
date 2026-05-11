@@ -555,7 +555,7 @@ klippyface/
 | 1.8 | Renderer | `display/Renderer.h/.cpp` | Stateless `renderFrame(Frame&, DisplayDriver&, sprites?)`. Handles text (centered), sprite (drawBitmap), clear, progress/temp skip. |
 | 1.9 | Sprite decode | `display/Sprite.h/.cpp` | `Sprite` struct (width, height, decoded data vector). `decodeBase64Sprite()` — base64 → monochrome bitmap with size validation. |
 | 1.10 | DisplayManager | `display/DisplayManager.h/.cpp` | Owns `vector<DisplaySlot>` (driver + engine per display). `tickAll()` renders all. `onStateChange()` fans out to engines. `begin()` loads hardcoded Phase 1 config. |
-| 1.11 | main.cpp | `main.cpp` | Init hardware. Create tasks: wifi, displayManager. Hardcoded config (1 display, 1 group, 2 frames). |
+| 1.11 | main.cpp | `main.cpp` | Init hardware. Create tasks: wifi, displayManager. `displayManager.tickAll()` in displayTask with `vTaskDelayUntil` for ~30fps. Hardcoded config via DisplayManager::begin(). |
 | 1.12 | Verify | - | Flash to ESP32. Confirm OLED shows hardcoded animation. |
 
 **Definition of done:** ESP32 boots, connects to WiFi, single OLED shows a hardcoded animated face. DisplayDriver abstraction works — you could swap to a different driver with one line change.
