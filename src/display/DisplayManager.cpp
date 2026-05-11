@@ -21,22 +21,47 @@ void DisplayManager::cleanup() {
 }
 
 void DisplayManager::buildHardcodedConfig() {
-    // Idle group — single text face
-    FrameElement idleEl;
-    idleEl.type = FrameElement::Text;
-    idleEl.value = "(-_-) zzz";
-    idleEl.x = 64;
-    idleEl.y = 32;
+    // Idle group — alternates between "printer idle" and system info
+    FrameElement statusEl;
+    statusEl.type = FrameElement::Text;
+    statusEl.value = "printer idle";
+    statusEl.x = 64;
+    statusEl.y = 32;
 
-    Frame idleFrame;
-    idleFrame.duration_ms = 3000;
-    idleFrame.elements.push_back(idleEl);
+    Frame statusFrame;
+    statusFrame.duration_ms = 3000;
+    statusFrame.elements.push_back(statusEl);
+
+    FrameElement infoLine1;
+    infoLine1.type = FrameElement::Text;
+    infoLine1.value = "Klippyface v0.2";
+    infoLine1.x = 64;
+    infoLine1.y = 12;
+
+    FrameElement infoLine2;
+    infoLine2.type = FrameElement::Text;
+    infoLine2.value = "Built: 2026-05-11";
+    infoLine2.x = 64;
+    infoLine2.y = 30;
+
+    FrameElement infoLine3;
+    infoLine3.type = FrameElement::Text;
+    infoLine3.value = "ESP32 Dev Board";
+    infoLine3.x = 64;
+    infoLine3.y = 48;
+
+    Frame infoFrame;
+    infoFrame.duration_ms = 3000;
+    infoFrame.elements.push_back(infoLine1);
+    infoFrame.elements.push_back(infoLine2);
+    infoFrame.elements.push_back(infoLine3);
 
     Set idleSet;
     idleSet.id = "sleepy";
     idleSet.label = "Sleepy";
     idleSet.loop_forever = true;
-    idleSet.frames.push_back(idleFrame);
+    idleSet.frames.push_back(statusFrame);
+    idleSet.frames.push_back(infoFrame);
 
     Group idleGroup;
     idleGroup.id = "idle_faces";
