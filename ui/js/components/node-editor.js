@@ -78,13 +78,15 @@ export function renderNodeEditor(container, params) {
               <option value="ssd1306" ${d.driverType === 'ssd1306' ? 'selected' : ''}>SSD1306</option>
               <option value="st7789" ${d.driverType === 'st7789' ? 'selected' : ''}>ST7789</option>
               <option value="ili9341" ${d.driverType === 'ili9341' ? 'selected' : ''}>ILI9341</option>
+              <option value="hx8347" ${d.driverType === 'hx8347' ? 'selected' : ''}>HX8347D</option>
             </select>
           </div>
-          <div class="form-group" style="flex:0 0 100px">
+          <div class="form-group" style="flex:0 0 110px">
             <label>Bus</label>
             <select class="df-bus">
               <option value="i2c" ${d.busType === 'i2c' ? 'selected' : ''}>I2C</option>
               <option value="spi" ${d.busType === 'spi' ? 'selected' : ''}>SPI</option>
+              <option value="parallel8" ${d.busType === 'parallel8' ? 'selected' : ''}>Parallel 8</option>
             </select>
           </div>
         </div>
@@ -97,7 +99,35 @@ export function renderNodeEditor(container, params) {
                   <div class="form-group"><label>SDA Pin</label><input type="number" class="df-sda" value="${bc.sda ?? 21}" min="0" max="39"></div>
                   <div class="form-group"><label>SCL Pin</label><input type="number" class="df-scl" value="${bc.scl ?? 22}" min="0" max="39"></div>
                 </div>`
-              : html`
+              : d.busType === 'parallel8'
+                ? html`
+                <div class="form-row">
+                  <div class="form-group"><label>DC Pin</label><input type="number" class="df-dc" value="${bc.dc ?? 32}" min="-1" max="39"></div>
+                  <div class="form-group"><label>CS Pin</label><input type="number" class="df-cs" value="${bc.cs ?? 5}" min="-1" max="39"></div>
+                  <div class="form-group"><label>WR Pin</label><input type="number" class="df-wr" value="${bc.wr ?? 26}" min="-1" max="39"></div>
+                  <div class="form-group"><label>RD Pin</label><input type="number" class="df-rd" value="${bc.rd ?? -1}" min="-1" max="39"></div>
+                  <div class="form-group"><label>RST Pin</label><input type="number" class="df-rst" value="${bc.rst ?? 33}" min="-1" max="39"></div>
+                </div>
+                <div class="form-row" style="margin-top:8px">
+                  <div class="form-group"><label>D0 Pin</label><input type="number" class="df-d0" value="${bc.d0 ?? 4}" min="-1" max="39"></div>
+                  <div class="form-group"><label>D1 Pin</label><input type="number" class="df-d1" value="${bc.d1 ?? 13}" min="-1" max="39"></div>
+                  <div class="form-group"><label>D2 Pin</label><input type="number" class="df-d2" value="${bc.d2 ?? 18}" min="-1" max="39"></div>
+                  <div class="form-group"><label>D3 Pin</label><input type="number" class="df-d3" value="${bc.d3 ?? 19}" min="-1" max="39"></div>
+                </div>
+                <div class="form-row" style="margin-top:8px">
+                  <div class="form-group"><label>D4 Pin</label><input type="number" class="df-d4" value="${bc.d4 ?? 14}" min="-1" max="39"></div>
+                  <div class="form-group"><label>D5 Pin</label><input type="number" class="df-d5" value="${bc.d5 ?? 12}" min="-1" max="39"></div>
+                  <div class="form-group"><label>D6 Pin</label><input type="number" class="df-d6" value="${bc.d6 ?? 23}" min="-1" max="39"></div>
+                  <div class="form-group"><label>D7 Pin</label><input type="number" class="df-d7" value="${bc.d7 ?? 25}" min="-1" max="39"></div>
+                </div>
+                <div class="form-row" style="margin-top:8px">
+                  <div class="form-group"><label>BL Pin</label><input type="number" class="df-bl" value="${bc.bl != null ? bc.bl : ''}" placeholder="17 (optional)" min="0" max="39"></div>
+                  <div class="form-group" style="display:flex;align-items:center;gap:6px;padding-top:18px">
+                    <input type="checkbox" class="df-ips" id="df-ips" ${bc.ips ? 'checked' : ''}>
+                    <label for="df-ips" style="margin:0">IPS Panel</label>
+                  </div>
+                </div>`
+                : html`
                 <div class="form-row">
                   <div class="form-group"><label>CS Pin</label><input type="number" class="df-cs" value="${bc.cs || 5}"></div>
                   <div class="form-group"><label>DC Pin</label><input type="number" class="df-dc" value="${bc.dc || 2}"></div>
@@ -130,15 +160,51 @@ export function renderNodeEditor(container, params) {
       </div>
     `)
 
+    el.querySelector('.df-driver').onchange = () => {
+      const driver = el.querySelector('.df-driver').value
+      if (driver === 'hx8347') {
+        el.querySelector('.df-bus').value = 'parallel8'
+      }
+      el.querySelector('.df-bus').dispatchEvent(new Event('change'))
+    }
+
     el.querySelector('.df-bus').onchange = () => {
-      const isI2c = el.querySelector('.df-bus').value === 'i2c'
+      const busVal = el.querySelector('.df-bus').value
       const cfgEl = el.querySelector('#df-bus-config')
-      if (isI2c) {
+      if (busVal === 'i2c') {
         cfgEl.innerHTML = `
           <label>I2C Address</label><input type="text" class="df-bus-addr" value="0x3C" placeholder="0x3C">
           <div class="form-row" style="margin-top:8px">
             <div class="form-group"><label>SDA Pin</label><input type="number" class="df-sda" value="21" min="0" max="39"></div>
             <div class="form-group"><label>SCL Pin</label><input type="number" class="df-scl" value="22" min="0" max="39"></div>
+          </div>`
+      } else if (busVal === 'parallel8') {
+        cfgEl.innerHTML = `
+          <div class="form-row">
+            <div class="form-group"><label>DC Pin</label><input type="number" class="df-dc" value="32" min="-1" max="39"></div>
+            <div class="form-group"><label>CS Pin</label><input type="number" class="df-cs" value="5" min="-1" max="39"></div>
+            <div class="form-group"><label>WR Pin</label><input type="number" class="df-wr" value="26" min="-1" max="39"></div>
+            <div class="form-group"><label>RD Pin</label><input type="number" class="df-rd" value="-1" min="-1" max="39"></div>
+            <div class="form-group"><label>RST Pin</label><input type="number" class="df-rst" value="33" min="-1" max="39"></div>
+          </div>
+          <div class="form-row" style="margin-top:8px">
+            <div class="form-group"><label>D0 Pin</label><input type="number" class="df-d0" value="4" min="-1" max="39"></div>
+            <div class="form-group"><label>D1 Pin</label><input type="number" class="df-d1" value="13" min="-1" max="39"></div>
+            <div class="form-group"><label>D2 Pin</label><input type="number" class="df-d2" value="18" min="-1" max="39"></div>
+            <div class="form-group"><label>D3 Pin</label><input type="number" class="df-d3" value="19" min="-1" max="39"></div>
+          </div>
+          <div class="form-row" style="margin-top:8px">
+            <div class="form-group"><label>D4 Pin</label><input type="number" class="df-d4" value="14" min="-1" max="39"></div>
+            <div class="form-group"><label>D5 Pin</label><input type="number" class="df-d5" value="12" min="-1" max="39"></div>
+            <div class="form-group"><label>D6 Pin</label><input type="number" class="df-d6" value="23" min="-1" max="39"></div>
+            <div class="form-group"><label>D7 Pin</label><input type="number" class="df-d7" value="25" min="-1" max="39"></div>
+          </div>
+          <div class="form-row" style="margin-top:8px">
+            <div class="form-group"><label>BL Pin</label><input type="number" class="df-bl" value="" placeholder="17 (optional)" min="0" max="39"></div>
+            <div class="form-group" style="display:flex;align-items:center;gap:6px;padding-top:18px">
+              <input type="checkbox" class="df-ips" id="df-ips">
+              <label for="df-ips" style="margin:0">IPS Panel</label>
+            </div>
           </div>`
       } else {
         cfgEl.innerHTML = `
@@ -168,6 +234,40 @@ export function renderNodeEditor(container, params) {
         const bc = { address: addr }
         if (!isNaN(sda)) bc.sda = sda
         if (!isNaN(scl)) bc.scl = scl
+        busConfig = JSON.stringify(bc)
+      } else if (busType === 'parallel8') {
+        const dc = parseInt(el.querySelector('.df-dc')?.value)
+        const cs = parseInt(el.querySelector('.df-cs')?.value)
+        const wr = parseInt(el.querySelector('.df-wr')?.value)
+        const rd = parseInt(el.querySelector('.df-rd')?.value)
+        const rst = parseInt(el.querySelector('.df-rst')?.value)
+        const d0 = parseInt(el.querySelector('.df-d0')?.value)
+        const d1 = parseInt(el.querySelector('.df-d1')?.value)
+        const d2 = parseInt(el.querySelector('.df-d2')?.value)
+        const d3 = parseInt(el.querySelector('.df-d3')?.value)
+        const d4 = parseInt(el.querySelector('.df-d4')?.value)
+        const d5 = parseInt(el.querySelector('.df-d5')?.value)
+        const d6 = parseInt(el.querySelector('.df-d6')?.value)
+        const d7 = parseInt(el.querySelector('.df-d7')?.value)
+        const bl = parseInt(el.querySelector('.df-bl')?.value)
+        const ips = el.querySelector('.df-ips')?.checked || false
+        const bc = {
+          dc: isNaN(dc) ? 32 : dc,
+          cs: isNaN(cs) ? 5 : cs,
+          wr: isNaN(wr) ? 26 : wr,
+          rd: isNaN(rd) ? -1 : rd,
+          rst: isNaN(rst) ? 33 : rst,
+          d0: isNaN(d0) ? 4 : d0,
+          d1: isNaN(d1) ? 13 : d1,
+          d2: isNaN(d2) ? 18 : d2,
+          d3: isNaN(d3) ? 19 : d3,
+          d4: isNaN(d4) ? 14 : d4,
+          d5: isNaN(d5) ? 12 : d5,
+          d6: isNaN(d6) ? 23 : d6,
+          d7: isNaN(d7) ? 25 : d7,
+          ips,
+        }
+        if (!isNaN(bl)) bc.bl = bl
         busConfig = JSON.stringify(bc)
       } else {
         const cs = parseInt(el.querySelector('.df-cs')?.value) || 5
@@ -380,9 +480,14 @@ export function renderNodeEditor(container, params) {
     for (const d of displays) {
       let bc = {}
       try { if (d.busConfig && typeof d.busConfig === 'string') bc = JSON.parse(d.busConfig) } catch {}
-      const busInfo = d.busType === 'i2c'
-        ? `I2C ${bc.address || '?'} SDA:${bc.sda ?? 21} SCL:${bc.scl ?? 22}`
-        : `SPI CS:${bc.cs || '?'} DC:${bc.dc || '?'} RST:${bc.rst || '?'}${bc.mosi != null ? ` MOSI:${bc.mosi}` : ''}${bc.miso != null ? ` MISO:${bc.miso}` : ''}${bc.sclk != null ? ` SCLK:${bc.sclk}` : ''}`
+      let busInfo
+      if (d.busType === 'i2c') {
+        busInfo = `I2C ${bc.address || '?'} SDA:${bc.sda ?? 21} SCL:${bc.scl ?? 22}`
+      } else if (d.busType === 'parallel8') {
+        busInfo = `Parallel8 DC:${bc.dc ?? '?'} CS:${bc.cs ?? '?'} WR:${bc.wr ?? '?'} RST:${bc.rst ?? '?'} D0:${bc.d0 ?? '?'}..D7:${bc.d7 ?? '?'}${bc.bl != null ? ` BL:${bc.bl}` : ''}${bc.ips ? ' IPS' : ''}`
+      } else {
+        busInfo = `SPI CS:${bc.cs || '?'} DC:${bc.dc || '?'} RST:${bc.rst || '?'}${bc.mosi != null ? ` MOSI:${bc.mosi}` : ''}${bc.miso != null ? ` MISO:${bc.miso}` : ''}${bc.sclk != null ? ` SCLK:${bc.sclk}` : ''}`
+      }
 
       const card = createElement(html`
         <div class="display-card" data-id="${d.id}">
