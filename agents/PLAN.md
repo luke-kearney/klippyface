@@ -520,8 +520,8 @@ klippyface/
 │   │
 │   ├── wifi/
 │   │   ├── WifiManager.h/.cpp          # STA mode connection + reconnect
-│   │   ├── CaptivePortal.h/.cpp        # (Future) AP mode + DNS spoofing
-│   │   └── SetupServer.h/.cpp          # (Future) Config web page on ESP
+│   │   ├── CaptivePortal.h/.cpp        # AP mode + DNS spoofing
+│   │   └── SetupServer.h/.cpp          # Config web page on ESP
 │   │
 │   └── config/
 │       └── Settings.h/.cpp             # NVS/EEPROM: WiFi creds, node ID, provisioned flag
@@ -577,8 +577,6 @@ klippyface/
 ├── scripts/
 │   └── xbm-convert.py                 # Image → XBM/base64 utility
 ```
-
-**Phase 2 progress:** MoonrakerClient (WebSocket + JSON state parsing), GcodeHandler, queue-based cross-core dispatch, and mock mode all implemented. Both `esp32dev` and `esp32dev-mock` builds pass. See `agents/docs/phase-2/TODO.md`.
 
 > **Coding conventions:** See `agents/CONVENTIONS.md` for firmware coding standards
 > (naming, memory, FreeRTOS patterns, serial logging format, color convention, and more).
@@ -675,16 +673,17 @@ klippyface/
 
 | # | Task | Files | Key detail |
 |---|------|-------|------------|
-| 4.1 | ConfigFetcher | `comms/ConfigFetcher.h/.cpp` | HTTP GET config endpoint. Parse JSON with ArduinoJson. |
-| 4.2 | ConfigDeserializer | `engine/ConfigDeserializer.h/.cpp` | Walk JSON tree. Allocate structs (Frame → elements vector). Create DisplayDriver instances via factory. |
-| 4.3 | Sprite decode | `display/Sprite.cpp` (expand) | Decode base64 from config JSON. |
-| 4.4 | Dynamic DisplayManager init | `display/DisplayManager.cpp` | Re-init on config update. Supports hot-reload. |
-| 4.5 | Config fetcher task | `main.cpp` | Fetch at boot + every 5 minutes. Publish to configQueue. |
-| 4.6 | Fallback | `engine/ConfigDeserializer.cpp` | If server is unreachable, keep last known config. On first boot without server → fallback to minimal hardcoded config. |
+| 4.0 | Server URL in Settings | `config/Settings.h/.cpp` | Added `getServerHost()`/`getServerPort()` with NVS keys. Defaults to Moonraker host + port 5000. |
+| 4.1 | ConfigFetcher | `comms/ConfigFetcher.h/.cpp` | HTTP GET config endpoint. 5s timeout. Returns body string or empty on failure. |
+| 4.2 | ConfigDeserializer | `engine/ConfigDeserializer.h/.cpp` | Walk JSON tree. Parse displays, assignments, library groups, sprites. ArduinoJson v7. |
+| 4.3 | Sprite decode | `display/Sprite.h/.cpp` | Added `decodeSpriteFromInfo()` convenience overload. |
+| 4.4 | Dynamic DisplayManager init | `display/DisplayManager.h/.cpp` | Replaced `buildHardcodedConfig()` with `applyConfig()`. Boot display shows "Waiting for config..." |
+| 4.5 | Config fetcher task | `main.cpp` | `configFetcherTask` on Core 0 (pri 6), fetches every 5 min. Cross-core `char*` queue to displayTask. |
+| 4.6 | Fallback | `display/DisplayManager.cpp` | `buildBootDisplay()` fallback. If server unreachable, existing config keeps running. |
 
-**Definition of done:** ESP32 boots, fetches its per-node config from server, creates the right displays with the right content. Changing config on the server updates the ESP32 within 5 minutes.
+**Definition of done:** ESP32 boots, fetches its per-node config from server, creates the right displays with the right content. Changing config on the server updates the ESP32 within 5 minutes. Both `esp32dev` and `esp32dev-mock` builds verified.
 
-**Agent tracking:** See `agents/docs/phase-4/TODO.md` for task status.
+**Phase 4 status:** ✅ Complete — see `agents/docs/phase-4/TODO.md` for task details.
 
 ---
 
@@ -754,7 +753,7 @@ klippyface/
 
 | ID | Insert After | Description | Files | Status |
 |----|-------------|-------------|-------|--------|
-| 7A | Task 7.5 | **WebSocket handshake diagnostic.** Raw TCP to Moonraker succeeds but library upgrade handshake fails. PC-side test confirms Moonraker WS endpoint works. Root cause: outdated `links2004/WebSockets` library (`^2.4.2` → `^2.7.3`) combined with ignored disconnect reason. Fixes: bump library version, add disconnect reason logging, fix WiFi readiness race, remove duplicate reconnect logic. | `platformio.ini`, `src/comms/MoonrakerClient.cpp`, `src/comms/MoonrakerClient.h`, `src/main.cpp` | 🟡 In Progress |
+| 7A | Task 7.5 | **WebSocket handshake diagnostic.** Root cause: outdated `links2004/WebSockets` library (`^2.4.2` → `^2.7.3`) combined with ignored disconnect reason. Fixes: bump library version, add disconnect reason logging, fix WiFi readiness race, remove duplicate reconnect logic, add Origin header for cors_domains compatibility. | `platformio.ini`, `src/comms/MoonrakerClient.cpp`, `src/comms/MoonrakerClient.h`, `src/main.cpp` | ✅ Done |
 
 ---
 
@@ -991,7 +990,7 @@ Phase 2: Moonraker WebSocket (real-time state)
     ↓
 Phase 3: Companion server (API + DB)
     ↓
-Phase 4: Config fetcher (ESP32 + server connected)
+Phase 4: Config fetcher (ESP32 + server connected) ✅
     ↓
 Phase 5: Web UI (full visual editor)
     ↓
@@ -1046,7 +1045,7 @@ This section is for **future AI agents** working on this project. Follow these s
 1. **Read PLAN.md** — understand the full architecture, data model, and API contract.
 2. **Review conventions** — read `agents/CONVENTIONS.md` before writing any new source files to ensure code follows established patterns.
 3. **Check `agents/docs/`** — scan all `phase-*/TODO.md` files to determine what has been completed.
-3. **Check the current phase's docs** — read `agents/docs/phase-N/notes.md` and `agents/docs/phase-N/decisions.md` for context from prior work.
+4. **Check the current phase's docs** — read `agents/docs/phase-N/notes.md` and `agents/docs/phase-N/decisions.md` for context from prior work.
 4. **Verify file existence** — confirm expected source files from the project structure tree actually exist (missing files may indicate incomplete work).
 5. **Infer context** — if `agents/docs/` is sparsely populated, use `git log` (if available) and file inspection to gauge what's been done.
 

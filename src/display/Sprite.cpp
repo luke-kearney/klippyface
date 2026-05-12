@@ -1,4 +1,5 @@
 #include "Sprite.h"
+#include "engine/Config.h"
 
 static const char* TAG = "SPRITE";
 
@@ -73,4 +74,8 @@ Sprite decodeBase64Sprite(const String& base64, uint16_t width, uint16_t height)
     }
 
     return sprite;
+}
+
+Sprite decodeSpriteFromInfo(const SpriteInfo& info) {
+    return decodeBase64Sprite(info.data, info.width, info.height);
 }

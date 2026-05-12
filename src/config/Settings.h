@@ -21,6 +21,11 @@ public:
     static uint16_t getMoonrakerPort();
     static void setMoonrakerHost(const String& host, uint16_t port);
 
+    // Companion server
+    static String getServerHost();
+    static uint16_t getServerPort();
+    static void setServerHost(const String& host, uint16_t port);
+
     // Node identity
     static String getNodeMac();
     static void setNodeMac(const String& mac);

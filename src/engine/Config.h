@@ -117,6 +117,7 @@ struct NodeConfig {
     String                                  node_id;
     String                                  friendly_name;
     std::vector<DisplaySlotConfig>          displays;
+    std::map<String, Group>                 library_groups;
     std::map<String, SpriteInfo>            sprites;
 };
 

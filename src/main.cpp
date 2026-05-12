@@ -6,6 +6,8 @@
 #include "display/DisplayManager.h"
 #include "comms/MoonrakerClient.h"
 #include "comms/GcodeHandler.h"
+#include "comms/ConfigFetcher.h"
+#include "engine/ConfigDeserializer.h"
 #include "wifi/CaptivePortal.h"
 
 // -------------------------------------------------------------------
@@ -24,12 +26,14 @@ TaskHandle_t displayTaskHandle = nullptr;
 TaskHandle_t moonrakerTaskHandle = nullptr;
 TaskHandle_t gcodeHandlerTaskHandle = nullptr;
 TaskHandle_t captivePortalTaskHandle = nullptr;
+TaskHandle_t configFetcherTaskHandle = nullptr;
 
 // -------------------------------------------------------------------
 // Inter-task queues
 // -------------------------------------------------------------------
 QueueHandle_t stateQueue = nullptr;
 QueueHandle_t gcodeQueue = nullptr;
+QueueHandle_t configQueue = nullptr;
 
 // -------------------------------------------------------------------
 // WiFi Task (Core 0)
@@ -140,6 +144,44 @@ void gcodeHandlerTask(void *pvParameters) {
 }
 
 // -------------------------------------------------------------------
+// Config Fetcher Task (Core 0) — fetches config from companion server
+// -------------------------------------------------------------------
+void configFetcherTask(void *pvParameters) {
+    // Wait for WiFi before fetching
+    while (!wifiManager.waitForConnection(pdMS_TO_TICKS(1000))) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+
+    ConfigFetcher fetcher;
+    String mac = Settings::getNodeMac();
+    String host = Settings::getServerHost();
+    uint16_t port = Settings::getServerPort();
+
+    for (;;) {
+        Serial.printf("[CONFIG] Fetching config for MAC %s from %s:%u\n",
+                      mac.c_str(), host.c_str(), port);
+
+        String json = fetcher.fetchConfig(host, port, mac);
+
+        if (json.length() > 0) {
+            // Heap-allocate buffer and send pointer through queue (cross-core safe)
+            char* jsonBuf = new char[json.length() + 1];
+            if (jsonBuf) {
+                strcpy(jsonBuf, json.c_str());
+                if (xQueueSend(configQueue, &jsonBuf, 0) != pdTRUE) {
+                    Serial.println("[CONFIG] Config queue full — dropping (will retry)");
+                    delete[] jsonBuf;
+                }
+            }
+        } else {
+            Serial.println("[CONFIG] Fetch failed — will retry in 5 minutes");
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(300000));  // 5 minutes
+    }
+}
+
+// -------------------------------------------------------------------
 // GPIO Monitor Task (Core 0) — factory reset on 3s BOOT button hold
 // -------------------------------------------------------------------
 void gpioMonitorTask(void *pvParameters) {
@@ -184,11 +226,28 @@ void captivePortalTask(void *pvParameters) {
 }
 
 // -------------------------------------------------------------------
-// Display Task (Core 1) — ~30fps tick
+// Display Task (Core 1) — ~30fps tick + config updates
 // -------------------------------------------------------------------
 void displayTask(void *pvParameters) {
     TickType_t lastWake = xTaskGetTickCount();
     for (;;) {
+        // Check for new config from server
+        char* jsonBuf = nullptr;
+        if (configQueue && xQueueReceive(configQueue, &jsonBuf, 0) == pdTRUE) {
+            if (jsonBuf) {
+                String json(jsonBuf);
+                delete[] jsonBuf;
+
+                NodeConfig nodeCfg;
+                if (ConfigDeserializer::deserialize(json, nodeCfg)) {
+                    Serial.println("[DISPLAY] Applying server config");
+                    displayManager.applyConfig(nodeCfg);
+                } else {
+                    Serial.println("[DISPLAY] Failed to deserialize server config");
+                }
+            }
+        }
+
         displayManager.tickAll(millis());
         vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(33));
     }
@@ -225,6 +284,7 @@ void setup() {
     // Create inter-task queues
     stateQueue = xQueueCreate(5, sizeof(StateEvent));
     gcodeQueue = xQueueCreate(5, sizeof(GcodeMessage));
+    configQueue = xQueueCreate(2, sizeof(char*));
 
     Wire.begin(21, 22);
     Serial.println("[BOOT] I2C: pins 21/22");
@@ -239,6 +299,9 @@ void setup() {
 
     xTaskCreatePinnedToCore(
         gcodeHandlerTask, "gcodeHandlerTask", 4096, nullptr, 7, &gcodeHandlerTaskHandle, 0);
+
+    xTaskCreatePinnedToCore(
+        configFetcherTask, "configFetcherTask", 6144, nullptr, 6, &configFetcherTaskHandle, 0);
 
     xTaskCreatePinnedToCore(
         displayTask, "displayTask", 8192, nullptr, 10, &displayTaskHandle, 1);

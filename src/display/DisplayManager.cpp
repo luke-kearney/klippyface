@@ -1,7 +1,10 @@
 #include "display/DisplayManager.h"
 #include "display/Renderer.h"
+#include "display/Sprite.h"
+#include "display/DisplayFactory.h"
 #include "display/Sh1106Driver.h"
 #include "comms/MoonrakerClient.h"
+#include <ArduinoJson.h>
 
 static const char* TAG = "DISPLAY";
 
@@ -20,246 +23,53 @@ void DisplayManager::cleanup() {
     _sprites.clear();
 }
 
-void DisplayManager::buildHardcodedConfig() {
-    // Idle group — alternates between "printer idle" and system info
-    FrameElement statusEl;
-    statusEl.type = FrameElement::Text;
-    statusEl.value = "printer idle";
-    statusEl.x = 64;
-    statusEl.y = 24;
+void DisplayManager::buildBootDisplay() {
+    FrameElement bootEl;
+    bootEl.type = FrameElement::Text;
+    bootEl.value = "Klippyface";
+    bootEl.x = 64;
+    bootEl.y = 20;
 
-    FrameElement mrStatus;
-    mrStatus.type = FrameElement::DataValue;
-    mrStatus.value = "moonraker.connected";
-    mrStatus.x = 64;
-    mrStatus.y = 48;
+    FrameElement bootSub;
+    bootSub.type = FrameElement::Text;
+    bootSub.value = "Waiting for config...";
+    bootSub.x = 64;
+    bootSub.y = 42;
 
-    Frame statusFrame;
-    statusFrame.duration_ms = 3000;
-    statusFrame.elements.push_back(statusEl);
-    statusFrame.elements.push_back(mrStatus);
+    Frame bootFrame;
+    bootFrame.duration_ms = 2000;
+    bootFrame.elements.push_back(bootEl);
+    bootFrame.elements.push_back(bootSub);
 
-    FrameElement infoLine1;
-    infoLine1.type = FrameElement::Text;
-    infoLine1.value = "Klippyface v0.2";
-    infoLine1.x = 64;
-    infoLine1.y = 12;
+    Set bootSet;
+    bootSet.id = "default";
+    bootSet.loop_forever = true;
+    bootSet.frames.push_back(bootFrame);
 
-    FrameElement infoLine2;
-    infoLine2.type = FrameElement::Text;
-    infoLine2.value = "Built: 2026-05-11";
-    infoLine2.x = 64;
-    infoLine2.y = 30;
-
-    FrameElement infoLine3;
-    infoLine3.type = FrameElement::Text;
-    infoLine3.value = "ESP32 Dev Board";
-    infoLine3.x = 64;
-    infoLine3.y = 48;
-
-    Frame infoFrame;
-    infoFrame.duration_ms = 3000;
-    infoFrame.elements.push_back(infoLine1);
-    infoFrame.elements.push_back(infoLine2);
-    infoFrame.elements.push_back(infoLine3);
-
-    Set idleSet;
-    idleSet.id = "sleepy";
-    idleSet.label = "Sleepy";
-    idleSet.loop_forever = true;
-    idleSet.frames.push_back(statusFrame);
-    idleSet.frames.push_back(infoFrame);
-
-    Group idleGroup;
-    idleGroup.id = "idle_faces";
-    idleGroup.label = "Idle Faces";
-    idleGroup.sets.push_back(idleSet);
-
-    // Printing group — face + live progress + temperature
-    FrameElement printFaceA;
-    printFaceA.type = FrameElement::Text;
-    printFaceA.value = ":-D";
-    printFaceA.x = 64;
-    printFaceA.y = 18;
-
-    FrameElement printProgressA;
-    printProgressA.type = FrameElement::DataValue;
-    printProgressA.value = "print_stats.progress";
-    printProgressA.x = 64;
-    printProgressA.y = 38;
-
-    FrameElement printTempA;
-    printTempA.type = FrameElement::DataValue;
-    printTempA.value = "extruder.temperature";
-    printTempA.x = 64;
-    printTempA.y = 54;
-
-    Frame printA;
-    printA.duration_ms = 600;
-    printA.elements.push_back(printFaceA);
-    printA.elements.push_back(printProgressA);
-    printA.elements.push_back(printTempA);
-
-    FrameElement printFaceB;
-    printFaceB.type = FrameElement::Text;
-    printFaceB.value = "8-D";
-    printFaceB.x = 64;
-    printFaceB.y = 18;
-
-    FrameElement printProgressB;
-    printProgressB.type = FrameElement::DataValue;
-    printProgressB.value = "print_stats.progress";
-    printProgressB.x = 64;
-    printProgressB.y = 38;
-
-    FrameElement printTempB;
-    printTempB.type = FrameElement::DataValue;
-    printTempB.value = "extruder.temperature";
-    printTempB.x = 64;
-    printTempB.y = 54;
-
-    Frame printB;
-    printB.duration_ms = 600;
-    printB.elements.push_back(printFaceB);
-    printB.elements.push_back(printProgressB);
-    printB.elements.push_back(printTempB);
-
-    Set printSet;
-    printSet.id = "excited";
-    printSet.label = "Excited";
-    printSet.loop_forever = true;
-    printSet.frames.push_back(printA);
-    printSet.frames.push_back(printB);
-
-    Group printGroup;
-    printGroup.id = "printing_faces";
-    printGroup.label = "Printing Faces";
-    printGroup.sets.push_back(printSet);
-
-    // Celebration group — single text face
-    FrameElement celebEl;
-    celebEl.type = FrameElement::Text;
-    celebEl.value = "\\o/";
-    celebEl.x = 64;
-    celebEl.y = 32;
-
-    Frame celebFrame;
-    celebFrame.duration_ms = 500;
-    celebFrame.elements.push_back(celebEl);
-
-    Set celebSet;
-    celebSet.id = "party";
-    celebSet.label = "Party";
-    celebSet.loop_count = 5;
-    celebSet.frames.push_back(celebFrame);
-
-    Group celebGroup;
-    celebGroup.id = "celebration_faces";
-    celebGroup.label = "Celebration Faces";
-    celebGroup.sets.push_back(celebSet);
-
-    // WiFi offline group
-    FrameElement wifiLine1;
-    wifiLine1.type = FrameElement::Text;
-    wifiLine1.value = "WiFi Offline";
-    wifiLine1.x = 64;
-    wifiLine1.y = 24;
-
-    FrameElement wifiLine2;
-    wifiLine2.type = FrameElement::Text;
-    wifiLine2.value = "Check network";
-    wifiLine2.x = 64;
-    wifiLine2.y = 44;
-
-    Frame wifiFrame;
-    wifiFrame.duration_ms = 2000;
-    wifiFrame.elements.push_back(wifiLine1);
-    wifiFrame.elements.push_back(wifiLine2);
-
-    Set wifiSet;
-    wifiSet.id = "default";
-    wifiSet.loop_forever = true;
-    wifiSet.frames.push_back(wifiFrame);
-
-    Group wifiOfflineGroup;
-    wifiOfflineGroup.id = "wifi_offline";
-    wifiOfflineGroup.label = "WiFi Offline";
-    wifiOfflineGroup.sets.push_back(wifiSet);
-
-    // Moonraker offline group
-    FrameElement mrLine1;
-    mrLine1.type = FrameElement::Text;
-    mrLine1.value = "Moonraker Down";
-    mrLine1.x = 64;
-    mrLine1.y = 24;
-
-    FrameElement mrLine2;
-    mrLine2.type = FrameElement::Text;
-    mrLine2.value = "Reconnecting...";
-    mrLine2.x = 64;
-    mrLine2.y = 44;
-
-    Frame mrFrame;
-    mrFrame.duration_ms = 2000;
-    mrFrame.elements.push_back(mrLine1);
-    mrFrame.elements.push_back(mrLine2);
-
-    Set mrSet;
-    mrSet.id = "default";
-    mrSet.loop_forever = true;
-    mrSet.frames.push_back(mrFrame);
-
-    Group mrOfflineGroup;
-    mrOfflineGroup.id = "moonraker_offline";
-    mrOfflineGroup.label = "Moonraker Offline";
-    mrOfflineGroup.sets.push_back(mrSet);
-
-    // Screen sleep group — blank frame, no elements
-    Frame sleepFrame;
-    sleepFrame.duration_ms = 1000;
-
-    Set sleepSet;
-    sleepSet.id = "default";
-    sleepSet.loop_forever = true;
-    sleepSet.frames.push_back(sleepFrame);
-
-    Group sleepGroup;
-    sleepGroup.id = "screen_sleep";
-    sleepGroup.label = "Screen Sleep";
-    sleepGroup.sets.push_back(sleepSet);
+    Group bootGroup;
+    bootGroup.id = "boot";
+    bootGroup.label = "Boot";
+    bootGroup.sets.push_back(bootSet);
 
     DisplayDriver* driver = new Sh1106Driver(128, 64, 0x3C, 0);
     if (!driver->init()) {
-        Serial.printf("[%s] Hardcoded SH1106 init failed\n", TAG);
+        Serial.printf("[%s] Boot SH1106 init failed\n", TAG);
         delete driver;
         return;
     }
 
     std::map<String, Group> groups;
-    groups[idleGroup.id] = idleGroup;
-    groups[printGroup.id] = printGroup;
-    groups[celebGroup.id] = celebGroup;
-    groups[wifiOfflineGroup.id] = wifiOfflineGroup;
-    groups[mrOfflineGroup.id] = mrOfflineGroup;
-    groups[sleepGroup.id] = sleepGroup;
+    groups["boot"] = bootGroup;
 
     std::map<String, String> triggers;
-    triggers["state:idle"] = "idle_faces";
-    triggers["state:printing"] = "printing_faces";
-    triggers["state:complete"] = "celebration_faces";
-    triggers["state:error"] = "idle_faces";
-    triggers["state:paused"] = "idle_faces";
-    triggers["wifi:disconnected"] = "wifi_offline";
-    triggers["moonraker:disconnected"] = "moonraker_offline";
 
     DisplaySlot slot;
-    slot.id = "face_oled";
+    slot.id = "boot";
     slot.driver = driver;
-    slot.engine.configure(groups, "idle_faces", triggers);
+    slot.engine.configure(groups, "boot", triggers);
     _slots.push_back(slot);
 
-    Serial.printf("[%s] Hardcoded config: 1 display, %u groups (%u triggers)\n",
-                  TAG, (unsigned)groups.size(), (unsigned)triggers.size());
+    Serial.printf("[%s] Boot display: waiting for config\n", TAG);
 }
 
 bool DisplayManager::begin() {
@@ -268,10 +78,109 @@ bool DisplayManager::begin() {
     if (!_cmdQueue) {
         Serial.printf("[%s] Failed to create command queue\n", TAG);
     }
-    buildHardcodedConfig();
+    buildBootDisplay();
     _lastActivity = millis();
     _screenSaverActive = false;
     return !_slots.empty();
+}
+
+bool DisplayManager::applyConfig(const NodeConfig& config) {
+    Serial.printf("[%s] Applying config version %u...\n", TAG, config.config_version);
+
+    cleanup();
+
+    // Decode sprites
+    for (const auto& kv : config.sprites) {
+        _sprites[kv.first] = decodeSpriteFromInfo(kv.second);
+    }
+    if (!config.sprites.empty()) {
+        Serial.printf("[%s] Decoded %u sprites\n", TAG, (unsigned)config.sprites.size());
+    }
+
+    // Create display slots
+    for (const auto& dispConfig : config.displays) {
+        DisplaySlot slot;
+        slot.id = dispConfig.id;
+
+        // Build bus config JsonObject for the factory
+        JsonDocument busDoc;
+        JsonObject busObj = busDoc.to<JsonObject>();
+        busObj["type"] = dispConfig.bus.type;
+        if (dispConfig.bus.type == "i2c") {
+            busObj["address"] = dispConfig.bus.address;
+        } else {
+            if (dispConfig.bus.cs >= 0)  busObj["cs"] = dispConfig.bus.cs;
+            if (dispConfig.bus.dc >= 0)  busObj["dc"] = dispConfig.bus.dc;
+            if (dispConfig.bus.rst >= 0) busObj["rst"] = dispConfig.bus.rst;
+        }
+
+        slot.driver = createDriver(
+            dispConfig.driver_type.c_str(),
+            busObj,
+            dispConfig.width,
+            dispConfig.height,
+            dispConfig.rotation
+        );
+
+        if (!slot.driver) {
+            Serial.printf("[%s] Failed to create driver for '%s' (type=%s)\n",
+                          TAG, dispConfig.id.c_str(), dispConfig.driver_type.c_str());
+            continue;
+        }
+
+        if (!slot.driver->init()) {
+            Serial.printf("[%s] Failed to init driver for '%s'\n",
+                          TAG, dispConfig.id.c_str());
+            delete slot.driver;
+            continue;
+        }
+
+        // Collect groups referenced by this display
+        std::set<String> refGroupIds;
+        if (!dispConfig.default_group.isEmpty()) {
+            refGroupIds.insert(dispConfig.default_group);
+        }
+        for (const auto& trig : dispConfig.triggers) {
+            if (!trig.second.isEmpty()) {
+                refGroupIds.insert(trig.second);
+            }
+        }
+
+        std::map<String, Group> usedGroups;
+        for (const auto& gid : refGroupIds) {
+            auto it = config.library_groups.find(gid);
+            if (it != config.library_groups.end()) {
+                usedGroups[gid] = it->second;
+            } else {
+                Serial.printf("[%s] Group '%s' referenced but not found\n", TAG, gid.c_str());
+            }
+        }
+
+        // Determine default group
+        String defaultGroup = dispConfig.default_group;
+        if (defaultGroup.isEmpty() && !usedGroups.empty()) {
+            defaultGroup = usedGroups.begin()->first;
+        }
+
+        slot.engine.configure(usedGroups, defaultGroup, dispConfig.triggers);
+        _slots.push_back(slot);
+
+        Serial.printf("[%s] Display '%s': %s %dx%d, %u groups\n",
+                      TAG, slot.id.c_str(),
+                      dispConfig.driver_type.c_str(),
+                      dispConfig.width, dispConfig.height,
+                      (unsigned)usedGroups.size());
+    }
+
+    _configVersion = config.config_version;
+    _lastActivity = millis();
+    _screenSaverActive = false;
+
+    bool ok = !_slots.empty();
+    Serial.printf("[%s] Config applied: %u displays, %u sprites (%s)\n",
+                  TAG, (unsigned)_slots.size(), (unsigned)_sprites.size(),
+                  ok ? "OK" : "NO DISPLAYS");
+    return ok;
 }
 
 void DisplayManager::tickAll(uint32_t now) {

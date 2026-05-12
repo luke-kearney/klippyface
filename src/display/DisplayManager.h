@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <stdint.h>
 #include <map>
+#include <set>
 #include <vector>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
@@ -27,6 +28,8 @@ public:
     void directCommand(const String& groupId,
                        const String& setId = "",
                        int16_t loopCount = 0);
+
+    bool applyConfig(const struct NodeConfig& config);
 
     const std::map<String, Sprite>* sprites() const { return &_sprites; }
     bool isReady() const { return !_slots.empty(); }
@@ -56,9 +59,10 @@ private:
 
     unsigned long _lastActivity = 0;
     bool _screenSaverActive = false;
+    uint32_t _configVersion = 0;
     static const unsigned long SCREEN_SAVER_TIMEOUT = 30000;
 
-    void buildHardcodedConfig();
+    void buildBootDisplay();
     void cleanup();
 };
 

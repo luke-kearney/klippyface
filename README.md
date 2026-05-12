@@ -28,10 +28,11 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 |---------|--------|
 | ESP32 firmware with FreeRTOS multitasking | ✅ Complete |
 | Display driver abstraction (SH1106, SSD1306, ST7789, ILI9341) | ✅ Complete — SH1106 implemented and hardware-verified |
-| Real-time Moonraker WebSocket integration | ✅ Complete — Client + state parsing + mock mode + connection monitoring + screen sleep, see [Phase 2](agents/docs/phase-2/TODO.md) |
+| Real-time Moonraker WebSocket integration | ✅ Complete — Client + state parsing + mock mode + connection monitoring + screen sleep |
 | Configurable animations (Groups → Sets → Frames) | ✅ Complete — Element composition model with DataValue bindings for live Moonraker data |
 | Klipper GCODE macro integration | ⬜ Planned |
 | .NET 10 companion server with SQLite | ✅ Complete — Full CRUD API + per-node config export, see [Phase 3](agents/docs/phase-3/TODO.md) |
+| ESP32 server-driven config fetch | ✅ Complete — ESP32 fetches per-node config via HTTP, hot-reloads every 5 min, see [Phase 4](agents/docs/phase-4/TODO.md) |
 | Web UI — node/display management | ⬜ Planned |
 | Web UI — pixel sprite editor | ⬜ Planned |
 | Web UI — animation preview canvas | ⬜ Planned |
@@ -40,15 +41,13 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 
 ## Current Status
 
-**Phase 1 (ESP32 Core Framework) complete.** PlatformIO + FreeRTOS multitasking (wifiTask + displayTask). Settings (NVS), WiFi manager, DisplayDriver abstraction, SH1106 driver, animation engine, sprite decoder, renderer, and DisplayManager all implemented and hardware-verified. OLED shows animated face cycling at ~30fps.
+**Phase 1 (ESP32 Core Framework) complete.** PlatformIO + FreeRTOS multitasking. Settings (NVS), WiFi manager, DisplayDriver abstraction, SH1106 driver, animation engine, sprite decoder, renderer, and DisplayManager all implemented and hardware-verified.
 
-**Phase 3 (Companion Server) complete.** .NET 10 Minimal API with EF Core + SQLite running on port 5000. Full CRUD for all entities (nodes, displays, assignments, groups, sets, frames, frame elements, sprites, presets). Config export endpoint `GET /api/config/node?mac=...` returns per-node filtered JSON matching the PLAN.md contract. Builds and curl-verified. See [Phase 3 TODO](agents/docs/phase-3/TODO.md).
+**Phase 2 (Moonraker WebSocket Client) complete.** WebSocket client connects to Moonraker `notify_status_update`, parses printer state, and triggers group changes. GCODE `display:...` commands parsed via `GcodeHandler`. Includes mock mode (`esp32dev-mock`) for testing without a printer. Connection monitoring + 30s screen sleep also implemented.
 
-**Phase 2 (Moonraker WebSocket Client) complete.** WebSocket client connects to Moonraker `notify_status_update`, parses printer state (printing/idle/complete/error/paused), and triggers group changes on the OLED. GCODE `display:...` commands parsed via `GcodeHandler`. Includes a **mock mode** (`esp32dev-mock` env) that simulates printer state transitions without a real Moonraker — idle(5s) → printing(15s) → complete(3s) → idle. Both build variants verified. Hardware-tested — a pre-existing crash in `_ws.loop()` (called without WiFi initialized) was found and fixed.
+**Phase 3 (Companion Server) complete.** .NET 10 Minimal API with EF Core + SQLite. Full CRUD for all entities. Config export endpoint `GET /api/config/node?mac=...` returns per-node filtered JSON. Builds and curl-verified.
 
-**Tangent 2A (Frame Data Model Refactor) complete.** The original `Frame` model has been refactored from a single atomic renderable to an element composition model (`FrameElement::Text/Sprite/DataValue`). This enables frames with multiple positioned elements (icons, labels, live Moonraker data bindings) on a single canvas. A `PrinterState` struct with `resolve()` provides data binding for progress bars, temperature readouts, and more.
-
-**Tangent 2B (Connection Status Handling + Screen Sleep) complete.** Three new display groups (`wifi_offline`, `moonraker_offline`, `screen_sleep`) provide user feedback when WiFi or Moonraker disconnect. A priority-based connection state monitor in `main.cpp` tracks WiFi/Moonraker status and sends triggers on transitions. The OLED powers off after 30s of idle activity and wakes on any state change or direct command. Idle frames now show `moonraker.connected` DataValue ("Online"/"Offline") at the bottom.
+**Phase 4 (ESP32 Config Fetcher) complete.** The hardcoded display config has been replaced with a live config fetched from the companion server. The ESP32 boots showing "Waiting for config...", then calls `GET /api/config/node?mac=...` to retrieve its per-node configuration (displays, drivers, triggers, groups, sprites). Config is hot-reloaded every 5 minutes. Both `esp32dev` and `esp32dev-mock` builds verified.
 
 ## Phase Tracking
 
@@ -57,7 +56,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 | 1 | ESP32 Core Framework + Single Display | ✅ Complete | [TODO](agents/docs/phase-1/TODO.md) |
 | 2 | Moonraker WebSocket Client | ✅ Complete | [TODO](agents/docs/phase-2/TODO.md) |
 | 3 | Companion Server — Data Layer | ✅ Complete | [TODO](agents/docs/phase-3/TODO.md) |
-| 4 | ESP32 Config Fetcher | ⬜ Not Started | [TODO](agents/docs/phase-4/TODO.md) |
+| 4 | ESP32 Config Fetcher | ✅ Complete | [TODO](agents/docs/phase-4/TODO.md) |
 | 5 | Web UI | ⬜ Not Started | [TODO](agents/docs/phase-5/TODO.md) |
 | 6 | GCODE Macro Integration | ⬜ Not Started | [TODO](agents/docs/phase-6/TODO.md) |
 | 7 | Captive Portal Setup | ✅ Complete | [TODO](agents/docs/phase-7/TODO.md) |
@@ -75,7 +74,7 @@ klippyface/
 │   ├── comms/               # Moonraker WebSocket, config fetcher, GCODE handler
 │   ├── wifi/                # WiFi manager, captive portal
 │   └── config/              # NVS settings storage
-├── server/                  # .NET 10 companion server (future)
+├── server/                  # .NET 10 companion server
 ├── agents/                  # Development plan + phase tracking
 │   ├── PLAN.md              # Full architecture, API, tasks
 │   ├── CONVENTIONS.md       # Coding conventions (firmware)

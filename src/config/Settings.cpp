@@ -12,6 +12,8 @@ static const char* KEY_WIFI_SSID   = "wifi_ssid";
 static const char* KEY_WIFI_PASS   = "wifi_pass";
 static const char* KEY_MK_HOST     = "mk_host";
 static const char* KEY_MK_PORT     = "mk_port";
+static const char* KEY_SV_HOST     = "sv_host";
+static const char* KEY_SV_PORT     = "sv_port";
 static const char* KEY_NODE_MAC    = "node_mac";
 static const char* KEY_FRIENDLY    = "friendly";
 
@@ -80,6 +82,31 @@ void Settings::setMoonrakerHost(const String& host, uint16_t port) {
         nvs_set_u16(_handle, KEY_MK_PORT, port);
     }
     Serial.printf("[%s] Moonraker: %s:%u\n", TAG, host.c_str(), port);
+}
+
+// ---- Companion server ----
+
+String Settings::getServerHost() {
+    String sv = readString(KEY_SV_HOST, "");
+    if (sv.length() > 0) return sv;
+    // Default to same host as Moonraker
+    return getMoonrakerHost();
+}
+
+uint16_t Settings::getServerPort() {
+    if (!_ready) return 5000;
+    uint16_t port = 0;
+    nvs_get_u16(_handle, KEY_SV_PORT, &port);
+    if (port > 0) return port;
+    return 5000;
+}
+
+void Settings::setServerHost(const String& host, uint16_t port) {
+    writeString(KEY_SV_HOST, host);
+    if (_ready) {
+        nvs_set_u16(_handle, KEY_SV_PORT, port);
+    }
+    Serial.printf("[%s] Server: %s:%u\n", TAG, host.c_str(), port);
 }
 
 // ---- Node identity ----
