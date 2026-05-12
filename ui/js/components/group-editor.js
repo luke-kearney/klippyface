@@ -220,12 +220,18 @@ export function renderGroupEditor(container, params) {
             <button class="btn btn-secondary btn-sm btn-down set-move-down" data-index="${i}" ${last ? 'disabled style="opacity:0.3"' : ''}>&darr;</button>
           </div>
           <button class="btn btn-secondary btn-sm edit-set-btn" data-id="${s.id}">Edit</button>
+          <button class="btn btn-secondary btn-sm frames-set-btn" data-id="${s.id}">Frames</button>
           <button class="btn btn-danger btn-sm delete-set-btn" data-id="${s.id}">Delete</button>
         </div>
       `)
 
       card.querySelector('.set-move-up').onclick = () => moveSet(i, -1)
       card.querySelector('.set-move-down').onclick = () => moveSet(i, 1)
+
+      card.querySelector('.frames-set-btn').onclick = (e) => {
+        e.stopPropagation()
+        location.hash = `#groups/${groupId}/sets/${s.id}`
+      }
 
       card.querySelector('.delete-set-btn').onclick = async () => {
         const overlay = createElement(html`

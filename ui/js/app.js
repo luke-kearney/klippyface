@@ -4,11 +4,13 @@ import { renderNodeList } from './components/node-list.js'
 import { renderNodeEditor } from './components/node-editor.js'
 import { renderGroupList } from './components/group-list.js'
 import { renderGroupEditor } from './components/group-editor.js'
+import { renderSetEditor } from './components/set-editor.js'
 
 const VIEWS = {
   nodes: { render: renderNodeList, title: 'Nodes' },
   groups: { render: renderGroupList, title: 'Groups' },
   'group-editor': { render: renderGroupEditor, title: 'Group Editor' },
+  'set-editor': { render: renderSetEditor, title: 'Set Editor' },
 }
 
 function parseRoute(hash) {
@@ -17,6 +19,9 @@ function parseRoute(hash) {
 
   m = h.match(/^nodes(?:\/(.+))?$/)
   if (m) return { view: 'nodes', params: { nodeId: m[1] || null } }
+
+  m = h.match(/^groups\/([^/]+)\/sets\/(.+)$/)
+  if (m) return { view: 'set-editor', params: { groupId: m[1], setId: m[2] } }
 
   m = h.match(/^groups\/(.+)$/)
   if (m) return { view: 'group-editor', params: { groupId: m[1] } }
@@ -52,6 +57,7 @@ async function handleRoute() {
     const active = view === route.view ||
       (route.view === 'nodes' && view === 'nodes') ||
       (route.view === 'group-editor' && view === 'groups') ||
+      (route.view === 'set-editor' && view === 'groups') ||
       (route.view === 'groups' && view === 'groups')
     el.classList.toggle('active', active)
   })

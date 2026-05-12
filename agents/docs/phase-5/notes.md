@@ -7,7 +7,7 @@
 - **Language:** Vanilla JS (ES modules, no framework)
 - **CSS:** Plain CSS with custom properties (dark theme)
 - **State management:** Custom pub/sub store (~40 lines)
-- **Routing:** Hash-based (`#nodes`, `#nodes/{id}`, `#groups`, `#groups/{id}`)
+- **Routing:** Hash-based (`#nodes`, `#nodes/{id}`, `#groups`, `#groups/{id}`, `#groups/{gid}/sets/{sid}`)
 
 ### Directory Layout
 ```
@@ -27,9 +27,9 @@ ui/
 │       ├── node-editor.js      # ✅ 5.3
 │       ├── group-list.js       # ✅ 5.6
 │       ├── group-editor.js     # ✅ 5.7
+│       ├── set-editor.js       # ✅ 5.8
+│       ├── frame-editor.js     # ✅ 5.9
 │       ├── assignment-editor.js# ⬜ 5.5
-│       ├── set-editor.js       # ⬜ 5.8
-│       ├── frame-editor.js     # ⬜ 5.9
 │       ├── sprite-editor.js    # ⬜ 5.10
 │       ├── preview-canvas.js   # ⬜ 5.11
 │       └── preset-editor.js    # ⬜ 5.12

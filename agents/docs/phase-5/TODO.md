@@ -1,6 +1,6 @@
 # Phase 5: Web UI
 
-**Overall Status:** 🟡 In Progress — tasks 5.0a–5.7 complete (2026-05-12)
+**Overall Status:** 🟡 In Progress — tasks 5.0a–5.9 complete (2026-05-12)
 
 | # | Task | Files | Status | Notes |
 |---|------|-------|--------|-------|
@@ -14,8 +14,8 @@
 | 5.5 | Assignment editor | `ui/js/components/assignment-editor.js` | ⬜ Not Started | Per-display: map triggers → groups. Default group picker. |
 | 5.6 | Group list | `ui/js/components/group-list.js` | ✅ Done | Library section. List of groups with CRUD, inline add form, confirmation deletes. Loading/error/empty states. |
 | 5.7 | Group editor | `ui/js/components/group-editor.js` | ✅ Done | Edit label with dirty tracking. Sets list with inline add/edit/delete forms. Reorder up/down. Loading/error/empty states. |
-| 5.8 | Set editor | `ui/js/components/set-editor.js` | ⬜ Not Started | Frame list. Loop count, frame time. Add/reorder/delete frames. |
-| 5.9 | Frame editor | `ui/js/components/frame-editor.js` | ⬜ Not Started | Type dropdown, value input, color picker, duration slider, x/y offset. |
+| 5.8 | Set editor | `ui/js/components/set-editor.js` | ✅ Done | Full view — edit label/loopCount/frameTime with dirty tracking. Frame list with add/reorder/delete. Inline frame editor panels via frame-editor.js. Loading/error/empty states. Route: `#groups/{gid}/sets/{sid}`. |
+| 5.9 | Frame editor | `ui/js/components/frame-editor.js` | ✅ Done | Inline panel within set editor. Duration range slider (100-10000ms) with debounced save. BG color picker. Element CRUD with type dropdown, value/label/color/x/y fields. Element type badges, reorder, delete with confirmation. |
 | 5.10 | Sprite editor | `ui/js/components/sprite-editor.js` | ⬜ Not Started | Pixel grid canvas. Click to toggle. Grid size (16/32/64/128). Import PNG. Export. |
 | 5.11 | Preview canvas | `ui/js/components/preview-canvas.js` | ⬜ Not Started | 128×64 OLED simulation. Play/pause, speed control. |
 | 5.12 | Preset editor | `ui/js/components/preset-editor.js` | ⬜ Not Started | Create presets. Conditions (time, manual). Overrides (dim, group swaps). |
@@ -32,6 +32,8 @@
 | 2026-05-12 | 5.13 | Complete app controller with Store (pub/sub), router (hash-based), dirty-form guard. |
 | 2026-05-12 | 5.6 | Group list with CRUD, inline add form, confirmation deletes, loading/error/empty states. |
 | 2026-05-12 | 5.7 | Group editor with dirty-tracked label edit, sets list with inline add/edit/delete forms, reorder up/down. |
+| 2026-05-12 | 5.8 | Set editor view with dirty-tracked metadata form, frame list CRUD (add/reorder/delete), inline frame editor panels. Route `#groups/{gid}/sets/{sid}`. |
+| 2026-05-12 | 5.9 | Inline frame editor panel. Duration slider (100-10000ms), bg color picker, element CRUD with type/text/color/x/y fields, type badges, reorder, debounced frame save. |
 
 ## Build Output (verified 2026-05-12)
 
@@ -39,6 +41,6 @@
 server/wwwroot/
 ├── index.html                   1.18 kB
 └── assets/
-    ├── index-D7Lndj_a.css       7.24 kB
-    └── index-Bn3cYneO.js       18.84 kB
+    ├── index-BoJpM0B5.css       9.97 kB
+    └── index-9uqZoFPF.js       33.92 kB
 ```
