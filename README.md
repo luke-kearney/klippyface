@@ -6,7 +6,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 
 ```
 ┌────────────────┐    WebSocket     ┌──────────────────┐   HTTP/Config  ┌────────────────┐
-│   Moonraker    │ ←──────────────→ │  ESP32 (Node)    │ ←───────────── │  Companion     │
+│   Moonraker    │ ←───────────────→│  ESP32 (Node)    │ ←───────────── │  Companion     │
 │  (Klipper API) │                  │  SH1106 OLED(s)  │                │  Server (.NET) │
 └────────────────┘                  └──────────────────┘                └────────────────┘
                                                                                │
@@ -22,55 +22,93 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 4. **Klipper macros** can push commands directly: `DISPLAY_FACE GROUP=celebration SET=party`
 5. **Web UI** provides full visual management — node registry, sprite pixel editor, animation preview, preset scheduling
 
-## Features (Target)
+## Quick Start
+
+### Firmware (ESP32)
+
+```bash
+# Build with mock mode (no printer needed)
+pio run -e esp32dev-mock
+
+# Flash to device
+pio run -e esp32dev -t upload
+
+# View serial console
+pio device monitor
+```
+
+### Companion Server
+
+```bash
+cd server
+dotnet run
+# → http://localhost:5000
+```
+
+### Web UI (Development)
+
+```bash
+cd ui
+npm install
+npm run dev
+# → http://localhost:5173 (proxies /api to :5000)
+```
+
+### Web UI (Production Build)
+
+```bash
+cd ui
+npm run build
+# → outputs to server/wwwroot/, served by dotnet run
+```
+
+## Features
 
 | Feature | Status |
 |---------|--------|
-| ESP32 firmware with FreeRTOS multitasking | ✅ Complete |
-| Display driver abstraction (SH1106, SSD1306, ST7789, ILI9341) | ✅ Complete — SH1106 implemented and hardware-verified |
-| Real-time Moonraker WebSocket integration | ✅ Complete — Client + state parsing + mock mode + connection monitoring + screen sleep |
-| Configurable animations (Groups → Sets → Frames) | ✅ Complete — Element composition model with DataValue bindings for live Moonraker data |
+| ESP32 firmware with FreeRTOS multitasking | ✅ Done |
+| Display driver abstraction (SH1106, SSD1306, ST7789, ILI9341) | ✅ Done — SH1106 implemented and hardware-verified |
+| Real-time Moonraker WebSocket integration | ✅ Done — state parsing, mock mode, connection monitoring, screen sleep |
+| Configurable animations (Groups → Sets → Frames → Elements) | ✅ Done — element composition model with DataValue bindings |
 | Klipper GCODE macro integration | ⬜ Planned |
-| .NET 10 companion server with SQLite | ✅ Complete — Full CRUD API + per-node config export, see [Phase 3](agents/docs/phase-3/TODO.md) |
-| ESP32 server-driven config fetch | ✅ Complete — ESP32 fetches per-node config via HTTP, hot-reloads every 5 min, configurable protocol (http/https) and URL, see [Phase 4](agents/docs/phase-4/TODO.md) |
-| Web UI — full management (nodes, displays, assignments, groups, sets, frames, sprites, presets, preview) | ✅ Complete |
-| Web UI — pixel sprite editor | ✅ Complete |
-| Web UI — animation preview canvas | ✅ Complete |
-| Captive portal first-boot setup | ✅ Complete |
+| .NET 10 companion server with SQLite | ✅ Done — full CRUD API + per-node config export |
+| ESP32 server-driven config fetch | ✅ Done — HTTP fetch, hot-reload every 5 min, configurable protocol/URL |
+| Web UI — full management (nodes, displays, assignments, groups, sets, frames, sprites, presets, preview) | ✅ Done |
+| Web UI — pixel sprite editor with PNG import | ✅ Done |
+| Web UI — animation preview canvas | ✅ Done |
+| Captive portal first-boot setup | ✅ Done |
 | Multi-node support | ⬜ Planned |
 
-## Current Status
+See [open GitHub Issues](https://github.com/luke-kearney/klippyface/issues) for upcoming work and current priorities.
 
-**Phase 1 (ESP32 Core Framework) complete.** PlatformIO + FreeRTOS multitasking. Settings (NVS), WiFi manager, DisplayDriver abstraction, SH1106 driver, animation engine, sprite decoder, renderer, and DisplayManager all implemented and hardware-verified.
+## Architecture
 
-**Phase 2 (Moonraker WebSocket Client) complete.** WebSocket client connects to Moonraker `notify_status_update`, parses printer state, and triggers group changes. GCODE `display:...` commands parsed via `GcodeHandler`. Includes mock mode (`esp32dev-mock`) for testing without a printer. Connection monitoring + 30s screen sleep also implemented.
+The system has three major components:
 
-**Phase 3 (Companion Server) complete.** .NET 10 Minimal API with EF Core + SQLite. Full CRUD for all entities. Config export endpoint `GET /api/config/node?mac=...` returns per-node filtered JSON. Builds and curl-verified.
+| Component | Stack | Purpose |
+|-----------|-------|---------|
+| **ESP32 firmware** | PlatformIO, Arduino, FreeRTOS | Drives displays, connects to Moonraker, runs animations |
+| **Companion server** | .NET 10, EF Core, SQLite | REST API, node config, sprite/group library |
+| **Web UI** | Vite + vanilla JS | Full visual editor for all content |
 
-**Phase 4 (ESP32 Config Fetcher) complete.** The hardcoded display config has been replaced with a live config fetched from the companion server. The ESP32 boots showing "Waiting for config...", then calls `GET /api/config/node?mac=...` to retrieve its per-node configuration (displays, drivers, triggers, groups, sprites). Config is hot-reloaded every 5 minutes. Both `esp32dev` and `esp32dev-mock` builds verified.
+Detailed architecture docs are in [`docs/architecture/`](docs/architecture/):
+- [System overview](docs/architecture/overview.md) — diagrams, data flow, core concepts
+- [Firmware](docs/architecture/firmware.md) — FreeRTOS tasks, display driver, animation engine, sprites
+- [Server](docs/architecture/server.md) — .NET structure, models, services, Docker
+- [Frontend](docs/architecture/frontend.md) — Vite, component tree, routing, preview canvas
+- [Data model](docs/architecture/data-model.md) — SQLite schema, entity relationships
 
-**Tangent 4A: Independent protocol + URL config.** Both Moonraker and the companion server now support configurable protocols (ws/wss, http/https) and independent host/port. MAC address is auto-detected on first boot. The server's binding address and CORS policy are configured via `server/appsettings.json` — no recompile needed to change ports or lock down origins.
-
-**Phase 5 (Web UI) complete.** Vite-powered vanilla JS SPA with hash-based routing, pub/sub state store, and dirty-form tracking. Full CRUD for nodes, displays, assignments, groups, sets, frames, elements, sprites, and presets. Includes pixel sprite editor with PNG import and OLED animation preview canvas. See [`agents/docs/phase-5/TODO.md`](agents/docs/phase-5/TODO.md).
-
-## Phase Tracking
-
-| Phase | Description | Status | Task List |
-|-------|-------------|--------|-----------|
-| 1 | ESP32 Core Framework + Single Display | ✅ Complete | [TODO](agents/docs/phase-1/TODO.md) |
-| 2 | Moonraker WebSocket Client | ✅ Complete | [TODO](agents/docs/phase-2/TODO.md) |
-| 3 | Companion Server — Data Layer | ✅ Complete | [TODO](agents/docs/phase-3/TODO.md) |
-| 4 | ESP32 Config Fetcher | ✅ Complete (+ Tangent 4A) | [TODO](agents/docs/phase-4/TODO.md) |
-| 5 | Web UI | ✅ Complete | [TODO](agents/docs/phase-5/TODO.md) |
-| 6 | GCODE Macro Integration | ⬜ Not Started | [TODO](agents/docs/phase-6/TODO.md) |
-| 7 | Captive Portal Setup | ✅ Complete | [TODO](agents/docs/phase-7/TODO.md) |
-| 8 | Multi-Node & Polish | ⬜ Not Started | [TODO](agents/docs/phase-8/TODO.md) |
-
-## Project Structure
+### Project Structure
 
 ```
 klippyface/
 ├── platformio.ini           # ESP32 build config
+├── CONTRIBUTING.md          # Coding conventions, PR workflow, checklist
+├── AGENTS.md                # AI agent bootstrap instructions
+├── docs/                    # Reference documentation
+│   ├── architecture/        # System architecture by domain
+│   ├── reference/           # API reference, GCODE macros
+│   └── decisions/           # Design decision log (ADRs)
 ├── src/                     # ESP32 firmware (C++)
 │   ├── main.cpp             # FreeRTOS task orchestration
 │   ├── display/             # Display drivers, renderer, sprite engine
@@ -78,127 +116,40 @@ klippyface/
 │   ├── comms/               # Moonraker WebSocket, config fetcher, GCODE handler
 │   ├── wifi/                # WiFi manager, captive portal
 │   └── config/              # NVS settings storage
-├── ui/                      # Web UI source (Vite project)
 ├── server/                  # .NET 10 companion server
-├── agents/                  # Development plan + phase tracking
-│   ├── PLAN.md              # Full architecture, API, tasks
-│   ├── CONVENTIONS.md       # Coding conventions (firmware)
-│   └── docs/                # Phase tracking, design decisions, notes
-├── docker/                  # Docker deployment (future)
-└── scripts/                 # Utility scripts
+├── ui/                      # Web UI source (Vite project)
+├── docker/
+│   └── Dockerfile
+└── scripts/
+    └── xbm-convert.py
 ```
-
-See [`agents/PLAN.md`](agents/PLAN.md) for the full architecture, data model, API reference, and implementation plan.
-See [`agents/CONVENTIONS.md`](agents/CONVENTIONS.md) for firmware coding conventions.
-
-## Getting Started
-
-### Hardware
-
-- ESP32-WROOM-32 dev board
-- SH1106 128×64 OLED display (I2C)
-- Micro-USB cable for flashing
-
-### Prerequisites
-
-- [PlatformIO](https://platformio.org/) (CLion plugin or VS Code extension or CLI)
-- Or: [CLion](https://www.jetbrains.com/clion/) with PlatformIO plugin
-
-### Build & Flash
-
-```bash
-# Install dependencies
-pio pkg install
-
-# Build
-pio run -e esp32dev
-
-# Flash to ESP32
-pio run -e esp32dev -t upload
-
-# Monitor serial output
-pio device monitor -b 115200
-```
-
-### Mock Mode (No Printer Required)
-
-For testing without a physical Moonraker instance, use the mock environment. It simulates printer state transitions on a timer:
-
-```bash
-# Build with mock mode
-pio run -e esp32dev-mock
-
-# Flash
-pio run -e esp32dev-mock -t upload
-
-# Monitor — you'll see simulated state cycles
-pio device monitor -b 115200
-```
-
-Mock state machine: **idle (5s) → printing (15s, rising progress) → complete (3s) → idle → ...**
-
-The OLED will cycle through the corresponding face groups automatically.
 
 ## Moonraker Connection
 
-The ESP32 connects to [Moonraker](https://github.com/Arksine/moonraker) via WebSocket at `ws://{host}:{port}/websocket` and subscribes to real-time printer state updates (`notify_status_update`).
-
-### How It Works
-
-```
-ESP32 ──ws://host:7125/websocket──→ Moonraker (JSON-RPC)
-  │                                    │
-  │  Subscribe: printer.objects        │  {"jsonrpc":"2.0",
-  │  .subscribe                        │   "method":"printer.objects.subscribe",
-  │  (print_stats, extruder,           │   "params":{"objects":
-  │   heater_bed)                      │     {"print_stats":null,
-  │                                    │      "extruder":null,
-  │  Receive: notify_status_update ────┤      "heater_bed":null}}}
-  │  → parse print_stats.state         │
-  │  → map to trigger string           │  {"jsonrpc":"2.0",
-  │    "printing"  → "state:printing"  │   "method":"notify_status_update",
-  │    "idle"      → "state:idle"      │   "params":[{"print_stats":
-  │    "complete"  → "state:complete"  │     {"state":"printing",
-  │    "error"     → "state:error"     │      "progress":0.45},...}]}
-  │    "paused"    → "state:paused"    │
-  │                                    │
-  │  GCODE commands via DISPLAY_FACE ←─┤  RESPOND MSG="display:group=...
-  │  → parsed by GcodeHandler          │
-  │  → directCommand(group, set)       │
-```
-
-### Setting Connection Details
-
-Moonraker host and port are stored in **NVS** (Non-Volatile Storage). The defaults are `192.168.2.21:7125`.
-
-**Option 1: Edit defaults and reflash** (until captive portal is built in Phase 7):
-
-Edit the defaults in `src/config/Settings.cpp`:
-
-```cpp
-// Line 62 — change the default IP
-String Settings::getMoonrakerHost()  { return readString(KEY_MK_HOST, "192.168.2.21"); }
-//                          change this ──────────────^
-// Line 66 — change the default port
-uint16_t Settings::getMoonrakerPort() {
-    ...
-    uint16_t port = 7125;  // <-- change here
-    ...
-}
-```
-
-Then rebuild and flash.
-
-**Option 2: Via serial console** (adds a simple command parser — see `comms/GcodeHandler.cpp` for the `display:...` parsing pattern, which will be extended to a `set:host=...` serial command in Phase 7).
+The ESP32 connects to [Moonraker](https://github.com/Arksine/moonraker) via WebSocket at `ws://{host}:{port}/websocket` and subscribes to real-time printer state updates.
 
 ### Connection Lifecycle
 
-1. **WiFi connects** → `moonrakerTask` waits for WiFi via `WifiManager::waitForConnection()`
+1. **WiFi connects** → `moonrakerTask` waits for WiFi via event group
 2. **WebSocket connects** → sends `printer.objects.subscribe` JSON-RPC
 3. **State updates arrive** → MoonrakerClient parses JSON, publishes `StateEvent` to FreeRTOS queue
-4. **DisplayManager.onStateChange()** → fans out to all `AnimationEngine.onTrigger()` → group switch
-5. **Disconnect** → auto-reconnect with 5s backoff, re-subscribes on reconnect
-6. **Keep-alive** → WebSocket PING every 30s
+4. **DisplayManager.onStateChange()** → fans out to all engines → group switch
+5. **Disconnect** → auto-reconnect with backoff, re-subscribes on reconnect
+6. **Keep-alive** → WebSocket PING every 30s (handled by WebSockets library)
+
+### Connection Status Handling
+
+Three dedicated display groups for connection states:
+
+| Group | Content | Trigger |
+|-------|---------|---------|
+| `wifi_offline` | "WiFi Offline" + "Check network" | `wifi:disconnected` |
+| `moonraker_offline` | "Moonraker Down" + "Reconnecting..." | `moonraker:disconnected` |
+| `screen_sleep` | Blank (OLED powers off) | 30s idle timeout |
+
+### Mock Mode (No Printer Required)
+
+For testing without a physical Moonraker instance, build with `esp32dev-mock`. It simulates printer state transitions on a timer: **idle (5s) → printing (15s, rising progress) → complete (3s) → idle → ...**
 
 ### Serial Log Output
 
@@ -214,17 +165,9 @@ Then rebuild and flash.
 [DISPLAY] Engine triggered: state:printing → printing_faces
 ```
 
-## Architecture
+## Contributing
 
-The system has three major components:
-
-| Component | Stack | Purpose |
-|-----------|-------|---------|
-| **ESP32 firmware** | PlatformIO, Arduino, FreeRTOS | Drives displays, connects to Moonraker, runs animations |
-| **Companion server** | .NET 10, EF Core, SQLite | REST API, node config, sprite/group library |
-| **Web UI** | Vite + vanilla JS | Full visual editor for all content |
-
-For the detailed data model, API contracts, and task architecture, see [`agents/PLAN.md`](agents/PLAN.md).
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for coding conventions, git style, and the PR review checklist. All work is tracked in [GitHub Issues](https://github.com/luke-kearney/klippyface/issues) with labels for area, priority, and type.
 
 ## License
 
