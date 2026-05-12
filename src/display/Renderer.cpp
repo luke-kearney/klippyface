@@ -60,7 +60,8 @@ static void renderSpriteElement(const FrameElement& element, DisplayDriver& disp
 
     const Sprite& sprite = it->second;
     display.drawBitmap(element.x, element.y,
-                       sprite.rawData(), sprite.width, sprite.height,
+                       sprite.rawData(), sprite.byteSize(),
+                       sprite.width, sprite.height,
                        element.color);
 }
 

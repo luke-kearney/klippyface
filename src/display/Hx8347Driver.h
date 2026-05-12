@@ -1,13 +1,14 @@
-#ifndef KLIPPYFACE_SH1106_DRIVER_H
-#define KLIPPYFACE_SH1106_DRIVER_H
+#ifndef KLIPPYFACE_HX8347_DRIVER_H
+#define KLIPPYFACE_HX8347_DRIVER_H
 
 #include "DisplayDriver.h"
-#include <Adafruit_SH110X.h>
+#include <Arduino_GFX.h>
+#include <ArduinoJson.h>
 
-class Sh1106Driver : public DisplayDriver {
+class Hx8347Driver : public DisplayDriver {
 public:
-    Sh1106Driver(int16_t width, int16_t height, uint8_t i2cAddr, uint8_t rotation = 0);
-    ~Sh1106Driver() override;
+    Hx8347Driver(int16_t width, int16_t height, const JsonObject& busConfig, uint8_t rotation);
+    ~Hx8347Driver() override;
 
     bool init() override;
     void powerSave(bool enable) override;
@@ -34,12 +35,24 @@ public:
 
     void show() override;
 
+    static uint16_t rgb888to565(uint32_t rgb);
+
 private:
-    Adafruit_SH1106G* _display;
+    Arduino_GFX* _gfx;
     int16_t  _width;
     int16_t  _height;
-    uint8_t  _i2cAddr;
     uint8_t  _rotation;
+    int8_t   _blPin;
+    bool     _ips;
+    String   _busType;
+
+    int8_t _dc;
+    int8_t _cs;
+    int8_t _wr;
+    int8_t _rd;
+    int8_t _rst;
+    int8_t _d0, _d1, _d2, _d3, _d4, _d5, _d6, _d7;
+    int8_t _mosi, _miso, _sclk;
 };
 
 #endif
