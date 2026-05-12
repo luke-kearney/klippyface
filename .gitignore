@@ -44,3 +44,8 @@ Desktop.ini
 __pycache__/
 *.pyc
 *.pyo
+
+# Node / Vite
+node_modules/
+ui/dist/
+server/wwwroot/

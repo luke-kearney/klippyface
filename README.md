@@ -76,6 +76,7 @@ klippyface/
 │   ├── comms/               # Moonraker WebSocket, config fetcher, GCODE handler
 │   ├── wifi/                # WiFi manager, captive portal
 │   └── config/              # NVS settings storage
+├── ui/                      # Web UI source (Vite project)
 ├── server/                  # .NET 10 companion server
 ├── agents/                  # Development plan + phase tracking
 │   ├── PLAN.md              # Full architecture, API, tasks
@@ -219,7 +220,7 @@ The system has three major components:
 |-----------|-------|---------|
 | **ESP32 firmware** | PlatformIO, Arduino, FreeRTOS | Drives displays, connects to Moonraker, runs animations |
 | **Companion server** | .NET 10, EF Core, SQLite | REST API, node config, sprite/group library |
-| **Web UI** | Vanilla JS | Full visual editor for all content |
+| **Web UI** | Vite + vanilla JS | Full visual editor for all content |
 
 For the detailed data model, API contracts, and task architecture, see [`agents/PLAN.md`](agents/PLAN.md).
 

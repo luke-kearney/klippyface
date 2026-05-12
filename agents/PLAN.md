@@ -2,7 +2,7 @@
 
 > **Project:** Multi-node ESP32 display system driven by Moonraker/Klipper printer data
 > **Goal:** Replace hardcoded face sketch with a configurable, animated, multi-device display system
-> **Approach:** ESP32 firmware (PlatformIO + Arduino core + FreeRTOS) + Companion server (.NET + SQLite) + Web UI (vanilla JS)
+> **Approach:** ESP32 firmware (PlatformIO + Arduino core + FreeRTOS) + Companion server (.NET + SQLite) + Web UI (Vite + vanilla JS)
 
 ---
 
@@ -552,24 +552,28 @@ klippyface/
 │   │   ├── ConfigExportService.cs     # Assemble per-node config JSON
 │   │   ├── SpriteConversionService.cs # PNG → XBM / PNG → RGB565
 │   │   └── NodeStatusService.cs       # Track online/offline, last seen
-│   └── wwwroot/                       # Web UI static files
-│       ├── index.html
-│       ├── css/style.css
-│       └── js/
-│           ├── app.js
-│           ├── api.js
-│           ├── components/
-│           │   ├── node-list.js
-│           │   ├── node-editor.js
-│           │   ├── group-list.js
-│           │   ├── group-editor.js
-│           │   ├── set-editor.js
-│           │   ├── frame-editor.js
-│           │   ├── sprite-editor.js
-│           │   ├── preview-canvas.js
-│           │   ├── assignment-editor.js
-│           │   └── preset-editor.js
-│           └── utils.js
+│   ├── ui/                            # Web UI source (Vite project)
+│   │   ├── package.json
+│   │   ├── vite.config.js
+│   │   ├── index.html
+│   │   ├── css/style.css
+│   │   ├── js/
+│   │   │   ├── app.js
+│   │   │   ├── api.js
+│   │   │   ├── utils.js
+│   │   │   └── components/
+│   │   │       ├── node-list.js
+│   │   │       ├── node-editor.js
+│   │   │       ├── group-list.js
+│   │   │       ├── group-editor.js
+│   │   │       ├── set-editor.js
+│   │   │       ├── frame-editor.js
+│   │   │       ├── sprite-editor.js
+│   │   │       ├── preview-canvas.js
+│   │   │       ├── assignment-editor.js
+│   │   │       └── preset-editor.js
+│   │   └── public/
+│   └── wwwroot/                       # Vite build output (auto-generated, gitignored)
 │
 ├── docker/
 │   └── Dockerfile                     # Multi-stage .NET build
@@ -695,24 +699,25 @@ klippyface/
 
 ### Phase 5: Web UI
 
-> **Goal:** Vanilla JS single-page app for managing nodes, library, and presets. Includes pixel editor + OLED preview.
+> **Goal:** Vite-powered vanilla JS single-page app for managing nodes, library, and presets. Includes pixel editor + OLED preview.
 
 | # | Task | Files | Key detail |
 |---|------|-------|------------|
-| 5.0 | Scaffold HTML + CSS | `wwwroot/index.html`, `wwwroot/css/style.css` | Dark theme. Sidebar + main panel layout. |
-| 5.1 | API client | `wwwroot/js/api.js` | Fetch wrapper. All endpoints. Error handling. |
-| 5.2 | Node list | `wwwroot/js/components/node-list.js` | Cards showing MAC, name, online/offline, description. |
-| 5.3 | Node editor | `wwwroot/js/components/node-editor.js` | Edit name, description. Add/configure displays (type, bus, pins, resolution). |
+| 5.0a | Init Vite project | `ui/package.json`, `ui/vite.config.js` | `npm create vite@latest` with vanilla JS template. Configure outDir → `../server/wwwroot`, API proxy → `localhost:5000`. |
+| 5.0 | Scaffold HTML + CSS | `ui/index.html`, `ui/css/style.css` | Dark theme. Sidebar + main panel layout. |
+| 5.1 | API client | `ui/js/api.js` | Fetch wrapper. All endpoints. Error handling. |
+| 5.2 | Node list | `ui/js/components/node-list.js` | Cards showing MAC, name, online/offline, description. |
+| 5.3 | Node editor | `ui/js/components/node-editor.js` | Edit name, description. Add/configure displays (type, bus, pins, resolution). |
 | 5.4 | Display editor | within node-editor | Per-display: driver type dropdown, bus config (i2c address or SPI pins), resolution, rotation. |
-| 5.5 | Assignment editor | `wwwroot/js/components/assignment-editor.js` | Per-display: map triggers → groups. Default group picker. |
-| 5.6 | Group list | `wwwroot/js/components/group-list.js` | Library section. List of groups. |
-| 5.7 | Group editor | `wwwroot/js/components/group-editor.js` | Sets list. Add/reorder/delete sets. |
-| 5.8 | Set editor | `wwwroot/js/components/set-editor.js` | Frame list. Loop count, frame time. Add/reorder/delete frames. |
-| 5.9 | Frame editor | `wwwroot/js/components/frame-editor.js` | Element list (add/reorder/delete positioned elements per frame). Per-element: type dropdown (text/sprite/datavalue), value input, label, color picker, x/y position. Frame-level: duration slider, bg_color picker. |
-| 5.10 | Sprite editor | `wwwroot/js/components/sprite-editor.js` | Pixel grid canvas. Click to toggle. Grid size (16/32/64/128). Import PNG. Export. |
-| 5.11 | Preview canvas | `wwwroot/js/components/preview-canvas.js` | **128×64 OLED simulation**. Renders current set's frames in sequence. Play/pause, speed control. |
-| 5.12 | Preset editor | `wwwroot/js/components/preset-editor.js` | Create presets. Conditions (time, manual). Overrides (dim, group swaps). |
-| 5.13 | App controller | `wwwroot/js/app.js` | Client-side routing. State management. Unsaved changes indicator. |
+| 5.5 | Assignment editor | `ui/js/components/assignment-editor.js` | Per-display: map triggers → groups. Default group picker. |
+| 5.6 | Group list | `ui/js/components/group-list.js` | Library section. List of groups. |
+| 5.7 | Group editor | `ui/js/components/group-editor.js` | Sets list. Add/reorder/delete sets. |
+| 5.8 | Set editor | `ui/js/components/set-editor.js` | Frame list. Loop count, frame time. Add/reorder/delete frames. |
+| 5.9 | Frame editor | `ui/js/components/frame-editor.js` | Element list (add/reorder/delete positioned elements per frame). Per-element: type dropdown (text/sprite/datavalue), value input, label, color picker, x/y position. Frame-level: duration slider, bg_color picker. |
+| 5.10 | Sprite editor | `ui/js/components/sprite-editor.js` | Pixel grid canvas. Click to toggle. Grid size (16/32/64/128). Import PNG. Export. |
+| 5.11 | Preview canvas | `ui/js/components/preview-canvas.js` | **128×64 OLED simulation**. Renders current set's frames in sequence. Play/pause, speed control. |
+| 5.12 | Preset editor | `ui/js/components/preset-editor.js` | Create presets. Conditions (time, manual). Overrides (dim, group swaps). |
+| 5.13 | App controller | `ui/js/app.js` | Client-side routing. State management. Unsaved changes indicator. |
 
 **Definition of done:** Full CRUD for everything. Create a face in the sprite editor, assign it to a set, preview the animation, assign the group to a node, save → ESP32 shows it.
 
