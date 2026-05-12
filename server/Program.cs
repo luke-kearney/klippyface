@@ -23,7 +23,25 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+        var cors = builder.Configuration.GetSection("Klippyface:Cors");
+        var origins = cors.GetSection("AllowedOrigins").Get<string[]>();
+        var methods = cors.GetSection("AllowedMethods").Get<string[]>();
+        var headers = cors.GetSection("AllowedHeaders").Get<string[]>();
+
+        if (origins is { Length: 1 } && origins[0] == "*")
+            policy.AllowAnyOrigin();
+        else if (origins is { Length: > 0 })
+            policy.WithOrigins(origins);
+
+        if (methods is { Length: 1 } && methods[0] == "*")
+            policy.AllowAnyMethod();
+        else if (methods is { Length: > 0 })
+            policy.WithMethods(methods);
+
+        if (headers is { Length: 1 } && headers[0] == "*")
+            policy.AllowAnyHeader();
+        else if (headers is { Length: > 0 })
+            policy.WithHeaders(headers);
     });
 });
 
