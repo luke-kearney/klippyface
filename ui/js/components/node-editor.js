@@ -91,12 +91,22 @@ export function renderNodeEditor(container, params) {
         <div class="form-row">
           <div class="form-group" id="df-bus-config">
             ${d.busType === 'i2c'
-              ? html`<label>I2C Address</label><input type="text" class="df-bus-addr" value="${bc.address || '0x3C'}" placeholder="0x3C">`
+              ? html`
+                <label>I2C Address</label><input type="text" class="df-bus-addr" value="${bc.address || '0x3C'}" placeholder="0x3C">
+                <div class="form-row" style="margin-top:8px">
+                  <div class="form-group"><label>SDA Pin</label><input type="number" class="df-sda" value="${bc.sda ?? 21}" min="0" max="39"></div>
+                  <div class="form-group"><label>SCL Pin</label><input type="number" class="df-scl" value="${bc.scl ?? 22}" min="0" max="39"></div>
+                </div>`
               : html`
                 <div class="form-row">
                   <div class="form-group"><label>CS Pin</label><input type="number" class="df-cs" value="${bc.cs || 5}"></div>
                   <div class="form-group"><label>DC Pin</label><input type="number" class="df-dc" value="${bc.dc || 2}"></div>
                   <div class="form-group"><label>RST Pin</label><input type="number" class="df-rst" value="${bc.rst || 4}"></div>
+                </div>
+                <div class="form-row" style="margin-top:8px">
+                  <div class="form-group"><label>MOSI Pin</label><input type="number" class="df-mosi" value="${bc.mosi ?? ''}" placeholder="23" min="0" max="39"></div>
+                  <div class="form-group"><label>MISO Pin</label><input type="number" class="df-miso" value="${bc.miso ?? ''}" placeholder="19" min="0" max="39"></div>
+                  <div class="form-group"><label>SCLK Pin</label><input type="number" class="df-sclk" value="${bc.sclk ?? ''}" placeholder="18" min="0" max="39"></div>
                 </div>`
             }
           </div>
@@ -124,13 +134,23 @@ export function renderNodeEditor(container, params) {
       const isI2c = el.querySelector('.df-bus').value === 'i2c'
       const cfgEl = el.querySelector('#df-bus-config')
       if (isI2c) {
-        cfgEl.innerHTML = '<label>I2C Address</label><input type="text" class="df-bus-addr" value="0x3C" placeholder="0x3C">'
+        cfgEl.innerHTML = `
+          <label>I2C Address</label><input type="text" class="df-bus-addr" value="0x3C" placeholder="0x3C">
+          <div class="form-row" style="margin-top:8px">
+            <div class="form-group"><label>SDA Pin</label><input type="number" class="df-sda" value="21" min="0" max="39"></div>
+            <div class="form-group"><label>SCL Pin</label><input type="number" class="df-scl" value="22" min="0" max="39"></div>
+          </div>`
       } else {
         cfgEl.innerHTML = `
           <div class="form-row">
             <div class="form-group"><label>CS Pin</label><input type="number" class="df-cs" value="5"></div>
             <div class="form-group"><label>DC Pin</label><input type="number" class="df-dc" value="2"></div>
             <div class="form-group"><label>RST Pin</label><input type="number" class="df-rst" value="4"></div>
+          </div>
+          <div class="form-row" style="margin-top:8px">
+            <div class="form-group"><label>MOSI Pin</label><input type="number" class="df-mosi" value="" placeholder="23" min="0" max="39"></div>
+            <div class="form-group"><label>MISO Pin</label><input type="number" class="df-miso" value="" placeholder="19" min="0" max="39"></div>
+            <div class="form-group"><label>SCLK Pin</label><input type="number" class="df-sclk" value="" placeholder="18" min="0" max="39"></div>
           </div>`
       }
     }
@@ -143,12 +163,24 @@ export function renderNodeEditor(container, params) {
       let busConfig
       if (busType === 'i2c') {
         const addr = el.querySelector('.df-bus-addr')?.value?.trim() || '0x3C'
-        busConfig = JSON.stringify({ address: addr })
+        const sda = parseInt(el.querySelector('.df-sda')?.value)
+        const scl = parseInt(el.querySelector('.df-scl')?.value)
+        const bc = { address: addr }
+        if (!isNaN(sda)) bc.sda = sda
+        if (!isNaN(scl)) bc.scl = scl
+        busConfig = JSON.stringify(bc)
       } else {
         const cs = parseInt(el.querySelector('.df-cs')?.value) || 5
         const dc = parseInt(el.querySelector('.df-dc')?.value) || 2
         const rst = parseInt(el.querySelector('.df-rst')?.value) || 4
-        busConfig = JSON.stringify({ cs, dc, rst })
+        const mosi = parseInt(el.querySelector('.df-mosi')?.value)
+        const miso = parseInt(el.querySelector('.df-miso')?.value)
+        const sclk = parseInt(el.querySelector('.df-sclk')?.value)
+        const bc = { cs, dc, rst }
+        if (!isNaN(mosi)) bc.mosi = mosi
+        if (!isNaN(miso)) bc.miso = miso
+        if (!isNaN(sclk)) bc.sclk = sclk
+        busConfig = JSON.stringify(bc)
       }
       const width = parseInt(el.querySelector('.df-w').value) || 128
       const height = parseInt(el.querySelector('.df-h').value) || 64
@@ -349,8 +381,8 @@ export function renderNodeEditor(container, params) {
       let bc = {}
       try { if (d.busConfig && typeof d.busConfig === 'string') bc = JSON.parse(d.busConfig) } catch {}
       const busInfo = d.busType === 'i2c'
-        ? `I2C ${bc.address || '?'}`
-        : `SPI CS:${bc.cs || '?'} DC:${bc.dc || '?'} RST:${bc.rst || '?'}`
+        ? `I2C ${bc.address || '?'} SDA:${bc.sda ?? 21} SCL:${bc.scl ?? 22}`
+        : `SPI CS:${bc.cs || '?'} DC:${bc.dc || '?'} RST:${bc.rst || '?'}${bc.mosi != null ? ` MOSI:${bc.mosi}` : ''}${bc.miso != null ? ` MISO:${bc.miso}` : ''}${bc.sclk != null ? ` SCLK:${bc.sclk}` : ''}`
 
       const card = createElement(html`
         <div class="display-card" data-id="${d.id}">

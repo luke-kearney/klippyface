@@ -297,9 +297,6 @@ void setup() {
     gcodeQueue = xQueueCreate(5, sizeof(GcodeMessage));
     configQueue = xQueueCreate(2, sizeof(char*));
 
-    Wire.begin(21, 22);
-    Serial.println("[BOOT] I2C: pins 21/22");
-
     displayManager.begin();
 
     xTaskCreatePinnedToCore(
