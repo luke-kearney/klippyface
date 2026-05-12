@@ -4,6 +4,8 @@
 #include "display/DisplayFactory.h"
 #include "comms/MoonrakerClient.h"
 #include <ArduinoJson.h>
+#include <Wire.h>
+#include <SPI.h>
 
 static const char* TAG = "DISPLAY";
 
@@ -49,6 +51,52 @@ bool DisplayManager::applyConfig(const NodeConfig& config) {
     }
     if (!config.sprites.empty()) {
         Serial.printf("[%s] Decoded %u sprites\n", TAG, (unsigned)config.sprites.size());
+    }
+
+    // Initialize display buses from config before creating drivers
+    int8_t i2cSda = -1, i2cScl = -1;
+    int8_t spiMosi = -1, spiMiso = -1, spiSclk = -1;
+    for (const auto& dispConfig : config.displays) {
+        JsonDocument busDoc;
+        if (!dispConfig.rawBusJson.isEmpty()) {
+            deserializeJson(busDoc, dispConfig.rawBusJson);
+        }
+        JsonObject busObj = busDoc.as<JsonObject>();
+
+        if (dispConfig.bus.type == "i2c") {
+            int8_t sda = 21, scl = 22;
+            if (busObj["sda"].is<int>()) sda = busObj["sda"].as<int>();
+            if (busObj["scl"].is<int>()) scl = busObj["scl"].as<int>();
+            if (i2cSda < 0) {
+                i2cSda = sda;
+                i2cScl = scl;
+            } else if (sda != i2cSda || scl != i2cScl) {
+                Serial.printf("[%s] Warning: I2C display '%s' uses different pins (%d/%d) than first (%d/%d)\n",
+                              TAG, dispConfig.id.c_str(), sda, scl, i2cSda, i2cScl);
+            }
+        } else if (dispConfig.bus.type == "spi") {
+            int8_t mosi = 23, miso = 19, sclk = 18;
+            if (busObj["mosi"].is<int>()) mosi = busObj["mosi"].as<int>();
+            if (busObj["miso"].is<int>()) miso = busObj["miso"].as<int>();
+            if (busObj["sclk"].is<int>()) sclk = busObj["sclk"].as<int>();
+            if (spiMosi < 0) {
+                spiMosi = mosi;
+                spiMiso = miso;
+                spiSclk = sclk;
+            } else if (mosi != spiMosi || miso != spiMiso || sclk != spiSclk) {
+                Serial.printf("[%s] Warning: SPI display '%s' uses different pins than first\n",
+                              TAG, dispConfig.id.c_str());
+            }
+        }
+    }
+
+    if (i2cSda >= 0) {
+        Wire.begin(i2cSda, i2cScl);
+        Serial.printf("[%s] I2C: pins %d/%d\n", TAG, i2cSda, i2cScl);
+    }
+    if (spiMosi >= 0) {
+        SPI.begin(spiSclk, spiMiso, spiMosi);
+        Serial.printf("[%s] SPI: pins MOSI:%d MISO:%d SCLK:%d\n", TAG, spiMosi, spiMiso, spiSclk);
     }
 
     // Create display slots

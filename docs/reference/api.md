@@ -94,14 +94,14 @@ GET /api/config/node?mac=AA:BB:CC:DD:EE:01
         "id": "face_oled",
         "label": "Front Face",
         "driver_type": "sh1106",
-        "bus": { "type": "i2c", "address": "0x3C" },
+        "bus": { "type": "i2c", "address": "0x3C", "sda": 21, "scl": 22 },
         "width": 128, "height": 64, "rotation": 0
       },
       {
         "id": "info_oled",
         "label": "Info Panel",
         "driver_type": "sh1106",
-        "bus": { "type": "i2c", "address": "0x3D" },
+        "bus": { "type": "i2c", "address": "0x3D", "sda": 21, "scl": 22 },
         "width": 128, "height": 64, "rotation": 0
       }
     ],
