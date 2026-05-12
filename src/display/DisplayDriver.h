@@ -22,7 +22,7 @@ public:
     virtual void clear(uint32_t color = 0) = 0;
     virtual void drawPixel(int16_t x, int16_t y, uint32_t color) = 0;
     virtual void drawBitmap(int16_t x, int16_t y,
-                            const uint8_t* data,
+                            const uint8_t* data, size_t dataSize,
                             int16_t w, int16_t h,
                             uint32_t color) = 0;
     virtual void fillRect(int16_t x, int16_t y,

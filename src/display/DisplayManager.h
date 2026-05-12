@@ -50,6 +50,7 @@ private:
         String              id;
         DisplayDriver*      driver = nullptr;
         AnimationEngine     engine;
+        const Frame*        lastRenderedFrame = nullptr;
     };
 
     std::vector<DisplaySlot> _slots;
@@ -60,7 +61,7 @@ private:
     unsigned long _lastActivity = 0;
     bool _screenSaverActive = false;
     uint32_t _configVersion = 0;
-    static const unsigned long SCREEN_SAVER_TIMEOUT = 30000;
+    static const unsigned long SCREEN_SAVER_TIMEOUT = 300000;
 
     void buildBootDisplay();
     void cleanup();

@@ -120,6 +120,11 @@ void ConfigDeserializer::parseDisplay(JsonObject& dispJson, DisplaySlotConfig& o
     JsonObject busJson = dispJson["bus"];
     if (!busJson.isNull()) {
         parseBusConfig(busJson, outSlot.bus);
+
+        // Serialize full bus JSON for drivers that need raw pin config
+        JsonDocument rawDoc;
+        rawDoc.set(busJson);
+        outSlot.rawBusJson = rawDoc.as<String>();
     }
 
     Serial.printf("[%s]   Display: %s (%s, %dx%d)\n",
