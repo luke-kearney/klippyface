@@ -18,4 +18,7 @@
 | 4A.5 | Update captive portal form + handler | `wifi/CaptivePortal.cpp`, `wifi/setup_html.h` | ✅ Done | Tangent 4A: WSS checkbox, collapsible server section, HTTPS/verify checkboxes. |
 | 4A.6 | Update main.cpp task calls | `main.cpp` | ✅ Done | Tangent 4A: pass TLS flags to begin/fetch calls. |
 | 4A.7 | Update tracking docs | `agents/PLAN.md`, `agents/docs/phase-4/TODO.md` | ✅ Done | Tangent 4A |
-| 4A.8 | Build verification | - | ✅ Done | Tangent 4A: Both `esp32dev` and `esp32dev-mock` compile. 2026-05-12 |
+| 4A.8 | Build verification (TLS tangent) | - | ✅ Done | Tangent 4A: Both `esp32dev` and `esp32dev-mock` compile. 2026-05-12 |
+| 4A.9 | Auto-detect MAC address at boot | `main.cpp` | ✅ Done | Tangent 4A: `getNodeMac()` was always empty — NVS key `node_mac` never written. Added auto-detect via `WiFi.macAddress()` in `setup()` after `Settings::begin()`. |
+| 4A.10 | Configurable server URLs + CORS via appsettings.json | `server/appsettings.json`, `server/Program.cs` | ✅ Done | Tangent 4A: Created `appsettings.json` with `Urls` key (`0.0.0.0:5000`) and `Klippyface:Cors` section. CORS in Program.cs reads allowed origins/methods/headers from config — `"*"` wildcard maps to `AllowAny*()`. No recompile needed to change port or lock down CORS. |
+| 4A.11 | Build verification (final) | - | ✅ Done | Tangent 4A: Both `esp32dev` and `esp32dev-mock` compile. Server `dotnet build` succeeds. 2026-05-12 |

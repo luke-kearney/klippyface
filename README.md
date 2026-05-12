@@ -32,7 +32,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 | Configurable animations (Groups → Sets → Frames) | ✅ Complete — Element composition model with DataValue bindings for live Moonraker data |
 | Klipper GCODE macro integration | ⬜ Planned |
 | .NET 10 companion server with SQLite | ✅ Complete — Full CRUD API + per-node config export, see [Phase 3](agents/docs/phase-3/TODO.md) |
-| ESP32 server-driven config fetch | ✅ Complete — ESP32 fetches per-node config via HTTP, hot-reloads every 5 min, see [Phase 4](agents/docs/phase-4/TODO.md) |
+| ESP32 server-driven config fetch | ✅ Complete — ESP32 fetches per-node config via HTTP, hot-reloads every 5 min, configurable protocol (http/https) and URL, see [Phase 4](agents/docs/phase-4/TODO.md) |
 | Web UI — node/display management | ⬜ Planned |
 | Web UI — pixel sprite editor | ⬜ Planned |
 | Web UI — animation preview canvas | ⬜ Planned |
@@ -49,6 +49,8 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 
 **Phase 4 (ESP32 Config Fetcher) complete.** The hardcoded display config has been replaced with a live config fetched from the companion server. The ESP32 boots showing "Waiting for config...", then calls `GET /api/config/node?mac=...` to retrieve its per-node configuration (displays, drivers, triggers, groups, sprites). Config is hot-reloaded every 5 minutes. Both `esp32dev` and `esp32dev-mock` builds verified.
 
+**Tangent 4A: Independent protocol + URL config.** Both Moonraker and the companion server now support configurable protocols (ws/wss, http/https) and independent host/port. MAC address is auto-detected on first boot. The server's binding address and CORS policy are configured via `server/appsettings.json` — no recompile needed to change ports or lock down origins.
+
 ## Phase Tracking
 
 | Phase | Description | Status | Task List |
@@ -56,7 +58,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 | 1 | ESP32 Core Framework + Single Display | ✅ Complete | [TODO](agents/docs/phase-1/TODO.md) |
 | 2 | Moonraker WebSocket Client | ✅ Complete | [TODO](agents/docs/phase-2/TODO.md) |
 | 3 | Companion Server — Data Layer | ✅ Complete | [TODO](agents/docs/phase-3/TODO.md) |
-| 4 | ESP32 Config Fetcher | ✅ Complete | [TODO](agents/docs/phase-4/TODO.md) |
+| 4 | ESP32 Config Fetcher | ✅ Complete (+ Tangent 4A) | [TODO](agents/docs/phase-4/TODO.md) |
 | 5 | Web UI | ⬜ Not Started | [TODO](agents/docs/phase-5/TODO.md) |
 | 6 | GCODE Macro Integration | ⬜ Not Started | [TODO](agents/docs/phase-6/TODO.md) |
 | 7 | Captive Portal Setup | ✅ Complete | [TODO](agents/docs/phase-7/TODO.md) |

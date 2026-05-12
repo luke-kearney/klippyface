@@ -272,6 +272,13 @@ void setup() {
 
     Settings::begin();
 
+    // Auto-detect and persist MAC address if not already stored
+    if (Settings::getNodeMac().length() == 0) {
+        String mac = WiFi.macAddress();
+        Settings::setNodeMac(mac);
+        Serial.printf("[BOOT] Auto-detected MAC: %s\n", mac.c_str());
+    }
+
     // GPIO monitor task — detects 3s BOOT button press for factory reset
     xTaskCreatePinnedToCore(
         gpioMonitorTask, "gpioMonitorTask", 2048, nullptr, 1, nullptr, 0);

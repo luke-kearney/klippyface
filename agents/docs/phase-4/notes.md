@@ -57,3 +57,60 @@ This is safe because both cores share the same ESP32 heap.
 | `esp32dev-mock` | 48,424 bytes (14.8%) | 1,062,549 bytes (81.1%) | ✅ SUCCESS |
 
 Flash usage increased by ~106 KB (from Phase 3 baseline of 972K) due to HTTPClient library + new code.
+
+---
+
+## Tangent 4A: Independent Protocol + URL Configuration
+
+### Overview
+
+Added configurable protocol (ws/wss, http/https) and independent URL support for both Moonraker and the companion server. The server's binding address and CORS policy are now read from `appsettings.json` (no recompile needed). Also fixed a missing MAC auto-detection bug that caused config fetches to fail with HTTP 400.
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `server/appsettings.json` | Configures server `Urls` (default `http://0.0.0.0:5000`) and `Klippyface:Cors` section |
+
+### Files Modified (Firmware)
+
+| File | Changes |
+|------|---------|
+| `src/config/Settings.h/.cpp` | Added NVS keys `mk_tls`, `mk_tls_ver`, `sv_tls`, `sv_tls_ver` with accessors. Server host fallback preserved (empty → Moonraker host). Protocol is independent (no cross-fallback). |
+| `src/comms/ConfigFetcher.h/.cpp` | Accepts `useTls` + `tlsVerify`. Builds `https://` or `http://` URL. Uses `WiFiClientSecure` — `setInsecure()` when verify off, built-in CA bundle when verify on. |
+| `src/comms/MoonrakerClient.h/.cpp` | Accepts `useTls`. Routes to `begin()` (ws) or `beginSSL()` (wss). Origin header scheme matches connection. |
+| `src/wifi/SetupServer.h/.cpp` | `saveConfig()` accepts moonraker TLS, server host/port/TLS, and verify flags. |
+| `src/wifi/CaptivePortal.cpp` | Parses new JSON fields from setup form. |
+| `src/wifi/setup_html.h` | Added WSS checkbox with conditional verify toggle. Collapsible "Use a different server" section with host/port/HTTPS/verify. |
+| `src/main.cpp` | Passes TLS flags to `MoonrakerClient::begin()` and `ConfigFetcher::fetchConfig()`. Added MAC auto-detection on first boot. |
+
+### File Modified (Server)
+
+| File | Changes |
+|------|---------|
+| `server/Program.cs` | CORS now reads `AllowedOrigins`, `AllowedMethods`, `AllowedHeaders` from `Klippyface:Cors` config section. `"*"` wildcard maps to `AllowAny*()`. |
+
+### NVS Keys Added
+
+| Key | Type | Default | Purpose |
+|-----|------|---------|---------|
+| `mk_tls` | uint8 | 0 | 0=ws://, 1=wss:// |
+| `mk_tls_ver` | uint8 | 0 | Verify Moonraker SSL cert (built-in CA bundle) |
+| `sv_tls` | uint8 | 0 | 0=http://, 1=https:// |
+| `sv_tls_ver` | uint8 | 0 | Verify server SSL cert (built-in CA bundle) |
+
+### Gotchas
+
+1. **MAC auto-detection**: `setNodeMac()` was never called anywhere — the NVS key `node_mac` was always empty, causing config fetches to send `?mac=` with no value → server HTTP 400. Fixed by reading `WiFi.macAddress()` in `setup()` if NVS is empty. `WiFi.macAddress()` works before WiFi connects (reads hardware eFuse).
+
+2. **server/appsettings.json overrides**: The `Urls` key is a standard ASP.NET Core config key. It can be overridden at runtime via `--urls` CLI flag or `ASPNETCORE_URLS` env var without editing the file.
+
+3. **WiFiClientSecure CA bundle**: ESP32's `WiFiClientSecure` auto-uses the built-in Mozilla CA certificate bundle when `setInsecure()` is NOT called. This means public CAs (Let's Encrypt, etc.) are trusted automatically. No manual cert provision needed.
+
+### Build Results (Post-Tangent)
+
+| Variant | RAM | Flash | Status |
+|---------|-----|-------|--------|
+| `esp32dev` | 48,388 bytes (14.8%) | 1,084,885 bytes (82.8%) | ✅ SUCCESS |
+| `esp32dev-mock` | 48,436 bytes (14.8%) | 1,067,745 bytes (81.5%) | ✅ SUCCESS |
+| Server `dotnet build` | — | — | ✅ SUCCESS |
