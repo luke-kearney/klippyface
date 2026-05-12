@@ -6,6 +6,17 @@ const state = {
   error: null,
   dirtyForms: {},
   currentView: null,
+
+  groups: [],
+  currentGroup: null,
+  currentSet: null,
+  frames: [],
+
+  sprites: [],
+  currentSprite: null,
+
+  presets: [],
+  currentPreset: null,
 }
 
 const listeners = []

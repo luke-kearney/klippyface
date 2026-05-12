@@ -2,15 +2,28 @@ import { $, $$ } from './utils.js'
 import { getState, setState, subscribe, isDirty } from './store.js'
 import { renderNodeList } from './components/node-list.js'
 import { renderNodeEditor } from './components/node-editor.js'
+import { renderGroupList } from './components/group-list.js'
+import { renderGroupEditor } from './components/group-editor.js'
 
 const VIEWS = {
   nodes: { render: renderNodeList, title: 'Nodes' },
+  groups: { render: renderGroupList, title: 'Groups' },
+  'group-editor': { render: renderGroupEditor, title: 'Group Editor' },
 }
 
 function parseRoute(hash) {
   const h = hash.replace(/^#/, '') || 'nodes'
-  const m = h.match(/^nodes(?:\/(.+))?$/)
+  let m
+
+  m = h.match(/^nodes(?:\/(.+))?$/)
   if (m) return { view: 'nodes', params: { nodeId: m[1] || null } }
+
+  m = h.match(/^groups\/(.+)$/)
+  if (m) return { view: 'group-editor', params: { groupId: m[1] } }
+
+  m = h.match(/^groups$/)
+  if (m) return { view: 'groups', params: {} }
+
   return { view: 'nodes', params: {} }
 }
 
@@ -35,8 +48,12 @@ async function handleRoute() {
   }
 
   $$('.nav-link').forEach(el => {
-    el.classList.toggle('active', el.dataset.view === route.view ||
-      (route.view === 'nodes' && el.dataset.view === 'nodes'))
+    const view = el.dataset.view
+    const active = view === route.view ||
+      (route.view === 'nodes' && view === 'nodes') ||
+      (route.view === 'group-editor' && view === 'groups') ||
+      (route.view === 'groups' && view === 'groups')
+    el.classList.toggle('active', active)
   })
 
   container.innerHTML = '<div class="loading">Loading</div>'

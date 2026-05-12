@@ -7,32 +7,32 @@
 - **Language:** Vanilla JS (ES modules, no framework)
 - **CSS:** Plain CSS with custom properties (dark theme)
 - **State management:** Custom pub/sub store (~40 lines)
-- **Routing:** Hash-based (`#nodes`, `#nodes/{id}`)
+- **Routing:** Hash-based (`#nodes`, `#nodes/{id}`, `#groups`, `#groups/{id}`)
 
 ### Directory Layout
 ```
 ui/
 ├── package.json           # Vite project
 ├── vite.config.js         # Build → ../server/wwwroot, proxy /api → :5000
-├── index.html             # Entry point
+├── index.html             # Entry point (sidebar: Nodes, Library→Groups/Sprites, Presets)
 ├── css/
 │   └── style.css          # All styles
 ├── js/
 │   ├── app.js             # Router, view mounting, dirty-form guard
-│   ├── store.js           # Central state (pub/sub)
+│   ├── store.js           # Central state (pub/sub + library fields)
 │   ├── api.js             # 36 API endpoint wrappers
 │   ├── utils.js           # $, $$, html template tag
 │   └── components/
-│       ├── node-list.js
-│       ├── node-editor.js
-│       ├── group-list.js
-│       ├── group-editor.js
-│       ├── set-editor.js
-│       ├── frame-editor.js
-│       ├── sprite-editor.js
-│       ├── preview-canvas.js
-│       ├── assignment-editor.js
-│       └── preset-editor.js
+│       ├── node-list.js        # ✅ 5.2
+│       ├── node-editor.js      # ✅ 5.3
+│       ├── group-list.js       # ✅ 5.6
+│       ├── group-editor.js     # ✅ 5.7
+│       ├── assignment-editor.js# ⬜ 5.5
+│       ├── set-editor.js       # ⬜ 5.8
+│       ├── frame-editor.js     # ⬜ 5.9
+│       ├── sprite-editor.js    # ⬜ 5.10
+│       ├── preview-canvas.js   # ⬜ 5.11
+│       └── preset-editor.js    # ⬜ 5.12
 ```
 
 ### Component Pattern
@@ -50,7 +50,15 @@ Each component is an object with:
   loading: false,
   error: null,
   dirtyForms: {},         // { [formId]: true/false }
-  currentView: null,      // 'nodes' | 'node-editor'
+  currentView: null,      // 'nodes' | 'node-editor' | 'groups' | 'group-editor'
+  groups: [],             // Group[]
+  currentGroup: null,     // Group (with sets, frames, elements)
+  currentSet: null,
+  frames: [],
+  sprites: [],
+  currentSprite: null,
+  presets: [],
+  currentPreset: null,
 }
 ```
 
