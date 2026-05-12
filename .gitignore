@@ -28,6 +28,7 @@ server/obj/
 Thumbs.db
 .DS_Store
 Desktop.ini
+nul
 
 # Environment / Secrets
 .env

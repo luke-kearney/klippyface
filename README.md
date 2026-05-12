@@ -33,7 +33,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 | Klipper GCODE macro integration | ⬜ Planned |
 | .NET 10 companion server with SQLite | ✅ Complete — Full CRUD API + per-node config export, see [Phase 3](agents/docs/phase-3/TODO.md) |
 | ESP32 server-driven config fetch | ✅ Complete — ESP32 fetches per-node config via HTTP, hot-reloads every 5 min, configurable protocol (http/https) and URL, see [Phase 4](agents/docs/phase-4/TODO.md) |
-| Web UI — node/display management | ⬜ Planned |
+| Web UI — node/display management | 🟡 In Progress — node list + editor + display CRUD complete |
 | Web UI — pixel sprite editor | ⬜ Planned |
 | Web UI — animation preview canvas | ⬜ Planned |
 | Captive portal first-boot setup | ✅ Complete |
@@ -51,6 +51,8 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 
 **Tangent 4A: Independent protocol + URL config.** Both Moonraker and the companion server now support configurable protocols (ws/wss, http/https) and independent host/port. MAC address is auto-detected on first boot. The server's binding address and CORS policy are configured via `server/appsettings.json` — no recompile needed to change ports or lock down origins.
 
+**Phase 5 (Web UI) in progress.** Vite-powered vanilla JS SPA with hash-based routing, pub/sub state store, and dirty-form tracking. Node list with CRUD and node editor with display add/edit/delete (driver type, bus config, resolution) are complete. Library editing, sprite pixel editor, and OLED preview canvas remain. See [`agents/docs/phase-5/TODO.md`](agents/docs/phase-5/TODO.md).
+
 ## Phase Tracking
 
 | Phase | Description | Status | Task List |
@@ -59,7 +61,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 | 2 | Moonraker WebSocket Client | ✅ Complete | [TODO](agents/docs/phase-2/TODO.md) |
 | 3 | Companion Server — Data Layer | ✅ Complete | [TODO](agents/docs/phase-3/TODO.md) |
 | 4 | ESP32 Config Fetcher | ✅ Complete (+ Tangent 4A) | [TODO](agents/docs/phase-4/TODO.md) |
-| 5 | Web UI | ⬜ Not Started | [TODO](agents/docs/phase-5/TODO.md) |
+| 5 | Web UI | 🟡 In Progress — tasks 5.0a–5.3, 5.13 complete | [TODO](agents/docs/phase-5/TODO.md) |
 | 6 | GCODE Macro Integration | ⬜ Not Started | [TODO](agents/docs/phase-6/TODO.md) |
 | 7 | Captive Portal Setup | ✅ Complete | [TODO](agents/docs/phase-7/TODO.md) |
 | 8 | Multi-Node & Polish | ⬜ Not Started | [TODO](agents/docs/phase-8/TODO.md) |
