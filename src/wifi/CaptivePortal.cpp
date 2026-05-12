@@ -96,6 +96,12 @@ void CaptivePortal::handleSave() {
     String password = doc["password"] | "";
     String mkHost = doc["mk_host"] | "";
     uint16_t mkPort = doc["mk_port"] | 7125;
+    bool mkUseTls = doc["mk_tls"] | false;
+    bool mkTlsVerify = doc["mk_tls_verify"] | false;
+    String svHost = doc["sv_host"] | "";
+    uint16_t svPort = doc["sv_port"] | 5000;
+    bool svUseTls = doc["sv_tls"] | false;
+    bool svTlsVerify = doc["sv_tls_verify"] | false;
     String friendlyName = doc["friendly_name"] | "";
 
     if (ssid.length() == 0) {
@@ -107,7 +113,9 @@ void CaptivePortal::handleSave() {
         return;
     }
 
-    if (!_setup.saveConfig(ssid, password, mkHost, mkPort, friendlyName)) {
+    if (!_setup.saveConfig(ssid, password, mkHost, mkPort, mkUseTls,
+                           svHost, svPort, svUseTls, svTlsVerify, mkTlsVerify,
+                           friendlyName)) {
         _server.send(500, "text/plain", "Failed to save configuration");
         return;
     }

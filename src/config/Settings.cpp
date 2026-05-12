@@ -12,8 +12,12 @@ static const char* KEY_WIFI_SSID   = "wifi_ssid";
 static const char* KEY_WIFI_PASS   = "wifi_pass";
 static const char* KEY_MK_HOST     = "mk_host";
 static const char* KEY_MK_PORT     = "mk_port";
+static const char* KEY_MK_TLS      = "mk_tls";
+static const char* KEY_MK_TLS_VER  = "mk_tls_ver";
 static const char* KEY_SV_HOST     = "sv_host";
 static const char* KEY_SV_PORT     = "sv_port";
+static const char* KEY_SV_TLS      = "sv_tls";
+static const char* KEY_SV_TLS_VER  = "sv_tls_ver";
 static const char* KEY_NODE_MAC    = "node_mac";
 static const char* KEY_FRIENDLY    = "friendly";
 
@@ -76,12 +80,40 @@ uint16_t Settings::getMoonrakerPort() {
     return port;
 }
 
+bool Settings::getMoonrakerUseTls() {
+    if (!_ready) return false;
+    uint8_t val = 0;
+    nvs_get_u8(_handle, KEY_MK_TLS, &val);
+    return val == 1;
+}
+
+bool Settings::getMoonrakerTlsVerify() {
+    if (!_ready) return false;
+    uint8_t val = 0;
+    nvs_get_u8(_handle, KEY_MK_TLS_VER, &val);
+    return val == 1;
+}
+
 void Settings::setMoonrakerHost(const String& host, uint16_t port) {
     writeString(KEY_MK_HOST, host);
     if (_ready) {
         nvs_set_u16(_handle, KEY_MK_PORT, port);
     }
     Serial.printf("[%s] Moonraker: %s:%u\n", TAG, host.c_str(), port);
+}
+
+void Settings::setMoonrakerUseTls(bool useTls) {
+    if (!_ready) return;
+    nvs_set_u8(_handle, KEY_MK_TLS, useTls ? 1 : 0);
+    commit();
+    Serial.printf("[%s] Moonraker TLS: %s\n", TAG, useTls ? "wss" : "ws");
+}
+
+void Settings::setMoonrakerTlsVerify(bool verify) {
+    if (!_ready) return;
+    nvs_set_u8(_handle, KEY_MK_TLS_VER, verify ? 1 : 0);
+    commit();
+    Serial.printf("[%s] Moonraker TLS verify: %s\n", TAG, verify ? "on" : "off");
 }
 
 // ---- Companion server ----
@@ -101,12 +133,40 @@ uint16_t Settings::getServerPort() {
     return 5000;
 }
 
+bool Settings::getServerUseTls() {
+    if (!_ready) return false;
+    uint8_t val = 0;
+    nvs_get_u8(_handle, KEY_SV_TLS, &val);
+    return val == 1;
+}
+
+bool Settings::getServerTlsVerify() {
+    if (!_ready) return false;
+    uint8_t val = 0;
+    nvs_get_u8(_handle, KEY_SV_TLS_VER, &val);
+    return val == 1;
+}
+
 void Settings::setServerHost(const String& host, uint16_t port) {
     writeString(KEY_SV_HOST, host);
     if (_ready) {
         nvs_set_u16(_handle, KEY_SV_PORT, port);
     }
     Serial.printf("[%s] Server: %s:%u\n", TAG, host.c_str(), port);
+}
+
+void Settings::setServerUseTls(bool useTls) {
+    if (!_ready) return;
+    nvs_set_u8(_handle, KEY_SV_TLS, useTls ? 1 : 0);
+    commit();
+    Serial.printf("[%s] Server TLS: %s\n", TAG, useTls ? "https" : "http");
+}
+
+void Settings::setServerTlsVerify(bool verify) {
+    if (!_ready) return;
+    nvs_set_u8(_handle, KEY_SV_TLS_VER, verify ? 1 : 0);
+    commit();
+    Serial.printf("[%s] Server TLS verify: %s\n", TAG, verify ? "on" : "off");
 }
 
 // ---- Node identity ----

@@ -19,12 +19,20 @@ public:
     // Moonraker
     static String getMoonrakerHost();
     static uint16_t getMoonrakerPort();
+    static bool getMoonrakerUseTls();
+    static bool getMoonrakerTlsVerify();
     static void setMoonrakerHost(const String& host, uint16_t port);
+    static void setMoonrakerUseTls(bool useTls);
+    static void setMoonrakerTlsVerify(bool verify);
 
     // Companion server
     static String getServerHost();
     static uint16_t getServerPort();
+    static bool getServerUseTls();
+    static bool getServerTlsVerify();
     static void setServerHost(const String& host, uint16_t port);
+    static void setServerUseTls(bool useTls);
+    static void setServerTlsVerify(bool verify);
 
     // Node identity
     static String getNodeMac();

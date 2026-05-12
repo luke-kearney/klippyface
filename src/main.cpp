@@ -66,9 +66,10 @@ void moonrakerTask(void *pvParameters) {
 
     String host = Settings::getMoonrakerHost();
     uint16_t port = Settings::getMoonrakerPort();
+    bool mkUseTls = Settings::getMoonrakerUseTls();
     moonrakerClient.setStateQueue(stateQueue);
     moonrakerClient.setGcodeQueue(gcodeQueue);
-    moonrakerClient.begin(host, port);
+    moonrakerClient.begin(host, port, mkUseTls);
 
     enum ConnMonitor : uint8_t {
         CONN_ONLINE,
@@ -156,12 +157,15 @@ void configFetcherTask(void *pvParameters) {
     String mac = Settings::getNodeMac();
     String host = Settings::getServerHost();
     uint16_t port = Settings::getServerPort();
+    bool svUseTls = Settings::getServerUseTls();
+    bool svTlsVerify = Settings::getServerTlsVerify();
 
     for (;;) {
-        Serial.printf("[CONFIG] Fetching config for MAC %s from %s:%u\n",
-                      mac.c_str(), host.c_str(), port);
+        String scheme = svUseTls ? "https" : "http";
+        Serial.printf("[CONFIG] Fetching config for MAC %s from %s://%s:%u\n",
+                      mac.c_str(), scheme.c_str(), host.c_str(), port);
 
-        String json = fetcher.fetchConfig(host, port, mac);
+        String json = fetcher.fetchConfig(host, port, svUseTls, svTlsVerify, mac);
 
         if (json.length() > 0) {
             // Heap-allocate buffer and send pointer through queue (cross-core safe)

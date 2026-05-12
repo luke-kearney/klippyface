@@ -5,7 +5,7 @@
 
 class ConfigFetcher {
 public:
-    String fetchConfig(const String& host, uint16_t port, const String& mac);
+    String fetchConfig(const String& host, uint16_t port, bool useTls, bool tlsVerify, const String& mac);
 
 private:
     static const int HTTP_TIMEOUT_MS = 5000;

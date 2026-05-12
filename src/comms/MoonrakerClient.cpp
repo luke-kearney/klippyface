@@ -17,9 +17,13 @@ MoonrakerClient::~MoonrakerClient() {
 
 #ifndef MOONRAKER_MOCK
 
-bool MoonrakerClient::begin(const String& host, uint16_t port) {
+bool MoonrakerClient::begin(const String& host, uint16_t port, bool useTls) {
     _host = host;
     _port = port;
+    _useTls = useTls;
+
+    String wsScheme = useTls ? "wss" : "ws";
+    String httpScheme = useTls ? "https" : "http";
 
     Serial.printf("[%s] ESP32 IP: %s\n",
                   TAG, WiFi.localIP().toString().c_str());
@@ -38,11 +42,16 @@ bool MoonrakerClient::begin(const String& host, uint16_t port) {
                       TAG, host.c_str(), port);
     }
 
-    Serial.printf("[%s] Connecting to ws://%s:%u/websocket\n",
-                  TAG, host.c_str(), port);
+    Serial.printf("[%s] Connecting to %s://%s:%u/websocket\n",
+                  TAG, wsScheme.c_str(), host.c_str(), port);
 
-    _ws.begin(host, port, "/websocket");
-    _originHeader = "Origin: http://" + host + ":" + String(port);
+    if (useTls) {
+        _ws.beginSSL(host, port, "/websocket");
+    } else {
+        _ws.begin(host, port, "/websocket");
+    }
+
+    _originHeader = "Origin: " + httpScheme + "://" + host + ":" + String(port);
     _ws.setExtraHeaders(_originHeader.c_str());
     _ws.onEvent(onWSEvent);
     _ws.setReconnectInterval(5000);
@@ -211,9 +220,10 @@ void MoonrakerClient::handleGcodeResponse(const String& message) {
 
 #else  /* MOONRAKER_MOCK */
 
-bool MoonrakerClient::begin(const String& host, uint16_t port) {
-    Serial.printf("[%s] MOCK MODE — simulating Moonraker at %s:%u\n",
-                  TAG, host.c_str(), port);
+bool MoonrakerClient::begin(const String& host, uint16_t port, bool useTls) {
+    String wsScheme = useTls ? "wss" : "ws";
+    Serial.printf("[%s] MOCK MODE — simulating Moonraker at %s://%s:%u\n",
+                  TAG, wsScheme.c_str(), host.c_str(), port);
     _connected = true;
     strncpy(_lastState, "idle", sizeof(_lastState) - 1);
     _lastState[sizeof(_lastState) - 1] = '\0';

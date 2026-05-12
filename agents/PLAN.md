@@ -681,6 +681,12 @@ klippyface/
 | 4.5 | Config fetcher task | `main.cpp` | `configFetcherTask` on Core 0 (pri 6), fetches every 5 min. Cross-core `char*` queue to displayTask. |
 | 4.6 | Fallback | `display/DisplayManager.cpp` | `buildBootDisplay()` fallback. If server unreachable, existing config keeps running. |
 
+**Tangents:**
+
+| ID | Insert After | Description | Files | Status |
+|----|-------------|-------------|-------|--------|
+| 4A | Task 4.6 | **Independent protocol + URL config for server and Moonraker.** Add TLS flags (ws/wss, http/https) for both services with configurable port and host. Server URL independently settable via captive portal (collapsible section). Verify checkbox uses ESP32 built-in CA bundle (no manual cert provision needed). Backward compatible — empty server host falls back to Moonraker host. | `config/Settings.h/.cpp`, `comms/ConfigFetcher.h/.cpp`, `comms/MoonrakerClient.h/.cpp`, `wifi/SetupServer.h/.cpp`, `wifi/CaptivePortal.cpp`, `wifi/setup_html.h`, `main.cpp` | ✅ Done |
+
 **Definition of done:** ESP32 boots, fetches its per-node config from server, creates the right displays with the right content. Changing config on the server updates the ESP32 within 5 minutes. Both `esp32dev` and `esp32dev-mock` builds verified.
 
 **Phase 4 status:** ✅ Complete — see `agents/docs/phase-4/TODO.md` for task details.

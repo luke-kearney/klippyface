@@ -23,7 +23,7 @@ public:
     MoonrakerClient();
     ~MoonrakerClient();
 
-    bool begin(const String& host, uint16_t port);
+    bool begin(const String& host, uint16_t port, bool useTls = false);
     void tick();
     void disconnect();
 
@@ -35,6 +35,7 @@ private:
     WebSocketsClient _ws;
     String _host;
     uint16_t _port;
+    bool _useTls = false;
     String _originHeader;
     QueueHandle_t _stateQueue = nullptr;
     QueueHandle_t _gcodeQueue = nullptr;
