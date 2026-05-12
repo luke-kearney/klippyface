@@ -13,7 +13,6 @@ public static class SpritesApi
         sprites.MapGet("/", async (KlippyfaceDbContext db) =>
             await db.Sprites
                 .OrderBy(s => s.Label)
-                .Select(s => new { s.Id, s.Label, s.Width, s.Height, s.CreatedAt })
                 .ToListAsync());
 
         sprites.MapPost("/", async (KlippyfaceDbContext db, Sprite sprite) =>

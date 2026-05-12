@@ -234,7 +234,24 @@ export function renderSetEditor(container, params) {
     }
   }
 
-  function showPreview() {
+  function decodeSprite(sprite) {
+    if (!sprite || !sprite.dataBase64) return null
+    try {
+      const bytes = Uint8Array.from(atob(sprite.dataBase64), c => c.charCodeAt(0))
+      const w = sprite.width, h = sprite.height
+      const stride = Math.ceil(w / 8)
+      const pixels = new Uint8Array(w * h)
+      for (let py = 0; py < h; py++) {
+        for (let px = 0; px < w; px++) {
+          const byteIdx = py * stride + Math.floor(px / 8)
+          pixels[py * w + px] = (bytes[byteIdx] & (1 << (7 - (px % 8)))) ? 1 : 0
+        }
+      }
+      return { w, h, pixels }
+    } catch { return null }
+  }
+
+  async function showPreview() {
     const SCALE = 4
     const W = 128, H = 64
     let playing = false
@@ -242,6 +259,12 @@ export function renderSetEditor(container, params) {
     let currentFrameIdx = 0
     let animId = null
     let lastTick = 0
+    let spriteMap = {}
+
+    try {
+      const allSprites = await api.getSprites()
+      for (const s of allSprites) spriteMap[s.id] = decodeSprite(s)
+    } catch {}
 
     const overlay = createElement(html`
       <div class="dialog-overlay">
@@ -273,6 +296,25 @@ export function renderSetEditor(container, params) {
     const ctx = canvas.getContext('2d')
     const ctxScale = SCALE
 
+    function renderSpriteFrame(el, sprite) {
+      if (!sprite) {
+        ctx.fillStyle = '#555'
+        ctx.fillRect((el.x || 0) * ctxScale, (el.y || 0) * ctxScale, 16 * ctxScale, 16 * ctxScale)
+        ctx.fillStyle = '#999'
+        ctx.font = `${Math.round(6 * ctxScale)}px monospace`
+        ctx.fillText(el.value || '?', (el.x || 0) * ctxScale + 2, (el.y || 0) * ctxScale + 10 * ctxScale)
+        return
+      }
+      ctx.fillStyle = el.color || '#FFFFFF'
+      for (let py = 0; py < sprite.h; py++) {
+        for (let px = 0; px < sprite.w; px++) {
+          if (sprite.pixels[py * sprite.w + px]) {
+            ctx.fillRect((el.x + px) * ctxScale, (el.y + py) * ctxScale, ctxScale, ctxScale)
+          }
+        }
+      }
+    }
+
     function renderFrame(frameIdx) {
       const frame = frames[frameIdx]
       if (!frame) return
@@ -291,11 +333,7 @@ export function renderSetEditor(container, params) {
           ctx.font = `${Math.round(8 * ctxScale)}px monospace`
           ctx.fillText(el.value || '', x, y + 8 * ctxScale)
         } else if (el.type === 'sprite') {
-          ctx.fillStyle = '#555'
-          ctx.fillRect(x, y, 16 * ctxScale, 16 * ctxScale)
-          ctx.fillStyle = '#999'
-          ctx.font = `${Math.round(6 * ctxScale)}px monospace`
-          ctx.fillText('sprite', x + 2, y + 10 * ctxScale)
+          renderSpriteFrame(el, spriteMap[el.value])
         } else if (el.type === 'datavalue') {
           ctx.fillStyle = el.color || '#FFFFFF'
           ctx.font = `${Math.round(6 * ctxScale)}px monospace`

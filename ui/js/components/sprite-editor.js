@@ -147,21 +147,19 @@ export function renderSpriteEditor(container, params) {
             <label>Label</label>
             <input type="text" class="se-label" value="${sprite.label}" placeholder="face_happy">
           </div>
-          <div class="form-group" style="flex:0 0 100px">
+          <div class="form-group" style="flex:0 0 80px">
             <label>Width</label>
-            <select class="se-w">
-              ${[16, 32, 64, 128].map(sz => html`<option value="${sz}" ${w === sz ? 'selected' : ''}>${sz}</option>`).join('')}
-            </select>
+            <input type="number" class="se-w" value="${w}" min="1" max="256">
           </div>
-          <div class="form-group" style="flex:0 0 100px">
+          <div class="form-group" style="flex:0 0 80px">
             <label>Height</label>
-            <select class="se-h">
-              ${[16, 32, 64, 128].map(sz => html`<option value="${sz}" ${h === sz ? 'selected' : ''}>${sz}</option>`).join('')}
-            </select>
+            <input type="number" class="se-h" value="${h}" min="1" max="256">
           </div>
         </div>
         <div class="pixel-grid-wrap">
-          <canvas class="pixel-grid"></canvas>
+          <div id="pixel-grid-container">
+            <canvas class="pixel-grid"></canvas>
+          </div>
         </div>
         <div class="pixel-grid-tools">
           <div class="pg-size-group">
@@ -220,31 +218,22 @@ export function renderSpriteEditor(container, params) {
       img.src = URL.createObjectURL(file)
     }
 
-    function resizeGrid(newW, newH) {
-      const oldData = grid.getData()
-      const oldW = grid.w, oldH = grid.h
-      const newCanvas = document.createElement('canvas')
-      const newGrid = makePixelGrid(newCanvas, newW, newH)
-      for (let y = 0; y < Math.min(oldH, newH); y++) {
-        for (let x = 0; x < Math.min(oldW, newW); x++) {
-          if (oldData[y * oldW + x]) {
-            const tempCanvas = document.createElement('canvas')
-            const tg = makePixelGrid(tempCanvas, newW, newH)
-            ;(function(tg, x, y) {
-              const d = tg.getData()
-              d[y * newW + x] = 1
-              tg.clear() // no-op really
-            })(tg, x, y)
-          }
-        }
-      }
-      return newGrid
+    function applyDimensions() {
+      const nw = Math.max(1, parseInt(el.querySelector('.se-w').value) || 16)
+      const nh = Math.max(1, parseInt(el.querySelector('.se-h').value) || 16)
+      const container = el.querySelector('#pixel-grid-container')
+      container.innerHTML = '<canvas class="pixel-grid"></canvas>'
+      const newCanvas = container.querySelector('.pixel-grid')
+      const newGrid = makePixelGrid(newCanvas, nw, nh)
+      grid = newGrid
+      const pv = el.querySelector('.pg-preview')
+      pv.width = nw; pv.height = nh
+      pv.style.width = nw + 'px'; pv.style.height = nh + 'px'
+      updatePreview(pv, grid)
     }
 
-    el.querySelector('.se-w').onchange = () => {
-      const nw = parseInt(el.querySelector('.se-w').value)
-      const nh = parseInt(el.querySelector('.se-h').value)
-    }
+    el.querySelector('.se-w').onchange = applyDimensions
+    el.querySelector('.se-h').onchange = applyDimensions
 
     el.querySelector('.se-save').onclick = async () => {
       const label = el.querySelector('.se-label').value.trim()

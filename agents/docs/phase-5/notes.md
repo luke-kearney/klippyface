@@ -107,3 +107,16 @@ cd ui && npm run build
 - **File:** `ui/js/app.js`
 - **Root cause:** `parseRoute()` returned `{ view: 'nodes' }` for both `#nodes` (list) and `#nodes/{id}` (editor). The `VIEWS` map had no `'node-editor'` entry.
 - **Fix:** Route `#nodes/{id}` now returns `{ view: 'node-editor' }`. Added `'node-editor'` key to `VIEWS` mapping to `renderNodeEditor`. Updated nav-link activation to highlight Nodes sidebar entry when on the node-editor view.
+
+### 5. Sprites lose pixel data after save
+- **File:** `server/Api/SpritesApi.cs`
+- **Root cause:** `GET /api/sprites` used `.Select()` that excluded `DataBase64` from the response. After saving and reloading the list, sprites came back with empty pixel data, so the editor opened with a blank grid.
+- **Fix:** Removed the `.Select()` projection — the list endpoint now returns the full `Sprite` model including `DataBase64`.
+
+### 6. Sprite editor limited to fixed sizes (16/32/64/128)
+- **File:** `ui/js/components/sprite-editor.js`
+- **Change:** Replaced width/height `<select>` dropdowns with `<input type="number">` allowing any size 1–256. Added proper resize handler that rebuilds the pixel grid and preview canvas on dimension change.
+
+### 7. Preview canvas showed placeholder rectangles instead of sprite pixels
+- **File:** `ui/js/components/set-editor.js`
+- **Change:** Preview now loads the full sprite library via `api.getSprites()`, decodes 1bpp pixel data, and renders sprites at their true dimensions with element color. Falls back to a placeholder if sprite data is unavailable.
