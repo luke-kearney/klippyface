@@ -10,6 +10,7 @@ import { renderPresetEditor } from './components/preset-editor.js'
 
 const VIEWS = {
   nodes: { render: renderNodeList, title: 'Nodes' },
+  'node-editor': { render: renderNodeEditor, title: 'Node Editor' },
   groups: { render: renderGroupList, title: 'Groups' },
   'group-editor': { render: renderGroupEditor, title: 'Group Editor' },
   'set-editor': { render: renderSetEditor, title: 'Set Editor' },
@@ -22,7 +23,10 @@ function parseRoute(hash) {
   let m
 
   m = h.match(/^nodes(?:\/(.+))?$/)
-  if (m) return { view: 'nodes', params: { nodeId: m[1] || null } }
+  if (m) {
+    if (m[1]) return { view: 'node-editor', params: { nodeId: m[1] } }
+    return { view: 'nodes', params: {} }
+  }
 
   m = h.match(/^groups\/([^/]+)\/sets\/(.+)$/)
   if (m) return { view: 'set-editor', params: { groupId: m[1], setId: m[2] } }
@@ -71,10 +75,8 @@ async function handleRoute() {
   $$('.nav-link').forEach(el => {
     const view = el.dataset.view
     const active = view === route.view ||
-      (route.view === 'nodes' && view === 'nodes') ||
-      (route.view === 'group-editor' && view === 'groups') ||
-      (route.view === 'set-editor' && view === 'groups') ||
-      (route.view === 'groups' && view === 'groups') ||
+      ((route.view === 'nodes' || route.view === 'node-editor') && view === 'nodes') ||
+      ((route.view === 'groups' || route.view === 'group-editor' || route.view === 'set-editor') && view === 'groups') ||
       (route.view === 'sprites' && view === 'sprites') ||
       (route.view === 'presets' && view === 'presets')
     el.classList.toggle('active', active)

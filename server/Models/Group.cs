@@ -10,6 +10,5 @@ public class Group
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-    [JsonIgnore]
     public ICollection<Set> Sets { get; set; } = new List<Set>();
 }

@@ -85,8 +85,8 @@ export function renderNodeList(container, params) {
       `
     }
 
+    content += '<div id="node-list">'
     if (state.nodes.length > 0) {
-      content += '<div id="node-list">'
       for (const node of state.nodes) {
         content += html`
           <div class="card" data-node-id="${node.id}">
@@ -105,8 +105,8 @@ export function renderNodeList(container, params) {
           </div>
         `
       }
-      content += '</div>'
     }
+    content += '</div>'
 
     if (state.loading) {
       content += '<div class="loading">Loading nodes</div>'

@@ -84,4 +84,26 @@ cd ui && npm run build
 - API returns snake_case JSON (configured in Program.cs)
 - Group, Sprite, Preset use client-supplied string IDs (not GUIDs)
 - BusConfig, TriggersJson, etc. are JSON strings in API but parsed to objects in config export
-- Navigation properties are [JsonIgnore] — only appear on specific GET endpoints with .Include()
+- Navigation properties were originally `[JsonIgnore]` — removed from forward (parent→child) nav props so `.Include()` results serialize. Back-references (child→parent) keep `[JsonIgnore]` to avoid circular refs.
+
+## Fixes Applied During Testing
+
+### 1. "+ Add Node" button does nothing
+- **File:** `ui/js/components/node-list.js`
+- **Root cause:** `#node-list` div was only rendered inside `if (state.nodes.length > 0)`. When no nodes exist, `container.querySelector('#node-list')?.prepend(...)` short-circuits because the element is absent.
+- **Fix:** Always render `<div id="node-list">` (empty when no nodes), so the inline add form always has a DOM target.
+
+### 2. POST/PUT data not persisted (camelCase / snake_case mismatch)
+- **Files:** `ui/js/api.js` (frontend) and `server/Program.cs` (server)
+- **Root cause:** Server uses `JsonNamingPolicy.SnakeCaseLower` for both serialization and deserialization. Frontend sent camelCase property names (e.g. `macAddress`) which didn't match the server's expected snake_case (`mac_address`). Properties silently deserialized to default values.
+- **Fix:** Added `convertReqKeys()` in `api.js` that transforms all request body keys from camelCase to snake_case before `JSON.stringify()`. Also added `convertResKeys()` that transforms response keys from snake_case back to camelCase so frontend code can use JS conventions throughout.
+
+### 3. Displays/Sets/Frames/Elements not showing in editors
+- **Files:** `server/Models/Node.cs`, `server/Models/Group.cs`, `server/Models/Set.cs`, `server/Models/Frame.cs`
+- **Root cause:** Forward navigation properties (`Node.Displays`, `Node.Assignments`, `Group.Sets`, `Set.Frames`, `Frame.Elements`) were marked `[JsonIgnore]`. Even though the detail endpoints loaded them via `.Include()`, `[JsonIgnore]` prevented serialization.
+- **Fix:** Removed `[JsonIgnore]` from forward navigation properties. Back-references (child→parent: `Set.Group`, `Frame.Set`, `FrameElement.Frame`, etc.) retain `[JsonIgnore]` to prevent circular reference issues.
+
+### 4. Edit button navigates to wrong view
+- **File:** `ui/js/app.js`
+- **Root cause:** `parseRoute()` returned `{ view: 'nodes' }` for both `#nodes` (list) and `#nodes/{id}` (editor). The `VIEWS` map had no `'node-editor'` entry.
+- **Fix:** Route `#nodes/{id}` now returns `{ view: 'node-editor' }`. Added `'node-editor'` key to `VIEWS` mapping to `renderNodeEditor`. Updated nav-link activation to highlight Nodes sidebar entry when on the node-editor view.

@@ -11,10 +11,8 @@ public class Node
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-    [JsonIgnore]
     public ICollection<NodeDisplay> Displays { get; set; } = new List<NodeDisplay>();
 
-    [JsonIgnore]
     public ICollection<Assignment> Assignments { get; set; } = new List<Assignment>();
 
     [JsonIgnore]

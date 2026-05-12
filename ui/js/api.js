@@ -1,8 +1,32 @@
 const BASE = ''
 
+function toSnake(s) {
+  return s.replace(/[A-Z]/g, c => '_' + c.toLowerCase())
+}
+
+function toCamel(s) {
+  return s.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
+}
+
+function convertReqKeys(v) {
+  if (v === null || v === undefined || typeof v !== 'object') return v
+  if (Array.isArray(v)) return v.map(convertReqKeys)
+  return Object.fromEntries(
+    Object.entries(v).map(([k, val]) => [toSnake(k), convertReqKeys(val)])
+  )
+}
+
+function convertResKeys(v) {
+  if (v === null || v === undefined || typeof v !== 'object') return v
+  if (Array.isArray(v)) return v.map(convertResKeys)
+  return Object.fromEntries(
+    Object.entries(v).map(([k, val]) => [toCamel(k), convertResKeys(val)])
+  )
+}
+
 async function request(method, path, body) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } }
-  if (body !== undefined) opts.body = JSON.stringify(body)
+  if (body !== undefined) opts.body = JSON.stringify(convertReqKeys(body))
   const res = await fetch(`${BASE}${path}`, opts)
   if (!res.ok) {
     const err = new Error(`${res.status} ${res.statusText}`)
@@ -12,7 +36,8 @@ async function request(method, path, body) {
     if (text) err.message += `: ${text}`
     throw err
   }
-  return res.status === 204 ? null : res.json()
+  const data = res.status === 204 ? null : await res.json()
+  return data ? convertResKeys(data) : null
 }
 
 // ── Nodes ──

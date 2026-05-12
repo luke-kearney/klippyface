@@ -14,6 +14,5 @@ public class Set
     [JsonIgnore]
     public Group Group { get; set; } = null!;
 
-    [JsonIgnore]
     public ICollection<Frame> Frames { get; set; } = new List<Frame>();
 }

@@ -13,6 +13,5 @@ public class Frame
     [JsonIgnore]
     public Set Set { get; set; } = null!;
 
-    [JsonIgnore]
     public ICollection<FrameElement> Elements { get; set; } = new List<FrameElement>();
 }
