@@ -2,7 +2,6 @@
 #include "display/Renderer.h"
 #include "display/Sprite.h"
 #include "display/DisplayFactory.h"
-#include "display/Sh1106Driver.h"
 #include "comms/MoonrakerClient.h"
 #include <ArduinoJson.h>
 
@@ -24,52 +23,7 @@ void DisplayManager::cleanup() {
 }
 
 void DisplayManager::buildBootDisplay() {
-    FrameElement bootEl;
-    bootEl.type = FrameElement::Text;
-    bootEl.value = "Klippyface";
-    bootEl.x = 64;
-    bootEl.y = 20;
-
-    FrameElement bootSub;
-    bootSub.type = FrameElement::Text;
-    bootSub.value = "Waiting for config...";
-    bootSub.x = 64;
-    bootSub.y = 42;
-
-    Frame bootFrame;
-    bootFrame.duration_ms = 2000;
-    bootFrame.elements.push_back(bootEl);
-    bootFrame.elements.push_back(bootSub);
-
-    Set bootSet;
-    bootSet.id = "default";
-    bootSet.loop_forever = true;
-    bootSet.frames.push_back(bootFrame);
-
-    Group bootGroup;
-    bootGroup.id = "boot";
-    bootGroup.label = "Boot";
-    bootGroup.sets.push_back(bootSet);
-
-    DisplayDriver* driver = new Sh1106Driver(128, 64, 0x3C, 0);
-    if (!driver->init()) {
-        Serial.printf("[%s] Boot SH1106 init failed\n", TAG);
-        delete driver;
-        return;
-    }
-
-    std::map<String, Group> groups;
-    groups["boot"] = bootGroup;
-
-    std::map<String, String> triggers;
-
-    DisplaySlot slot;
-    slot.id = "boot";
-    slot.driver = driver;
-    slot.engine.configure(groups, "boot", triggers);
-    _slots.push_back(slot);
-
-    Serial.printf("[%s] Boot display: waiting for config\n", TAG);
+    Serial.printf("[%s] No boot display — waiting for server config\n", TAG);
 }
 
 bool DisplayManager::begin() {
@@ -105,13 +59,18 @@ bool DisplayManager::applyConfig(const NodeConfig& config) {
         // Build bus config JsonObject for the factory
         JsonDocument busDoc;
         JsonObject busObj = busDoc.to<JsonObject>();
-        busObj["type"] = dispConfig.bus.type;
-        if (dispConfig.bus.type == "i2c") {
-            busObj["address"] = dispConfig.bus.address;
+        if (!dispConfig.rawBusJson.isEmpty()) {
+            deserializeJson(busDoc, dispConfig.rawBusJson);
+            busObj = busDoc.as<JsonObject>();
         } else {
-            if (dispConfig.bus.cs >= 0)  busObj["cs"] = dispConfig.bus.cs;
-            if (dispConfig.bus.dc >= 0)  busObj["dc"] = dispConfig.bus.dc;
-            if (dispConfig.bus.rst >= 0) busObj["rst"] = dispConfig.bus.rst;
+            busObj["type"] = dispConfig.bus.type;
+            if (dispConfig.bus.type == "i2c") {
+                busObj["address"] = dispConfig.bus.address;
+            } else {
+                if (dispConfig.bus.cs >= 0)  busObj["cs"] = dispConfig.bus.cs;
+                if (dispConfig.bus.dc >= 0)  busObj["dc"] = dispConfig.bus.dc;
+                if (dispConfig.bus.rst >= 0) busObj["rst"] = dispConfig.bus.rst;
+            }
         }
 
         slot.driver = createDriver(
@@ -240,9 +199,10 @@ void DisplayManager::tickAll(uint32_t now) {
         if (!slot.driver) continue;
 
         const Frame* frame = slot.engine.tick(now);
-        if (frame) {
+        if (frame && frame != slot.lastRenderedFrame) {
             renderFrame(*frame, *slot.driver, &_sprites, &_printerState);
             slot.driver->show();
+            slot.lastRenderedFrame = frame;
         }
     }
 }

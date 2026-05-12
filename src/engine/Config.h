@@ -93,6 +93,7 @@ struct DisplaySlotConfig {
     String                          label;
     String                          driver_type;   // "sh1106", "ssd1306", etc.
     DisplayBusConfig                bus;
+    String                          rawBusJson;  // full bus config JSON for driver
     int16_t                         width       = 128;
     int16_t                         height      = 64;
     uint8_t                         rotation    = 0;

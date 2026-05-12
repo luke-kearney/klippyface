@@ -1,6 +1,6 @@
 #include "Hx8347Driver.h"
-#include <Arduino_ESP32PAR8.h>
-#include <Arduino_ESP32SPI.h>
+#include <databus/Arduino_ESP32PAR8.h>
+#include <display/Arduino_HX8347D.h>
 
 static const char* TAG = "HX8347";
 
@@ -66,9 +66,9 @@ bool Hx8347Driver::init() {
 
     if (_busType == "parallel8") {
         bus = new Arduino_ESP32PAR8(_dc, _cs, _wr, _rd, _d0, _d1, _d2, _d3, _d4, _d5, _d6, _d7);
-    } else if (_busType == "spi") {
-        bus = new Arduino_ESP32SPI(_dc, _cs, _sclk, _mosi, _miso);
-    } else {
+    }
+
+    if (!bus) {
         Serial.printf("[%s] Unknown bus type: %s\n", TAG, _busType.c_str());
         return false;
     }
@@ -138,7 +138,7 @@ void Hx8347Driver::drawBitmap(int16_t x, int16_t y,
     if (!_gfx) return;
 
     if (dataSize == (size_t)(w * h * 2)) {
-        _gfx->drawRGBBitmap(x, y, (const uint16_t*)data, w, h);
+        _gfx->draw16bitRGBBitmap(x, y, (const uint16_t*)data, w, h);
     } else {
         uint16_t c = rgb888to565(color);
         _gfx->drawBitmap(x, y, data, w, h, c);

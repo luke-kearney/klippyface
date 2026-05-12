@@ -37,6 +37,20 @@ captivePortalTask ──→ [wifiConfigQueue] ──→ (saves to NVS, reboots)
 
 Each queue carries a small struct (`StateEvent`, `ConfigUpdate`, `DisplayCommand`).
 
+## Render Optimization
+
+`DisplayManager::tickAll()` skips redundant redraws by tracking the last rendered frame pointer per slot:
+
+```
+tick(now_ms) → const Frame*  (from AnimationEngine)
+  └── if frame != slot.lastRenderedFrame:
+        renderFrame(frame, driver, sprites, state)
+        driver->show()
+        slot.lastRenderedFrame = frame
+```
+
+This prevents flicker on static content (boot screen, idle frames) while still rendering immediately when the engine advances to a new frame.
+
 ### Priority Guidelines
 
 | Priority | Task |
@@ -65,7 +79,10 @@ public:
     virtual uint8_t bitDepth() const = 0;
     virtual void clear(uint32_t color = 0) = 0;
     virtual void drawPixel(int16_t x, int16_t y, uint32_t color) = 0;
-    virtual void drawBitmap(int16_t x, int16_t y, const uint8_t* data, int16_t w, int16_t h, uint32_t color) = 0;
+    virtual void drawBitmap(int16_t x, int16_t y,
+                            const uint8_t* data, size_t dataSize,
+                            int16_t w, int16_t h,
+                            uint32_t color) = 0;
     virtual void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint32_t color) = 0;
     virtual void setCursor(int16_t x, int16_t y) = 0;
     virtual void setTextSize(uint8_t size) = 0;
@@ -77,6 +94,8 @@ public:
 
 **Color convention:** `uint32_t` is always RGB888 (8-8-8). Monochrome drivers map any non-zero → white (1), zero → black (0). Color drivers use the full value.
 
+**`drawBitmap` auto-detect:** The `dataSize` parameter allows color drivers to distinguish between RGB565 sprites (`dataSize == w*h*2`) and 1-bit mask sprites (any other size). The renderer passes `sprite.byteSize()` from the source data.
+
 ### Driver Registry (Factory)
 
 ```cpp
@@ -86,14 +105,24 @@ DisplayDriver* createDriver(const char* type, const JsonObject& busConfig,
 
 Adding a new display type = one class implementing `DisplayDriver` + one line in the factory.
 
+**Bus config passthrough:** Drivers that need pin-level bus config (parallel, SPI) receive the raw `bus_config` JSON from the server database. The `DisplaySlotConfig::rawBusJson` field carries the full JSON blob, and `DisplayManager::applyConfig()` passes it directly to the factory, preserving all pins. I2C drivers fall back to the struct-based `DisplayBusConfig` fields.
+
 ### Drivers
 
 | Driver | Display | Bus | Color | Framebuffer |
 |--------|---------|-----|-------|-------------|
 | `Sh1106Driver` | SH1106 128×64 | I2C | 1-bit mono | 1 KB (internal) |
 | `Ssd1306Driver` | SSD1306 128×64 | I2C | 1-bit mono | 1 KB (internal) |
+| `Hx8347Driver` | HX8347D 320×240 | 8-bit parallel8 | 16-bit RGB565 | Internal GRAM |
 | `St7789Driver` | ST7789 240×240 (future) | SPI | 16-bit RGB565 | 115 KB (PSRAM) |
 | `Ili9341Driver` | ILI9341 320×240 (future) | SPI | 16-bit RGB565 | 150 KB (PSRAM) |
+
+**HX8347D notes:**
+- Uses `moononournation/GFX Library for Arduino@1.3.5` (Arduino_GFX) via `Arduino_HX8347D` + `Arduino_ESP32PAR8`
+- `show()` is a no-op — writes go directly to display GRAM
+- Color conversion: `rgb888to565()` static helper (`0xRRGGBB` → `uint16_t RGB565`)
+- Backlight control via optional `bl` pin in bus config
+- `ips` flag configures IPS vs non-IPS panel mode
 
 ## Animation Engine
 
@@ -171,4 +200,4 @@ WiFi on, MR off   → MOONRAKER_OFFLINE  → send "moonraker:disconnected"
 WiFi on, MR on    → ONLINE             → (normal flow, no trigger)
 ```
 
-Three dedicated groups: `wifi_offline`, `moonraker_offline`, `screen_sleep` (powers off OLED after 30s idle).
+Three dedicated groups: `wifi_offline`, `moonraker_offline`, `screen_sleep` (powers off display after 5min idle).

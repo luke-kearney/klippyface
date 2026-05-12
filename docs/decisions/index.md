@@ -232,6 +232,51 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-05-12: HX8347D TFT driver — Arduino_GFX + 8-bit parallel
+
+**Context:** Need TFT display support for 2.8" 320×240 color shields with the Himax HX8347D controller.
+
+**Decision:** Use `moononournation/GFX Library for Arduino@1.3.5` (Arduino_GFX library). Driver class `Hx8347Driver : DisplayDriver` creates an `Arduino_ESP32PAR8` parallel bus and `Arduino_HX8347D` display instance.
+
+**Rationale:** Library provides both parallel and SPI bus support with a single API. Actively maintained. HX8347D class is hardware-verified with real parallel-bus hardware.
+
+**DrawBitmap auto-detect:** `dataSize == w*h*2` → `draw16bitRGBBitmap()` (RGB565), else 1-bit mask via `drawBitmap(fg, 0)`. The `dataSize` parameter was added to the `DisplayDriver::drawBitmap` interface, with the renderer passing `sprite.byteSize()`.
+
+---
+
+## 2026-05-12: Raw bus config JSON passthrough from server
+
+**Context:** `DisplayManager::applyConfig()` reconstructed a bus JSON object from the limited `DisplayBusConfig` struct fields (`type`, `cs`, `dc`, `rst`), dropping all parallel bus pins (d0–d7, wr, rd, bl, ips) needed by the HX8347D driver.
+
+**Decision:** Add `String rawBusJson` to `DisplaySlotConfig`. The config deserializer serializes the full `bus` JSON object from the server. `applyConfig()` uses `deserializeJson()` on `rawBusJson` when present, falling back to struct reconstruction for I2C-only displays.
+
+**Consequences:**
+- Parallel pin config flows through untouched from DB → server → ESP → factory → driver
+- Server `node_displays.bus_config` column stores all pins as JSON and is passed verbatim
+- No schema migration needed — existing I2C displays use the fallback path
+
+---
+
+## 2026-05-12: No boot display — wait for server config
+
+**Context:** The boot display created a hardcoded SH1106 (later HX8347T) during `begin()`, showing "Klippyface / Waiting for config..." until the server config arrived.
+
+**Decision:** `buildBootDisplay()` is now a no-op. No display hardware is touched until `applyConfig()` creates displays from the server config.
+
+**Rationale:** Eliminates boot flicker, avoids hardcoded driver/pin assumptions in boot path, and allows the server to fully define the display topology. The `_slots` vector is empty at boot; `tickAll()` skips rendering cleanly.
+
+---
+
+## 2026-05-12: Frame-based render skip to prevent flicker
+
+**Context:** `AnimationEngine::tick()` returned the current frame on every call (~30fps), causing `renderFrame()` to `clear()` and redraw the entire display every 33ms. On TFTs, the clear + redraw cycle was visible as flicker.
+
+**Decision:** `DisplayManager::tickAll()` tracks `slot.lastRenderedFrame` pointer and only calls `renderFrame()` when the engine returns a different frame pointer.
+
+**Rationale:** Static content renders once. Animated content renders on frame transitions (governed by `duration_ms`). Zero additional overhead for data-bound values (those will use a separate force-render mechanism in future).
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations
