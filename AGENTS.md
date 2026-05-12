@@ -1,34 +1,37 @@
 # Klippyface — Agent Bootstrap Instructions
 
-## CRITICAL: First actions in every new session
+## First actions in every new session
 
-Before any code generation, answers, or planning:
-
-1. **Read `agents/PLAN.md`** — specifically the **"Agent Workflow Instructions"** section (lines 972–1067). Follow its process for determining project state. Use the "Determining Project State" sub-section to identify where work should continue.
-
-2. **Read `agents/CONVENTIONS.md`** — understand the coding conventions before writing or modifying any source files.
-
-3. **Scan phase TODO files** — check `agents/docs/phase-*/TODO.md` files to determine:
-   - Which phases are `✅ Done`
-   - Which phase is `🟡 In Progress` (that's where work continues)
-   - What specific tasks remain
-
-4. **Report project state** — before starting work, summarize the current phase and the next actionable task.
+1. **Read `docs/architecture/overview.md`** — system architecture, data flow, core concepts.
+2. **Read `CONTRIBUTING.md`** — coding conventions before writing or modifying source files.
+3. **Query GitHub Issues** — `gh issue list --state "open" --json number,title,labels` to see remaining tasks.
+4. **Read relevant reference docs** — `docs/architecture/*.md`, `docs/reference/*.md` as needed.
+5. **Report project state** — summarize open issues and the next actionable task.
 
 ## Key references
 
 | File | Purpose |
 |------|---------|
-| `agents/PLAN.md` | Full architecture, data model, API, phase tasks, agent workflow |
-| `agents/CONVENTIONS.md` | C++ coding standards, FreeRTOS patterns, logging format, git conventions |
-| `agents/docs/phase-*/TODO.md` | Per-phase task tracking with status indicators |
-| `agents/docs/phase-*/notes.md` | Implementation notes and gotchas (if exists) |
-| `agents/docs/phase-*/decisions.md` | Design decisions recorded during implementation (if exists) |
+| `CONTRIBUTING.md` | Coding conventions, git conventions, review checklist |
+| `docs/architecture/overview.md` | System diagram, data flow, core concepts |
+| `docs/architecture/firmware.md` | FreeRTOS tasks, display driver, engine, sprites |
+| `docs/architecture/server.md` | .NET project structure, EF models, services |
+| `docs/architecture/frontend.md` | Web UI component tree, routing, preview |
+| `docs/architecture/data-model.md` | SQLite schema, entity relationships |
+| `docs/reference/api.md` | Full REST API reference + JSON contract |
+| `docs/reference/gcode-macros.md` | GCODE macro reference |
+| `docs/decisions/index.md` | Append-only design decision log |
+
+## Task tracking
+
+All tasks tracked as **GitHub Issues**. Labels: `area:firmware` `area:server` `area:webui` `area:infra` `area:docs`, `priority:p0-p3`, `status:*`, `type:*`.
+
+Use `gh issue list`, `gh issue view <id>`, `gh issue create`, `gh issue close` to interact.
 
 ## Project identity
 
 - **Project:** Klippyface — multi-node ESP32 display system driven by Moonraker/Klipper
 - **Firmware:** PlatformIO + Arduino core + FreeRTOS (C++)
 - **Server:** .NET 10 + SQLite (minimal API)
-- **Web UI:** Vanilla JS
-- **Build commands:** See `platformio.ini` for env targets (e.g., `esp32dev`, `esp32dev-mock`)
+- **Web UI:** Vanilla JS + Vite
+- **Build commands:** See `platformio.ini` for env targets (`esp32dev`, `esp32dev-mock`)
