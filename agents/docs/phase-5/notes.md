@@ -7,7 +7,7 @@
 - **Language:** Vanilla JS (ES modules, no framework)
 - **CSS:** Plain CSS with custom properties (dark theme)
 - **State management:** Custom pub/sub store (~40 lines)
-- **Routing:** Hash-based (`#nodes`, `#nodes/{id}`, `#groups`, `#groups/{id}`, `#groups/{gid}/sets/{sid}`)
+- **Routing:** Hash-based (`#nodes`, `#nodes/{id}`, `#groups`, `#groups/{id}`, `#groups/{gid}/sets/{sid}`, `#sprites`, `#sprites/{id}`, `#presets`, `#presets/{id}`)
 
 ### Directory Layout
 ```
@@ -24,15 +24,13 @@ ui/
 │   ├── utils.js           # $, $$, html template tag
 │   └── components/
 │       ├── node-list.js        # ✅ 5.2
-│       ├── node-editor.js      # ✅ 5.3
+│       ├── node-editor.js      # ✅ 5.3 (includes 5.4 display editor + 5.5 assignment editor)
 │       ├── group-list.js       # ✅ 5.6
 │       ├── group-editor.js     # ✅ 5.7
-│       ├── set-editor.js       # ✅ 5.8
+│       ├── set-editor.js       # ✅ 5.8 (includes 5.11 preview canvas)
 │       ├── frame-editor.js     # ✅ 5.9
-│       ├── assignment-editor.js# ⬜ 5.5
-│       ├── sprite-editor.js    # ⬜ 5.10
-│       ├── preview-canvas.js   # ⬜ 5.11
-│       └── preset-editor.js    # ⬜ 5.12
+│       ├── sprite-editor.js    # ✅ 5.10
+│       └── preset-editor.js    # ✅ 5.12
 ```
 
 ### Component Pattern
@@ -50,7 +48,7 @@ Each component is an object with:
   loading: false,
   error: null,
   dirtyForms: {},         // { [formId]: true/false }
-  currentView: null,      // 'nodes' | 'node-editor' | 'groups' | 'group-editor'
+  currentView: null,      // 'nodes' | 'node-editor' | 'groups' | 'group-editor' | 'set-editor' | 'sprites' | 'sprite-editor' | 'presets' | 'preset-editor'
   groups: [],             // Group[]
   currentGroup: null,     // Group (with sets, frames, elements)
   currentSet: null,

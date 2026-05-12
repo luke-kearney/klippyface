@@ -234,6 +234,132 @@ export function renderSetEditor(container, params) {
     }
   }
 
+  function showPreview() {
+    const SCALE = 4
+    const W = 128, H = 64
+    let playing = false
+    let speed = 1
+    let currentFrameIdx = 0
+    let animId = null
+    let lastTick = 0
+
+    const overlay = createElement(html`
+      <div class="dialog-overlay">
+        <div class="dialog-box" style="max-width:560px">
+          <h3>Preview: ${currentSet?.label || 'Set'}</h3>
+          <div class="preview-canvas-wrap">
+            <canvas id="preview-canvas" width="${W * SCALE}" height="${H * SCALE}" style="width:${W * SCALE}px;height:${H * SCALE}px"></canvas>
+          </div>
+          <div class="preview-controls">
+            <button class="btn btn-secondary btn-sm" id="pv-play">&#9654; Play</button>
+            <button class="btn btn-secondary btn-sm" id="pv-stop">&#9632; Stop</button>
+            <span style="font-size:12px;color:var(--text-muted)">Speed:</span>
+            <select id="pv-speed" style="width:auto;padding:4px 8px">
+              <option value="0.25">0.25x</option>
+              <option value="0.5">0.5x</option>
+              <option value="1" selected>1x</option>
+              <option value="2">2x</option>
+            </select>
+            <span class="preview-progress" id="pv-progress">0 / ${frames.length}</span>
+            <button class="btn btn-secondary btn-sm" id="pv-close">Close</button>
+          </div>
+        </div>
+      </div>
+    `)
+
+    document.body.appendChild(overlay)
+
+    const canvas = overlay.querySelector('#preview-canvas')
+    const ctx = canvas.getContext('2d')
+    const ctxScale = SCALE
+
+    function renderFrame(frameIdx) {
+      const frame = frames[frameIdx]
+      if (!frame) return
+
+      ctx.fillStyle = (frame.bgColor || '#000000').toLowerCase() === '#000000' ? '#1a1a2e' : frame.bgColor || '#000000'
+      ctx.fillRect(0, 0, W * ctxScale, H * ctxScale)
+
+      const elements = frame.elements || []
+      for (let i = 0; i < elements.length; i++) {
+        const el = elements[i]
+        const x = (el.x || 0) * ctxScale
+        const y = (el.y || 0) * ctxScale
+
+        if (el.type === 'text') {
+          ctx.fillStyle = el.color || '#FFFFFF'
+          ctx.font = `${Math.round(8 * ctxScale)}px monospace`
+          ctx.fillText(el.value || '', x, y + 8 * ctxScale)
+        } else if (el.type === 'sprite') {
+          ctx.fillStyle = '#555'
+          ctx.fillRect(x, y, 16 * ctxScale, 16 * ctxScale)
+          ctx.fillStyle = '#999'
+          ctx.font = `${Math.round(6 * ctxScale)}px monospace`
+          ctx.fillText('sprite', x + 2, y + 10 * ctxScale)
+        } else if (el.type === 'datavalue') {
+          ctx.fillStyle = el.color || '#FFFFFF'
+          ctx.font = `${Math.round(6 * ctxScale)}px monospace`
+          const label = el.label || ''
+          ctx.fillText(label + (el.value || '--'), x, y + 6 * ctxScale)
+        }
+      }
+
+      overlay.querySelector('#pv-progress').textContent = `${frameIdx + 1} / ${frames.length}`
+    }
+
+    function tick() {
+      if (!playing || frames.length === 0) return
+      const now = performance.now()
+      const elapsed = now - lastTick
+      const frame = frames[currentFrameIdx]
+      const duration = (frame ? frame.durationMs : 1000) / speed
+
+      if (elapsed >= duration) {
+        currentFrameIdx = (currentFrameIdx + 1) % frames.length
+        lastTick = now
+        renderFrame(currentFrameIdx)
+      }
+
+      animId = requestAnimationFrame(tick)
+    }
+
+    function startPlay() {
+      if (frames.length === 0) return
+      playing = true
+      lastTick = performance.now()
+      overlay.querySelector('#pv-play').textContent = '⏸ Pause'
+      animId = requestAnimationFrame(tick)
+    }
+
+    function stopPlay() {
+      playing = false
+      if (animId) cancelAnimationFrame(animId)
+      animId = null
+      overlay.querySelector('#pv-play').textContent = '▶ Play'
+    }
+
+    overlay.querySelector('#pv-play').onclick = () => {
+      if (playing) { stopPlay() } else { startPlay() }
+    }
+
+    overlay.querySelector('#pv-stop').onclick = () => {
+      stopPlay()
+      currentFrameIdx = 0
+      if (frames.length > 0) renderFrame(0)
+    }
+
+    overlay.querySelector('#pv-speed').onchange = () => {
+      speed = parseFloat(overlay.querySelector('#pv-speed').value)
+    }
+
+    overlay.querySelector('#pv-close').onclick = () => {
+      stopPlay()
+      overlay.remove()
+    }
+
+    if (frames.length > 0) renderFrame(0)
+  }
+
   function render() {
     const state = getState()
     let content = ''
@@ -263,6 +389,7 @@ export function renderSetEditor(container, params) {
     content += html`
       <div class="view-header">
         <h2>${cs.label}</h2>
+        <button class="btn btn-secondary btn-sm" id="preview-set-btn" style="margin-left:auto">Preview</button>
       </div>
 
       <div id="unsaved-bar" class="unsaved-bar">You have unsaved changes</div>
@@ -331,6 +458,8 @@ export function renderSetEditor(container, params) {
       )
       saveBtn.textContent = 'Saved'
     })
+
+    container.querySelector('#preview-set-btn').onclick = showPreview
 
     container.querySelector('#add-frame-btn').onclick = () => {
       const existing = document.querySelector('#add-frame-form')

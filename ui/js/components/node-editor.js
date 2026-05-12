@@ -1,4 +1,4 @@
-import { getState, setState, subscribe, markDirty, markClean, isDirty } from '../store.js'
+import { getState, setState, subscribe, markDirty, markClean } from '../store.js'
 import * as api from '../api.js'
 import { $, html, createElement } from '../utils.js'
 
@@ -12,9 +12,10 @@ export function renderNodeEditor(container, params) {
   async function load() {
     setState({ loading: true, error: null, currentNode: null, displays: [] })
     try {
-      const node = await api.getNode(nodeId)
+      const [node, groups] = await Promise.all([api.getNode(nodeId), api.getGroups()])
       currentNode = node
       displays = node.displays || []
+      groupsCache = groups
       setState({ currentNode: node, displays, loading: false })
     } catch (err) {
       setState({ loading: false, error: err.message })
@@ -165,6 +166,93 @@ export function renderNodeEditor(container, params) {
     return el
   }
 
+  let groupsCache = []
+  let assignmentEditId = null
+
+  async function loadGroups() {
+    try { groupsCache = await api.getGroups() } catch {}
+  }
+
+  async function loadAssignment(displayId) {
+    try {
+      return await api.getAssignment(nodeId, displayId)
+    } catch {
+      return null
+    }
+  }
+
+  function renderAssignmentForm(displayId) {
+    const el = createElement(html`
+      <div class="inline-form assignment-form" data-display-id="${displayId}">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Default Group</label>
+            <select class="af-default-group">
+              <option value="">— None —</option>
+              ${groupsCache.map(g => html`<option value="${g.id}">${g.label || g.id}</option>`).join('')}
+            </select>
+            <div class="hint">Group shown when no trigger matches current printer state</div>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <div class="fe-section-title">Triggers</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Map printer states to display groups:</div>
+          ${['state:printing', 'state:paused', 'state:complete', 'state:error', 'state:idle'].map(trigger => html`
+            <div class="form-row" style="margin-bottom:8px">
+              <div class="form-group" style="flex:0 0 140px">
+                <input type="text" class="af-trigger-key" value="${trigger}" style="font-size:11px;opacity:0.7" readonly>
+              </div>
+              <div class="form-group">
+                <select class="af-trigger-group" data-trigger="${trigger}">
+                  <option value="">— None —</option>
+                  ${groupsCache.map(g => html`<option value="${g.id}">${g.label || g.id}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="form-actions" style="border:none;margin-top:12px;padding-top:0">
+          <button class="btn btn-primary btn-sm af-save">Save Assignment</button>
+          <button class="btn btn-secondary btn-sm af-cancel">Cancel</button>
+        </div>
+      </div>
+    `)
+
+    loadAssignment(displayId).then(assignment => {
+      if (assignment) {
+        if (assignment.defaultGroup) {
+          el.querySelector('.af-default-group').value = assignment.defaultGroup
+        }
+        let triggers = {}
+        try { triggers = JSON.parse(assignment.triggersJson || '{}') } catch {}
+        el.querySelectorAll('.af-trigger-group').forEach(sel => {
+          const trigger = sel.dataset.trigger
+          if (triggers[trigger]) sel.value = triggers[trigger]
+        })
+      }
+    })
+
+    el.querySelector('.af-save').onclick = async () => {
+      const defaultGroup = el.querySelector('.af-default-group').value
+      const triggers = {}
+      el.querySelectorAll('.af-trigger-group').forEach(sel => {
+        if (sel.value) triggers[sel.dataset.trigger] = sel.value
+      })
+      try {
+        await api.upsertAssignment(nodeId, displayId, { defaultGroup, triggersJson: JSON.stringify(triggers) })
+        el.remove()
+        assignmentEditId = null
+      } catch (err) {
+        const btn = el.querySelector('.af-save')
+        btn.textContent = `Error: ${err.message}`
+        setTimeout(() => { btn.textContent = 'Save Assignment' }, 2000)
+      }
+    }
+
+    el.querySelector('.af-cancel').onclick = () => { el.remove(); assignmentEditId = null }
+    return el
+  }
+
   function render() {
     const state = getState()
     let content = ''
@@ -271,6 +359,7 @@ export function renderNodeEditor(container, params) {
             <div class="display-detail">${d.driverType} &middot; ${busInfo} &middot; ${d.width}x${d.height} &middot; rot ${d.rotation}</div>
           </div>
           <button class="btn btn-secondary btn-sm edit-display-btn" data-id="${d.id}">Edit</button>
+          <button class="btn btn-secondary btn-sm assign-display-btn" data-id="${d.id}">Assignment</button>
           <button class="btn btn-danger btn-sm delete-display-btn" data-id="${d.id}">Delete</button>
         </div>
       `)
@@ -302,8 +391,27 @@ export function renderNodeEditor(container, params) {
           existing.remove()
           return
         }
+        const existingAssign = card.nextElementSibling
+        if (existingAssign && existingAssign.classList.contains('assignment-form')) existingAssign.remove()
         const form = renderDisplayForm(d)
         card.after(form)
+      }
+
+      card.querySelector('.assign-display-btn').onclick = () => {
+        if (assignmentEditId === d.id) {
+          const existing = card.nextElementSibling
+          if (existing && existing.classList.contains('assignment-form')) {
+            existing.remove()
+            assignmentEditId = null
+            return
+          }
+        }
+        const existingForm = card.parentElement.querySelector('.assignment-form')
+        if (existingForm) existingForm.remove()
+        const existingDisplay = card.nextElementSibling
+        if (existingDisplay && existingDisplay.classList.contains('display-form')) existingDisplay.remove()
+        card.after(renderAssignmentForm(d.id))
+        assignmentEditId = d.id
       }
 
       displaysList.appendChild(card)

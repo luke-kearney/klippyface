@@ -678,3 +678,143 @@ input[type="color"]::-moz-color-swatch {
   border-radius: 2px;
 }
 
+/* ===== Sprite editor ===== */
+.sprite-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+.sprite-card:hover {
+  border-color: var(--accent);
+}
+.sprite-card .sprite-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.sprite-card .sprite-thumb {
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #000;
+  flex-shrink: 0;
+  image-rendering: pixelated;
+}
+.sprite-card .sprite-label {
+  font-size: 16px;
+  font-weight: 600;
+  flex: 1;
+}
+.sprite-card .sprite-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.sprite-card .card-actions {
+  margin-bottom: 0;
+}
+
+/* ===== Pixel grid ===== */
+.pixel-grid-wrap {
+  margin: 16px 0;
+  text-align: center;
+}
+.pixel-grid-wrap canvas.pixel-grid {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: crosshair;
+  image-rendering: pixelated;
+  max-width: 100%;
+}
+.pixel-grid-tools {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.pixel-grid-tools .pg-size-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ===== Preview dialog ===== */
+.preview-canvas-wrap {
+  text-align: center;
+  padding: 16px;
+}
+.preview-canvas-wrap canvas {
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  image-rendering: pixelated;
+  max-width: 100%;
+}
+.preview-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.preview-controls .preview-progress {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ===== Preset editor ===== */
+.preset-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+.preset-card:hover {
+  border-color: var(--accent);
+}
+.preset-card .preset-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.preset-card .preset-label {
+  font-size: 16px;
+  font-weight: 600;
+  flex: 1;
+}
+.preset-card .preset-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.preset-card .card-actions {
+  margin-bottom: 0;
+}
+
+/* ===== Group swap row (presets) ===== */
+.swap-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.swap-row .form-group {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+/* ===== Conditional fields ===== */
+.condition-fields {
+  padding: 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-top: 8px;
+}
+

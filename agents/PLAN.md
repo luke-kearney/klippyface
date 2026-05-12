@@ -721,7 +721,7 @@ klippyface/
 
 **Definition of done:** Full CRUD for everything. Create a face in the sprite editor, assign it to a set, preview the animation, assign the group to a node, save → ESP32 shows it.
 
-**Phase 5 status:** 🟡 In Progress — Tasks 5.0a (Vite scaffold), 5.0 (HTML+CSS), 5.1 (API client), 5.2 (node list), 5.3 (node editor), 5.4 (display editor, within node-editor), and 5.13 (app controller) complete. Remaining: 5.5 (assignment editor), 5.6–5.9 (group/set/frame editors), 5.10 (sprite editor), 5.11 (preview canvas), 5.12 (preset editor). Build verified — `npm run build` produces 3 production assets in `server/wwwroot/`.
+**Phase 5 status:** ✅ Complete — All 14 tasks implemented. Full CRUD Web UI — node/display/assignment management, group/set/frame/element editors, sprite pixel editor with PNG import, OLED preview canvas with play/pause/speed, preset editor with conditions and overrides. Build verified — `npm run build` produces 3 production assets in `server/wwwroot/` (12.06 kB CSS, 56.14 kB JS).
 
 **Agent tracking:** See `agents/docs/phase-5/TODO.md` for task details.
 

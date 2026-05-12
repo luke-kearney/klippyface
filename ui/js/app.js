@@ -5,12 +5,16 @@ import { renderNodeEditor } from './components/node-editor.js'
 import { renderGroupList } from './components/group-list.js'
 import { renderGroupEditor } from './components/group-editor.js'
 import { renderSetEditor } from './components/set-editor.js'
+import { renderSpriteEditor } from './components/sprite-editor.js'
+import { renderPresetEditor } from './components/preset-editor.js'
 
 const VIEWS = {
   nodes: { render: renderNodeList, title: 'Nodes' },
   groups: { render: renderGroupList, title: 'Groups' },
   'group-editor': { render: renderGroupEditor, title: 'Group Editor' },
   'set-editor': { render: renderSetEditor, title: 'Set Editor' },
+  sprites: { render: renderSpriteEditor, title: 'Sprites' },
+  presets: { render: renderPresetEditor, title: 'Presets' },
 }
 
 function parseRoute(hash) {
@@ -28,6 +32,18 @@ function parseRoute(hash) {
 
   m = h.match(/^groups$/)
   if (m) return { view: 'groups', params: {} }
+
+  m = h.match(/^sprites\/(.+)$/)
+  if (m) return { view: 'sprites', params: { spriteId: m[1] } }
+
+  m = h.match(/^sprites$/)
+  if (m) return { view: 'sprites', params: {} }
+
+  m = h.match(/^presets\/(.+)$/)
+  if (m) return { view: 'presets', params: { presetId: m[1] } }
+
+  m = h.match(/^presets$/)
+  if (m) return { view: 'presets', params: {} }
 
   return { view: 'nodes', params: {} }
 }
@@ -58,7 +74,9 @@ async function handleRoute() {
       (route.view === 'nodes' && view === 'nodes') ||
       (route.view === 'group-editor' && view === 'groups') ||
       (route.view === 'set-editor' && view === 'groups') ||
-      (route.view === 'groups' && view === 'groups')
+      (route.view === 'groups' && view === 'groups') ||
+      (route.view === 'sprites' && view === 'sprites') ||
+      (route.view === 'presets' && view === 'presets')
     el.classList.toggle('active', active)
   })
 
