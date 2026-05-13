@@ -66,6 +66,8 @@ voltages can prevent the ESP32 from booting:
 
 ## Verified Hardware
 
+> Template — replace with your tested boards when confirmed.
+
 | Board | Tested By | Date | Notes |
 |-------|-----------|------|-------|
-| ESP32 DevKit V1 (CP2102) | @user | 2026-04 | Dual SH1106 I2C, HX8347D parallel 8 — all working |
+| _( add board here )_ | _your name_ | _date_ | _wiring notes_ |

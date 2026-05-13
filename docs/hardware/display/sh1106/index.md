@@ -73,7 +73,8 @@ For the secondary address (0x3D) on a second display:
 
 ## Verified Hardware
 
+> Template — replace with your tested devices when confirmed.
+
 | Device | Tested By | Date | Notes |
 |--------|-----------|------|-------|
-| HiLetgo 1.3" 128×64 I2C OLED | @user | 2026-04 | Default wiring, no pull-ups needed on this batch |
-| AZDelivery 0.96" 128×64 I2C OLED | @user | 2026-04 | Needed external 4.7kΩ pull-ups |
+| _( add device here )_ | _your name_ | _date_ | _wiring notes_ |

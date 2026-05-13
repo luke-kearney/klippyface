@@ -99,6 +99,8 @@ from RGB888 to RGB565 is handled by a static `rgb888to565()` helper.
 
 ## Verified Hardware
 
+> Template — replace with your tested devices when confirmed.
+
 | Device | Tested By | Date | Notes |
 |--------|-----------|------|-------|
-| 3.5" 320×480 HX8347D TFT shield | @user | 2026-05 | 8-bit parallel, IPS panel, 12 GPIOs used |
+| _( add device here )_ | _your name_ | _date_ | _wiring notes_ |
