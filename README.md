@@ -5,22 +5,24 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 ## How It Works
 
 ```
-┌────────────────┐    WebSocket     ┌──────────────────┐   HTTP/Config  ┌────────────────┐
-│   Moonraker    │ ←───────────────→│  ESP32 (Node)    │ ←───────────── │  Companion     │
-│  (Klipper API) │                  │  SH1106 OLED(s)  │                │  Server (.NET) │
-└────────────────┘                  └──────────────────┘                └────────────────┘
-                                                                               │
-                                                                         ┌─────┴──────┐
-                                                                         │  Web UI    │
-                                                                         │ (Browser)  │
-                                                                         └────────────┘
+┌────────────────┐    WebSocket     ┌──────────────────┐  WS (+HTTP)  ┌──────────────────────┐
+│   Moonraker    │ ←───────────────→│  ESP32 (Node)    │ ←───────────→│  Companion Server    │
+│  (Klipper API) │                  │  SH1106 OLED(s)  │   heartbeat  │  (.NET 10 + SQLite)  │
+└────────────────┘                  └──────────────────┘   hello      └──────────────────────┘
+                                                    config_push               │
+                                                                        ┌─────┴──────┐
+                                                                        │  Web UI    │
+                                                                        │ (Browser)  │
+                                                                        └────────────┘
 ```
 
-1. **ESP32** boots, fetches its per-node config from the Companion Server (display type, animations, triggers)
-2. **Moonraker WebSocket** streams real-time printer state to the ESP32
-3. **Display engine** selects the right animation group based on printer state: `printing`, `idle`, `paused`, `error`, `complete`
-4. **Klipper macros** can push commands directly: `DISPLAY_FACE GROUP=celebration SET=party`
-5. **Web UI** provides full visual management — node registry, sprite pixel editor, animation preview, preset scheduling
+1. **ESP32** boots, connects to Companion Server via WebSocket at `/api/ws/node/{mac}`, sends `hello` with its `config_version`
+2. **Companion Server** checks version — if stale, pushes `refresh_config`; if up-to-date, responds `config_status { up_to_date: true }` — no unnecessary redraw
+3. **Moonraker WebSocket** streams real-time printer state to the ESP32 for display triggering
+4. **Display engine** selects the right animation group based on printer state: `printing`, `idle`, `paused`, `error`, `complete`
+5. **Klipper macros** can push commands directly: `DISPLAY_FACE GROUP=celebration SET=party`
+6. **Web UI** provides full visual management — node registry, sprite pixel editor, animation preview, preset scheduling
+7. **Admin edits** (displays, groups, animations) automatically bump `LastConfigVersion` and push `refresh_config` to all connected nodes in real-time
 
 ## Quick Start
 
@@ -72,7 +74,7 @@ npm run build
 | Configurable animations (Groups → Sets → Frames → Elements) | ✅ Done — element composition model with DataValue bindings |
 | Klipper GCODE macro integration | ⬜ Planned |
 | .NET 10 companion server with SQLite | ✅ Done — full CRUD API + per-node config export |
-| ESP32 server-driven config fetch | ✅ Done — HTTP fetch, hot-reload every 5 min, configurable protocol/URL |
+| WebSocket channel — node online tracking, heartbeat, config push | ✅ Done — persistent WS at `/api/ws/node/{mac}`, hello/heartbeat/refresh protocol |
 | Web UI — full management (nodes, displays, assignments, groups, sets, frames, sprites, presets, preview) | ✅ Done |
 | Web UI — pixel sprite editor with PNG import | ✅ Done |
 | Web UI — animation preview canvas | ✅ Done |
@@ -163,6 +165,10 @@ For testing without a physical Moonraker instance, build with `esp32dev-mock`. I
 [MOONRAKER] State: printing
 [MAIN] State: state:printing (progress: 45.2%)
 [DISPLAY] Engine triggered: state:printing → printing_faces
+[SRVCLIENT] Connecting to ws://192.168.1.57:5000/api/ws/node/AA:BB:CC:DD:EE:01
+[SRVCLIENT] Connected to server
+[SRVCLIENT] Sent hello (config_version: 1)
+[SRVCLIENT] Config is up to date — no fetch needed
 ```
 
 ## Contributing

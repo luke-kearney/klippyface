@@ -6,7 +6,7 @@
 #include "display/DisplayManager.h"
 #include "comms/MoonrakerClient.h"
 #include "comms/GcodeHandler.h"
-#include "comms/ConfigFetcher.h"
+#include "comms/ServerClient.h"
 #include "engine/ConfigDeserializer.h"
 #include "wifi/CaptivePortal.h"
 
@@ -17,6 +17,7 @@ WifiManager wifiManager;
 DisplayManager displayManager;
 MoonrakerClient moonrakerClient;
 GcodeHandler gcodeHandler;
+ServerClient serverClient;
 
 // -------------------------------------------------------------------
 // Task handles
@@ -26,7 +27,7 @@ TaskHandle_t displayTaskHandle = nullptr;
 TaskHandle_t moonrakerTaskHandle = nullptr;
 TaskHandle_t gcodeHandlerTaskHandle = nullptr;
 TaskHandle_t captivePortalTaskHandle = nullptr;
-TaskHandle_t configFetcherTaskHandle = nullptr;
+TaskHandle_t serverClientTaskHandle = nullptr;
 
 // -------------------------------------------------------------------
 // Inter-task queues
@@ -145,43 +146,23 @@ void gcodeHandlerTask(void *pvParameters) {
 }
 
 // -------------------------------------------------------------------
-// Config Fetcher Task (Core 0) — fetches config from companion server
+// Server Client Task (Core 0) — WebSocket to companion server
 // -------------------------------------------------------------------
-void configFetcherTask(void *pvParameters) {
-    // Wait for WiFi before fetching
+void serverClientTask(void *pvParameters) {
+    // Wait for WiFi before connecting
     while (!wifiManager.waitForConnection(pdMS_TO_TICKS(1000))) {
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
-    ConfigFetcher fetcher;
-    String mac = Settings::getNodeMac();
+    serverClient.setConfigQueue(configQueue);
     String host = Settings::getServerHost();
     uint16_t port = Settings::getServerPort();
     bool svUseTls = Settings::getServerUseTls();
-    bool svTlsVerify = Settings::getServerTlsVerify();
+    serverClient.begin(host, port, svUseTls);
 
     for (;;) {
-        String scheme = svUseTls ? "https" : "http";
-        Serial.printf("[CONFIG] Fetching config for MAC %s from %s://%s:%u\n",
-                      mac.c_str(), scheme.c_str(), host.c_str(), port);
-
-        String json = fetcher.fetchConfig(host, port, svUseTls, svTlsVerify, mac);
-
-        if (json.length() > 0) {
-            // Heap-allocate buffer and send pointer through queue (cross-core safe)
-            char* jsonBuf = new char[json.length() + 1];
-            if (jsonBuf) {
-                strcpy(jsonBuf, json.c_str());
-                if (xQueueSend(configQueue, &jsonBuf, 0) != pdTRUE) {
-                    Serial.println("[CONFIG] Config queue full — dropping (will retry)");
-                    delete[] jsonBuf;
-                }
-            }
-        } else {
-            Serial.println("[CONFIG] Fetch failed — will retry in 5 minutes");
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(300000));  // 5 minutes
+        serverClient.tick();
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
 
@@ -246,6 +227,8 @@ void displayTask(void *pvParameters) {
                 if (ConfigDeserializer::deserialize(json, nodeCfg)) {
                     Serial.println("[DISPLAY] Applying server config");
                     displayManager.applyConfig(nodeCfg);
+                    serverClient.setConfigVersion(nodeCfg.config_version);
+                    serverClient.reannounce();
                 } else {
                     Serial.println("[DISPLAY] Failed to deserialize server config");
                 }
@@ -309,7 +292,7 @@ void setup() {
         gcodeHandlerTask, "gcodeHandlerTask", 4096, nullptr, 7, &gcodeHandlerTaskHandle, 0);
 
     xTaskCreatePinnedToCore(
-        configFetcherTask, "configFetcherTask", 6144, nullptr, 6, &configFetcherTaskHandle, 0);
+        serverClientTask, "serverClientTask", 6144, nullptr, 6, &serverClientTaskHandle, 0);
 
     xTaskCreatePinnedToCore(
         displayTask, "displayTask", 8192, nullptr, 10, &displayTaskHandle, 1);

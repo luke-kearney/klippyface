@@ -175,6 +175,24 @@ public class ConfigExportService
         };
     }
 
+    public async Task<string?> GetNodeMacByIdAsync(string nodeId)
+    {
+        var mac = await _db.Nodes
+            .Where(n => n.Id == nodeId)
+            .Select(n => n.MacAddress)
+            .FirstOrDefaultAsync();
+        return mac;
+    }
+
+    public async Task<uint> GetConfigVersionAsync(string macAddress)
+    {
+        var version = await _db.Nodes
+            .Where(n => n.MacAddress == macAddress)
+            .Select(n => (uint?)n.LastConfigVersion)
+            .FirstOrDefaultAsync();
+        return version ?? 0;
+    }
+
     public async Task<JsonObject> ExportLibraryAsync()
     {
         var groups = await _db.Groups

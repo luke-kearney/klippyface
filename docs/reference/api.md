@@ -22,6 +22,7 @@ stable: true
 | GET | `/api/nodes/{id}` | Get node + displays + assignments |
 | PUT | `/api/nodes/{id}` | Update node |
 | DELETE | `/api/nodes/{id}` | Delete node + displays + assignments |
+| GET | `/api/ws/node/{mac}` | **WebSocket** — persistent channel for online tracking, heartbeat, config push |
 | GET | `/api/nodes/{id}/displays` | List displays on node |
 | POST | `/api/nodes/{id}/displays` | Add display to node |
 | PUT | `/api/nodes/{id}/displays/{did}` | Update display config |
@@ -150,6 +151,35 @@ GET /api/config/node?mac=AA:BB:CC:DD:EE:01
   }
 }
 ```
+
+## WebSocket Protocol (`/api/ws/node/{mac}`)
+
+The ESP32 maintains a persistent WebSocket to the companion server for online tracking
+and instant config push. Messages are JSON with a `type` field:
+
+### Node → Server
+
+| Type | Payload | Timing |
+|------|---------|--------|
+| `hello` | `{ node_id, friendly_name, config_version }` | On connect/reconnect |
+| `heartbeat` | `{ heap_free, uptime_s, rssi, display_count }` | Every 30s |
+
+### Server → Node
+
+| Type | Payload | Trigger |
+|------|---------|---------|
+| `config_status` | `{ up_to_date: bool }` | Response to hello |
+| `refresh_config` | `{}` | Admin-edited config (display/group/assignment changes) |
+| `refresh_library` | `{}` | Admin-edited library (future) |
+
+### Connection Lifecycle
+
+1. ESP connects → sends `hello` with `config_version`
+2. Server compares against DB `LastConfigVersion` — if stale, sends `refresh_config`
+3. ESP fetches config via HTTP `GET /api/config/node?mac=...`, applies, re-announces with updated version
+4. ESP sends `heartbeat` every 30s; server persists `LastSeen` and tracks `IsOnline`
+5. On disconnect → auto-reconnect with 5s interval, repeat from step 1
+6. No config redraw if version is unchanged from prior session
 
 ## FrameElement Types
 

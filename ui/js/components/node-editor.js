@@ -413,7 +413,11 @@ export function renderNodeEditor(container, params) {
 
     content += html`
       <div class="view-header">
-        <h2>${cn.friendlyName || 'Unnamed Node'}</h2>
+        <h2>
+          <span class="status-dot ${cn.isOnline ? 'online' : 'offline'}" style="display:inline-block;vertical-align:middle;margin-right:6px"></span>
+          ${cn.friendlyName || 'Unnamed Node'}
+          <span style="font-size:12px;color:var(--text-muted);margin-left:8px;font-weight:400">${cn.isOnline ? '● Online' : '○ Offline'}</span>
+        </h2>
       </div>
 
       <div id="unsaved-bar" class="unsaved-bar">You have unsaved changes</div>
@@ -428,6 +432,12 @@ export function renderNodeEditor(container, params) {
           <input type="text" value="${cn.macAddress}" disabled style="opacity:0.6">
           <div class="hint">MAC address cannot be changed after creation</div>
         </div>
+        ${cn.lastSeen ? html`
+        <div class="form-group">
+          <label>Last Seen</label>
+          <input type="text" value="${new Date(cn.lastSeen).toLocaleString()}" disabled style="opacity:0.6">
+          <div class="hint">Most recent contact from this node</div>
+        </div>` : ''}
         <div class="form-group">
           <label>Description</label>
           <textarea id="edit-desc" placeholder="Main 3D printer display">${cn.description || ''}</textarea>

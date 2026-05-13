@@ -1,6 +1,8 @@
+using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Klippyface.Server.Data;
 using Klippyface.Server.Models;
+using Klippyface.Server.Services;
 
 namespace Klippyface.Server.Api;
 
@@ -35,7 +37,7 @@ public static class LibraryApi
             return group is null ? Results.NotFound() : Results.Ok(group);
         });
 
-        groups.MapPut("/{id}", async (KlippyfaceDbContext db, string id, Group input) =>
+        groups.MapPut("/{id}", async (KlippyfaceDbContext db, string id, Group input, NodeStatusService statusService) =>
         {
             var group = await db.Groups.FindAsync(id);
             if (group is null) return Results.NotFound();
@@ -44,16 +46,18 @@ public static class LibraryApi
             group.SortOrder = input.SortOrder;
             group.UpdatedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
+            await BumpAffectedNodesAsync(db, statusService, id);
             return Results.Ok(group);
         });
 
-        groups.MapDelete("/{id}", async (KlippyfaceDbContext db, string id) =>
+        groups.MapDelete("/{id}", async (KlippyfaceDbContext db, string id, NodeStatusService statusService) =>
         {
             var group = await db.Groups.FindAsync(id);
             if (group is null) return Results.NotFound();
 
             db.Groups.Remove(group);
             await db.SaveChangesAsync();
+            await BumpAffectedNodesAsync(db, statusService, id);
             return Results.NoContent();
         });
 
@@ -72,7 +76,7 @@ public static class LibraryApi
             return Results.Ok(result);
         });
 
-        sets.MapPost("/", async (KlippyfaceDbContext db, string groupId, Set set) =>
+        sets.MapPost("/", async (KlippyfaceDbContext db, string groupId, Set set, NodeStatusService statusService) =>
         {
             var group = await db.Groups.FindAsync(groupId);
             if (group is null) return Results.NotFound("Group not found");
@@ -81,12 +85,13 @@ public static class LibraryApi
             set.GroupId = groupId;
             db.Sets.Add(set);
             await db.SaveChangesAsync();
+            await BumpAffectedNodesAsync(db, statusService, groupId);
             return Results.Created($"/api/groups/{groupId}/sets/{set.Id}", set);
         });
 
         var singleSet = app.MapGroup("/api/sets");
 
-        singleSet.MapPut("/{id}", async (KlippyfaceDbContext db, string id, Set input) =>
+        singleSet.MapPut("/{id}", async (KlippyfaceDbContext db, string id, Set input, NodeStatusService statusService) =>
         {
             var set = await db.Sets.FindAsync(id);
             if (set is null) return Results.NotFound();
@@ -96,20 +101,26 @@ public static class LibraryApi
             set.LoopCount = input.LoopCount;
             set.FrameTime = input.FrameTime;
             await db.SaveChangesAsync();
+            var groupId = await GetGroupIdForSetAsync(db, id);
+            if (groupId is not null)
+                await BumpAffectedNodesAsync(db, statusService, groupId);
             return Results.Ok(set);
         });
 
-        singleSet.MapDelete("/{id}", async (KlippyfaceDbContext db, string id) =>
+        singleSet.MapDelete("/{id}", async (KlippyfaceDbContext db, string id, NodeStatusService statusService) =>
         {
             var set = await db.Sets.FindAsync(id);
             if (set is null) return Results.NotFound();
 
+            var groupId = await GetGroupIdForSetAsync(db, id);
             db.Sets.Remove(set);
             await db.SaveChangesAsync();
+            if (groupId is not null)
+                await BumpAffectedNodesAsync(db, statusService, groupId);
             return Results.NoContent();
         });
 
-        singleSet.MapPut("/{id}/frames/reorder", async (KlippyfaceDbContext db, string id, List<string> frameIds) =>
+        singleSet.MapPut("/{id}/frames/reorder", async (KlippyfaceDbContext db, string id, List<string> frameIds, NodeStatusService statusService) =>
         {
             var set = await db.Sets.Include(s => s.Frames).FirstOrDefaultAsync(s => s.Id == id);
             if (set is null) return Results.NotFound("Set not found");
@@ -122,6 +133,9 @@ public static class LibraryApi
             }
 
             await db.SaveChangesAsync();
+            var groupId = await GetGroupIdForSetAsync(db, id);
+            if (groupId is not null)
+                await BumpAffectedNodesAsync(db, statusService, groupId);
             return Results.Ok(set.Frames.OrderBy(f => f.SortOrder).ToList());
         });
 
@@ -140,7 +154,7 @@ public static class LibraryApi
             return Results.Ok(result);
         });
 
-        frames.MapPost("/", async (KlippyfaceDbContext db, string setId, Frame frame) =>
+        frames.MapPost("/", async (KlippyfaceDbContext db, string setId, Frame frame, NodeStatusService statusService) =>
         {
             var set = await db.Sets.FindAsync(setId);
             if (set is null) return Results.NotFound("Set not found");
@@ -149,12 +163,15 @@ public static class LibraryApi
             frame.SetId = setId;
             db.Frames.Add(frame);
             await db.SaveChangesAsync();
+            var groupId = await GetGroupIdForSetAsync(db, setId);
+            if (groupId is not null)
+                await BumpAffectedNodesAsync(db, statusService, groupId);
             return Results.Created($"/api/sets/{setId}/frames/{frame.Id}", frame);
         });
 
         var singleFrame = app.MapGroup("/api/frames");
 
-        singleFrame.MapPut("/{id}", async (KlippyfaceDbContext db, string id, Frame input) =>
+        singleFrame.MapPut("/{id}", async (KlippyfaceDbContext db, string id, Frame input, NodeStatusService statusService) =>
         {
             var frame = await db.Frames.FindAsync(id);
             if (frame is null) return Results.NotFound();
@@ -163,16 +180,22 @@ public static class LibraryApi
             frame.BgColor = input.BgColor;
             frame.SortOrder = input.SortOrder;
             await db.SaveChangesAsync();
+            var groupId = await GetGroupIdForFrameAsync(db, id);
+            if (groupId is not null)
+                await BumpAffectedNodesAsync(db, statusService, groupId);
             return Results.Ok(frame);
         });
 
-        singleFrame.MapDelete("/{id}", async (KlippyfaceDbContext db, string id) =>
+        singleFrame.MapDelete("/{id}", async (KlippyfaceDbContext db, string id, NodeStatusService statusService) =>
         {
             var frame = await db.Frames.FindAsync(id);
             if (frame is null) return Results.NotFound();
 
+            var groupId = await GetGroupIdForFrameAsync(db, id);
             db.Frames.Remove(frame);
             await db.SaveChangesAsync();
+            if (groupId is not null)
+                await BumpAffectedNodesAsync(db, statusService, groupId);
             return Results.NoContent();
         });
 
@@ -190,7 +213,7 @@ public static class LibraryApi
             return Results.Ok(result);
         });
 
-        elements.MapPost("/", async (KlippyfaceDbContext db, string frameId, FrameElement element) =>
+        elements.MapPost("/", async (KlippyfaceDbContext db, string frameId, FrameElement element, NodeStatusService statusService) =>
         {
             var frame = await db.Frames.FindAsync(frameId);
             if (frame is null) return Results.NotFound("Frame not found");
@@ -199,10 +222,13 @@ public static class LibraryApi
             element.FrameId = frameId;
             db.FrameElements.Add(element);
             await db.SaveChangesAsync();
+            var groupId = await GetGroupIdForFrameAsync(db, frameId);
+            if (groupId is not null)
+                await BumpAffectedNodesAsync(db, statusService, groupId);
             return Results.Created($"/api/frames/{frameId}/elements/{element.Id}", element);
         });
 
-        elements.MapPut("/reorder", async (KlippyfaceDbContext db, string frameId, List<string> elementIds) =>
+        elements.MapPut("/reorder", async (KlippyfaceDbContext db, string frameId, List<string> elementIds, NodeStatusService statusService) =>
         {
             var frame = await db.Frames.Include(f => f.Elements).FirstOrDefaultAsync(f => f.Id == frameId);
             if (frame is null) return Results.NotFound("Frame not found");
@@ -215,12 +241,15 @@ public static class LibraryApi
             }
 
             await db.SaveChangesAsync();
+            var groupId = await GetGroupIdForFrameAsync(db, frameId);
+            if (groupId is not null)
+                await BumpAffectedNodesAsync(db, statusService, groupId);
             return Results.Ok(frame.Elements.OrderBy(e => e.SortOrder).ToList());
         });
 
         var singleElement = app.MapGroup("/api/elements");
 
-        singleElement.MapPut("/{id}", async (KlippyfaceDbContext db, string id, FrameElement input) =>
+        singleElement.MapPut("/{id}", async (KlippyfaceDbContext db, string id, FrameElement input, NodeStatusService statusService) =>
         {
             var element = await db.FrameElements.FindAsync(id);
             if (element is null) return Results.NotFound();
@@ -233,19 +262,76 @@ public static class LibraryApi
             element.Y = input.Y;
             element.SortOrder = input.SortOrder;
             await db.SaveChangesAsync();
+            var groupId = await GetGroupIdForElementAsync(db, id);
+            if (groupId is not null)
+                await BumpAffectedNodesAsync(db, statusService, groupId);
             return Results.Ok(element);
         });
 
-        singleElement.MapDelete("/{id}", async (KlippyfaceDbContext db, string id) =>
+        singleElement.MapDelete("/{id}", async (KlippyfaceDbContext db, string id, NodeStatusService statusService) =>
         {
             var element = await db.FrameElements.FindAsync(id);
             if (element is null) return Results.NotFound();
 
+            var groupId = await GetGroupIdForElementAsync(db, id);
             db.FrameElements.Remove(element);
             await db.SaveChangesAsync();
+            if (groupId is not null)
+                await BumpAffectedNodesAsync(db, statusService, groupId);
             return Results.NoContent();
         });
 
         return app;
+    }
+
+    private static async Task BumpAffectedNodesAsync(KlippyfaceDbContext db, NodeStatusService statusService, string groupId)
+    {
+        var assignmentNodeIds = await db.Assignments
+            .Where(a => a.DefaultGroup == groupId ||
+                        (a.TriggersJson != null && a.TriggersJson.Contains($"\"{groupId}\"")))
+            .Select(a => a.NodeId)
+            .Distinct()
+            .ToListAsync();
+
+        foreach (var nodeId in assignmentNodeIds)
+        {
+            var node = await db.Nodes.FindAsync(nodeId);
+            if (node is null) continue;
+
+            node.LastConfigVersion++;
+            node.UpdatedAt = DateTime.UtcNow;
+
+            await statusService.SendToNodeAsync(node.MacAddress, new JsonObject
+            {
+                ["type"] = "refresh_config",
+            });
+        }
+
+        if (assignmentNodeIds.Count > 0)
+            await db.SaveChangesAsync();
+    }
+
+    private static async Task<string?> GetGroupIdForSetAsync(KlippyfaceDbContext db, string setId)
+    {
+        return await db.Sets
+            .Where(s => s.Id == setId)
+            .Select(s => s.GroupId)
+            .FirstOrDefaultAsync();
+    }
+
+    private static async Task<string?> GetGroupIdForFrameAsync(KlippyfaceDbContext db, string frameId)
+    {
+        return await db.Frames
+            .Where(f => f.Id == frameId)
+            .Select(f => f.Set.GroupId)
+            .FirstOrDefaultAsync();
+    }
+
+    private static async Task<string?> GetGroupIdForElementAsync(KlippyfaceDbContext db, string elementId)
+    {
+        return await db.FrameElements
+            .Where(e => e.Id == elementId)
+            .Select(e => e.Frame.Set.GroupId)
+            .FirstOrDefaultAsync();
     }
 }

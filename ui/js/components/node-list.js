@@ -91,8 +91,9 @@ export function renderNodeList(container, params) {
         content += html`
           <div class="card" data-node-id="${node.id}">
             <div class="card-header">
-              <span class="status-dot offline"></span>
+              <span class="status-dot ${node.isOnline ? 'online' : 'offline'}"></span>
               <span class="card-title">${node.friendlyName || 'Unnamed Node'}</span>
+              <span class="status-text" style="font-size:11px;color:var(--text-muted);margin-left:8px">${node.isOnline ? 'Online' : 'Offline'}</span>
               <div class="card-actions">
                 <button class="btn btn-secondary btn-sm edit-node-btn" data-id="${node.id}">Edit</button>
                 <button class="btn btn-danger btn-sm delete-node-btn" data-id="${node.id}">Delete</button>
@@ -101,6 +102,7 @@ export function renderNodeList(container, params) {
             <div class="card-body">
               <div><strong>MAC:</strong> <code>${node.macAddress}</code></div>
               ${node.description ? html`<div>${node.description}</div>` : ''}
+              ${!node.isOnline && node.lastSeen ? html`<div style="font-size:11px;color:var(--text-muted);margin-top:4px">Last seen: ${new Date(node.lastSeen).toLocaleString()}</div>` : ''}
             </div>
           </div>
         `

@@ -10,6 +10,10 @@ public class Node
     public string Description { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastSeen { get; set; }
+    public uint LastConfigVersion { get; set; } = 1;
+
+    public bool IsOnline => LastSeen.HasValue && (DateTime.UtcNow - LastSeen.Value).TotalSeconds < 90;
 
     public ICollection<NodeDisplay> Displays { get; set; } = new List<NodeDisplay>();
 

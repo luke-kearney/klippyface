@@ -143,7 +143,7 @@ xTaskCreatePinnedToCore(
 | 9 | `moonrakerTask` |
 | 8 | `wifiTask` |
 | 7 | `gcodeHandlerTask` |
-| 6 | `configFetcherTask` |
+| 6 | `serverClientTask` |
 | 5 | `captivePortalTask` |
 
 **Inter-task communication:**
@@ -174,6 +174,7 @@ xTaskCreatePinnedToCore(
 | `[SH1106]` | `Sh1106Driver` |
 | `[HX8347]` | `Hx8347Driver` |
 | `[CONFIG]` | `ConfigFetcher`, `ConfigDeserializer` |
+| `[SRVCLIENT]` | `ServerClient` |
 | `[MOONRAKER]` | `MoonrakerClient` |
 | `[GCODE]` | `GcodeHandler` |
 | `[ENGINE]` | `AnimationEngine` |
