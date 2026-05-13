@@ -69,7 +69,7 @@ npm run build
 | Feature | Status |
 |---------|--------|
 | ESP32 firmware with FreeRTOS multitasking | ✅ Done |
-| Display driver abstraction (SH1106, SSD1306, ST7789, ILI9341) | ✅ Done — SH1106 implemented and hardware-verified |
+| Display driver abstraction (SH1106, SSD1306, ST7789, ILI9341) | ✅ Done — SH1106 and HX8347D hardware-verified, see [`docs/hardware/`](docs/hardware/) |
 | Real-time Moonraker WebSocket integration | ✅ Done — state parsing, mock mode, connection monitoring, screen sleep |
 | Configurable animations (Groups → Sets → Frames → Elements) | ✅ Done — element composition model with DataValue bindings |
 | Klipper GCODE macro integration | ⬜ Planned |
@@ -93,6 +93,10 @@ The system has three major components:
 | **Companion server** | .NET 10, EF Core, SQLite | REST API, node config, sprite/group library |
 | **Web UI** | Vite + vanilla JS | Full visual editor for all content |
 
+Hardware compatibility docs are in [`docs/hardware/`](docs/hardware/):
+- [Display drivers](docs/hardware/display.md) — confirmed displays, wiring, pinouts, known issues
+- [MCU / dev boards](docs/hardware/mcu.md) — tested ESP32 variants, strapping pins, limitations
+
 Detailed architecture docs are in [`docs/architecture/`](docs/architecture/):
 - [System overview](docs/architecture/overview.md) — diagrams, data flow, core concepts
 - [Firmware](docs/architecture/firmware.md) — FreeRTOS tasks, display driver, animation engine, sprites
@@ -109,6 +113,7 @@ klippyface/
 ├── AGENTS.md                # AI agent bootstrap instructions
 ├── docs/                    # Reference documentation
 │   ├── architecture/        # System architecture by domain
+│   ├── hardware/            # Confirmed displays, pinouts, bus configs
 │   ├── reference/           # API reference, GCODE macros
 │   └── decisions/           # Design decision log (ADRs)
 ├── src/                     # ESP32 firmware (C++)
@@ -170,6 +175,19 @@ For testing without a physical Moonraker instance, build with `esp32dev-mock`. I
 [SRVCLIENT] Sent hello (config_version: 1)
 [SRVCLIENT] Config is up to date — no fetch needed
 ```
+
+## Hardware Compatibility
+
+See [`docs/hardware/`](docs/hardware/) for wiring diagrams, bus configs, and
+known issues for every display driver and MCU that has been tested with Klippyface.
+
+| Category | Index | Verified |
+|----------|-------|----------|
+| Display drivers | [`docs/hardware/display.md`](docs/hardware/display.md) | SH1106 (I2C OLED), HX8347D (Parallel 8 TFT) |
+| MCU / dev boards | [`docs/hardware/mcu.md`](docs/hardware/mcu.md) | ESP-WROOM-32 (ESP32 DevKit V1) |
+
+If you've tested a display or board not listed here, open a PR or issue with
+your wiring details and we'll add it.
 
 ## Contributing
 
