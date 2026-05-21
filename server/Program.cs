@@ -11,6 +11,7 @@ builder.Services.AddDbContext<KlippyfaceDbContext>(options =>
     options.UseSqlite("Data Source=klippyface.db"));
 
 builder.Services.AddScoped<ConfigExportService>();
+builder.Services.AddSingleton<NodeStatusService>();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -47,6 +48,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseWebSockets();
 app.UseCors();
 app.UseDefaultFiles();
 app.UseStaticFiles();

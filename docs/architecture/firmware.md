@@ -19,7 +19,7 @@ main.cpp: setup()
 │                                    │                            │
 │  wifiTask         (pri 8)          │  displayTask    (pri 10)   │
 │  moonrakerTask    (pri 9)          │    ticks all engines       │
-│  configFetcherTask(pri 6)          │    renders all displays    │
+│  serverClientTask (pri 6)          │    renders all displays    │
 │  gcodeHandlerTask (pri 7)          │    ~30fps                 │
 │  captivePortalTask(pri 5, idle)    │                            │
 └────────────────────────────────────────────────────────────────┘
@@ -28,8 +28,8 @@ main.cpp: setup()
 ### Inter-Task Communication (FreeRTOS Queues)
 
 ```
-moonrakerTask ──→ [stateQueue]  ──→ displayTask
-configFetcherTask ──→ [configQueue] ──→ displayTask
+moonrakerTask  ──→ [stateQueue]   ──→ displayTask
+serverClientTask ──→ [configQueue] ──→ displayTask  (on-demand via WS refresh)
 gcodeHandlerTask ──→ [commandQueue] ──→ displayTask
 displayTask ──→ [DisplaySlot*] array (internal, no queue needed)
 captivePortalTask ──→ [wifiConfigQueue] ──→ (saves to NVS, reboots)
@@ -59,7 +59,7 @@ This prevents flicker on static content (boot screen, idle frames) while still r
 | 9 | `moonrakerTask` (WebSocket needs timely reads) |
 | 8 | `wifiTask` (keep connection alive) |
 | 7 | `gcodeHandlerTask` (responsiveness matters) |
-| 6 | `configFetcherTask` (background, can wait) |
+| 6 | `serverClientTask` (background WS, config fetch on demand) |
 | 5 | `captivePortalTask` (idle, only active on first boot) |
 
 ## Display Driver Abstraction
@@ -198,6 +198,17 @@ Priority-based state monitoring in `main.cpp`:
 WiFi off          → WIFI_OFFLINE       → send "wifi:disconnected"
 WiFi on, MR off   → MOONRAKER_OFFLINE  → send "moonraker:disconnected"
 WiFi on, MR on    → ONLINE             → (normal flow, no trigger)
+
+## Companion Server WebSocket (ServerClient)
+
+The `ServerClient` class (in `src/comms/ServerClient.h/.cpp`) maintains a persistent WebSocket
+to the companion server, replacing the old 5-minute HTTP polling:
+
+- **Connect:** `ws://{host}:{port}/api/ws/node/{mac}`
+- **On connect:** sends `hello` with identity and `config_version`
+- **Heartbeat:** every 30s, carries `heap_free`, `uptime_s`, `rssi`, `display_count`
+- **Commands:** handles `refresh_config` (fetches config on-demand), `config_status` (version check)
+- **Reconnect:** auto-reconnect at 5s interval (WebSockets library manages this)
 ```
 
 Three dedicated groups: `wifi_offline`, `moonraker_offline`, `screen_sleep` (powers off display after 5min idle).

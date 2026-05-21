@@ -24,12 +24,14 @@ groups ──→ sets ──→ frames ──→ frame_elements
 
 ```sql
 CREATE TABLE nodes (
-    id              TEXT PRIMARY KEY,
-    mac_address     TEXT NOT NULL UNIQUE,
-    friendly_name   TEXT NOT NULL DEFAULT '',
-    description     TEXT NOT NULL DEFAULT '',
-    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    id                  TEXT PRIMARY KEY,
+    mac_address         TEXT NOT NULL UNIQUE,
+    friendly_name       TEXT NOT NULL DEFAULT '',
+    description         TEXT NOT NULL DEFAULT '',
+    last_seen           TEXT,                            -- set by WS heartbeat
+    last_config_version INTEGER NOT NULL DEFAULT 0,      -- bumped on admin edits
+    created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );
 ```
 
