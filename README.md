@@ -2,6 +2,12 @@
 
 A multi-node ESP32 display system driven by live Moonraker/Klipper printer data. Replace your static 3D printer status display with animated faces, progress bars, temperature readouts, and custom notifications — all configurable from a web UI.
 
+> ⚠️ Work in Progress  
+>
+> This project is in a very early stage and is not production-ready yet.  
+> Contributions, suggestions, and architectural discussions are welcome while the project is taking shape.
+
+
 ## How It Works
 
 ```
@@ -70,16 +76,16 @@ npm run build
 |---------|--------|
 | ESP32 firmware with FreeRTOS multitasking | ✅ Done |
 | Display driver abstraction (SH1106, SSD1306, ST7789, ILI9341) | ✅ Done — SH1106 and HX8347D hardware-verified, see [`docs/hardware/`](docs/hardware/) |
-| Real-time Moonraker WebSocket integration | ✅ Done — state parsing, mock mode, connection monitoring, screen sleep |
-| Configurable animations (Groups → Sets → Frames → Elements) | ✅ Done — element composition model with DataValue bindings |
+| Real-time Moonraker WebSocket integration | ⚠️ Partial — connection monitoring and screen sleep complete |
+| Configurable animations (Groups → Sets → Frames → Elements) | ⚠️ Partial — element composition model with DataValue bindings |
 | Klipper GCODE macro integration | ⬜ Planned |
 | .NET 10 companion server with SQLite | ✅ Done — full CRUD API + per-node config export |
 | WebSocket channel — node online tracking, heartbeat, config push | ✅ Done — persistent WS at `/api/ws/node/{mac}`, hello/heartbeat/refresh protocol |
-| Web UI — full management (nodes, displays, assignments, groups, sets, frames, sprites, presets, preview) | ✅ Done |
-| Web UI — pixel sprite editor with PNG import | ✅ Done |
+| Web UI — full management (nodes, displays, assignments, groups, sets, frames, sprites, presets, preview) | ⚠️ Partial |
+| Web UI — pixel sprite editor with PNG import | ⚠️ Done, untested |
 | Web UI — animation preview canvas | ✅ Done |
 | Captive portal first-boot setup | ✅ Done |
-| Multi-node support | ⬜ Planned |
+| Multi-node support | ⚠️ Done, untested |
 
 See [open GitHub Issues](https://github.com/luke-kearney/klippyface/issues) for upcoming work and current priorities.
 
