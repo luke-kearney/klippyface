@@ -9,6 +9,7 @@
 #include "comms/ServerClient.h"
 #include "engine/ConfigDeserializer.h"
 #include "wifi/CaptivePortal.h"
+#include "KlippyfaceVersion.h"
 
 // -------------------------------------------------------------------
 // Global instances
@@ -247,7 +248,7 @@ void setup() {
     Serial.begin(115200);
     delay(1000);
     Serial.println();
-    Serial.println("[BOOT] Klippyface Display System v0.2");
+    Serial.printf("[BOOT] Klippyface Display System v%s\n", KLIPPYFACE_VERSION);
     Serial.printf("[BOOT] ESP32 chip rev %d, %d cores, %d MB flash\n",
                   ESP.getChipRevision(),
                   ESP.getChipCores(),

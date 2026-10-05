@@ -9,6 +9,7 @@ Thanks for your interest! This is a multi-node ESP32 display system driven by Mo
 - [How to Contribute](#how-to-contribute)
 - [Coding Conventions](#coding-conventions)
 - [Git Commit Conventions](#git-commit-conventions)
+- [Versioning & Releases](#versioning--releases)
 - [Code Review Checklist](#code-review-checklist)
 
 ---
@@ -63,9 +64,9 @@ npm run build
 ## How to Contribute
 
 1. **Open an issue first** for significant changes — lets us discuss design before you write code.
-2. **Branch from master** (or the `refactor` branch if that's active). Name your branch something descriptive: `fix/oled-init-timing`, `feat/progress-bar-style`.
+2. **Branch from `develop`**. Name your branch something descriptive: `fix/oled-init-timing`, `feat/progress-bar-style`.
 3. **One logical change per commit** — don't bundle unrelated work.
-4. **Open a PR** against `master`. Include a summary of what changed and why. Reference any related issues.
+4. **Open a PR** against `develop`. Include a summary of what changed and why. Reference any related issues.
 5. **Pass the review checklist** (see below) before requesting review.
 
 ---
@@ -248,6 +249,35 @@ Add progress bar rendering with colour gradient
 - Body: bullet points starting with `-`, each describing one logical change
 - Include context if the reason isn't obvious from the diff
 - Reference GitHub Issues where relevant (e.g. `Closes #12`)
+
+---
+
+## Versioning & Releases
+
+Firmware, server and Web UI share one version, following [semver](https://semver.org/) (0.x while the JSON contract is still unstable).
+
+**Source of truth:** the `VERSION` file at the repo root.
+
+| Component | How it picks up the version |
+|-----------|-----------------------------|
+| Firmware | `scripts/version.py` generates `KlippyfaceVersion.h` → `KLIPPYFACE_VERSION`. Logged at `[BOOT]` and sent as `fw_version` in the WebSocket `hello` |
+| Server | `Klippyface.Server.csproj` reads `../VERSION` into `<Version>` |
+| Web UI | `ui/package.json` `version` — keep in sync manually |
+
+Firmware builds from the matching `v<VERSION>` tag report the plain version (`0.2.0`). Any other build appends the commit (`0.2.0+g1a2b3c4`, plus `.dirty` for uncommitted changes), so test builds can be identified from serial logs.
+
+**Branches:**
+
+| Branch | Purpose |
+|--------|---------|
+| `develop` | Integration branch — all feature/fix PRs target this |
+| `master` | Released code only — every commit on `master` is a tagged release |
+
+**Cutting a release:**
+
+1. Bump `VERSION` and `ui/package.json` in a PR into `develop` (`Bump version to X.Y.Z`)
+2. Open a PR from `develop` into `master` and merge it
+3. Tag the merge commit on `master` and push: `git tag vX.Y.Z && git push origin vX.Y.Z`
 
 ---
 
