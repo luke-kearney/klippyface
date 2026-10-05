@@ -24,12 +24,6 @@ namespace Klippyface.Server.Data.Migrations
                 type: "TEXT",
                 nullable: true);
 
-            migrationBuilder.UpdateData(
-                table: "Nodes",
-                keyColumn: "Id",
-                keyValue: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-                columns: new[] { "LastConfigVersion", "LastSeen" },
-                values: new object[] { 1u, null });
         }
 
         /// <inheritdoc />

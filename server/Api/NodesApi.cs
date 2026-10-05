@@ -86,7 +86,7 @@ public static class NodesApi
             return Results.Ok(result);
         });
 
-        displays.MapPost("/", async (KlippyfaceDbContext db, string nodeId, NodeDisplay display, NodeStatusService statusService) =>
+        displays.MapPost("/", async (KlippyfaceDbContext db, string nodeId, NodeDisplay display, NodeStatusService statusService, StarterPackService starterPack) =>
         {
             var node = await db.Nodes.FindAsync(nodeId);
             if (node is null) return Results.NotFound("Node not found");
@@ -94,6 +94,8 @@ public static class NodesApi
             display.Id = Guid.NewGuid().ToString();
             display.NodeId = nodeId;
             db.NodeDisplays.Add(display);
+            // New displays start with each printer state mapped to its starter face
+            db.Assignments.Add(await starterPack.DefaultAssignmentAsync(nodeId, display.Id));
             await db.SaveChangesAsync();
             await BumpConfigAndPushRefreshAsync(db, statusService, nodeId);
             return Results.Created($"/api/nodes/{nodeId}/displays/{display.Id}", display);

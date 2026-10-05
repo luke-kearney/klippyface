@@ -10,6 +10,9 @@ public static class LibraryApi
 {
     public static WebApplication MapLibraryApi(this WebApplication app)
     {
+        app.MapPost("/api/starter-pack", async (StarterPackService starterPack) =>
+            Results.Ok(await starterPack.ImportAsync()));
+
         var groups = app.MapGroup("/api/groups");
 
         groups.MapGet("/", async (KlippyfaceDbContext db) =>

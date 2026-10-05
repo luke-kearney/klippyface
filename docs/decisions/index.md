@@ -309,6 +309,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-05: Starter pack replaces EF seed data
+
+**Context:** `AppDbContext` seeded a demo node (placeholder MAC, two displays) and four sprites with empty bitmaps via `HasData`. Fresh installs started with a fake node and blank faces. Changing `HasData` makes EF generate `DeleteData`/`UpdateData` migrations that overwrite seeded rows in existing databases, which users may have edited.
+
+**Decision:** Remove the seed from the model, snapshot and the `InitialCreate`/`AddNodeOnlineTracking` migrations (affects fresh databases only; existing ones have already applied them and keep their data). Ship faces as an embedded `starter-pack.json`, imported on first run when the library is empty, or on demand via `POST /api/starter-pack` / the Groups page button. Import only adds ids that don't exist. New displays get a default assignment mapping each printer state to its starter group. Expressions stay server-side as editable library content; the firmware only gets a built-in boot splash (#26).
+
+**Consequences:** Existing databases keep the old demo rows until deleted by hand. The `°` in temperature values still renders as two glyphs (firmware prints UTF-8 byte by byte).
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations
