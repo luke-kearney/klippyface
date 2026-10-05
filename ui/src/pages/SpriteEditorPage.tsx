@@ -21,6 +21,7 @@ import {
   Square,
   SquareSplitHorizontal,
   Trash2,
+  Type,
   Undo2,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -65,9 +66,11 @@ const TOOLS: { id: Tool; label: string; key: string; icon: typeof Pencil }[] = [
   { id: 'fill', label: 'Fill', key: 'g', icon: PaintBucket },
   { id: 'line', label: 'Line', key: 'l', icon: Slash },
   { id: 'rect', label: 'Rectangle', key: 'r', icon: Square },
+  { id: 'text', label: 'Text', key: 't', icon: Type },
 ]
 
 const BRUSH_SIZES = [1, 2, 3, 4, 6, 8]
+const TEXT_SCALES = [1, 2, 3, 4]
 
 function transform(b: Bitmap, fn: (x: number, y: number) => [number, number] | null): Bitmap {
   const out = new Uint8Array(b.pixels.length)
@@ -105,6 +108,7 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
   const [label, setLabel] = useState(sprite.label)
   const [tool, setTool] = useState<Tool>('pencil')
   const [brushSize, setBrushSize] = useState(1)
+  const [textScale, setTextScale] = useState(1)
   const [mirror, setMirror] = useState(false)
   const [grid, setGrid] = useState(true)
   const [importFile, setImportFile] = useState<HTMLImageElement | null>(null)
@@ -167,9 +171,11 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
         const t = TOOLS.find((t) => t.key === k)
         if (t) setTool(t.id)
         if (k === 'm') setMirror((m) => !m)
-        const bi = BRUSH_SIZES.indexOf(brushSize)
-        if (k === '[') setBrushSize(BRUSH_SIZES[Math.max(0, bi - 1)])
-        if (k === ']') setBrushSize(BRUSH_SIZES[Math.min(BRUSH_SIZES.length - 1, bi + 1)])
+        const [sizes, size, setSize] =
+          tool === 'text' ? [TEXT_SCALES, textScale, setTextScale] : [BRUSH_SIZES, brushSize, setBrushSize]
+        const si = sizes.indexOf(size)
+        if (k === '[') setSize(sizes[Math.max(0, si - 1)])
+        if (k === ']') setSize(sizes[Math.min(sizes.length - 1, si + 1)])
       }
     }
     window.addEventListener('keydown', onKey)
@@ -265,36 +271,59 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
                   </ToggleGroupItem>
                 </TooltipTrigger>
                 <TooltipContent side="right">
-                  {t.label} ({t.key.toUpperCase()}) · right-click erases
+                  {t.label} ({t.key.toUpperCase()}) · right-click {t.id === 'text' ? 'erases text' : 'erases'}
                 </TooltipContent>
               </Tooltip>
             ))}
           </ToggleGroup>
           <Separator className="my-1 w-8" />
-          <ToggleGroup
-            type="single"
-            orientation="vertical"
-            value={String(brushSize)}
-            onValueChange={(v) => v && setBrushSize(+v)}
-            className="flex-col"
-            disabled={tool === 'fill'}
-          >
-            {BRUSH_SIZES.map((n) => (
-              <Tooltip key={n}>
-                <TooltipTrigger asChild>
-                  <ToggleGroupItem value={String(n)} aria-label={`Brush ${n}px`} className="size-9">
-                    <span
-                      className="rounded-[1px] bg-current"
-                      style={{ width: 2 + n * 1.5, height: 2 + n * 1.5 }}
-                    />
-                  </ToggleGroupItem>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  Brush {n}×{n}px ([ / ] to change)
-                </TooltipContent>
-              </Tooltip>
-            ))}
-          </ToggleGroup>
+          {tool === 'text' ? (
+            <ToggleGroup
+              type="single"
+              orientation="vertical"
+              value={String(textScale)}
+              onValueChange={(v) => v && setTextScale(+v)}
+              className="flex-col"
+            >
+              {TEXT_SCALES.map((n) => (
+                <Tooltip key={n}>
+                  <TooltipTrigger asChild>
+                    <ToggleGroupItem value={String(n)} aria-label={`Text size ${n}`} className="size-9 font-mono text-xs">
+                      {n}×
+                    </ToggleGroupItem>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    Text size {n} ({5 * n}×{7 * n}px glyphs, [ / ] to change)
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </ToggleGroup>
+          ) : (
+            <ToggleGroup
+              type="single"
+              orientation="vertical"
+              value={String(brushSize)}
+              onValueChange={(v) => v && setBrushSize(+v)}
+              className="flex-col"
+              disabled={tool === 'fill'}
+            >
+              {BRUSH_SIZES.map((n) => (
+                <Tooltip key={n}>
+                  <TooltipTrigger asChild>
+                    <ToggleGroupItem value={String(n)} aria-label={`Brush ${n}px`} className="size-9">
+                      <span
+                        className="rounded-[1px] bg-current"
+                        style={{ width: 2 + n * 1.5, height: 2 + n * 1.5 }}
+                      />
+                    </ToggleGroupItem>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    Brush {n}×{n}px ([ / ] to change)
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </ToggleGroup>
+          )}
           <Separator className="my-1 w-8" />
           <Tooltip>
             <TooltipTrigger asChild>
@@ -338,7 +367,7 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
         </aside>
 
         <main className="min-w-0 flex-1 p-4">
-          <PixelEditor bitmap={bitmap} tool={tool} brushSize={brushSize} mirror={mirror} showGrid={grid} onCommit={commit} />
+          <PixelEditor bitmap={bitmap} tool={tool} brushSize={brushSize} textScale={textScale} mirror={mirror} showGrid={grid} onCommit={commit} />
         </main>
 
         {/* Side panel */}

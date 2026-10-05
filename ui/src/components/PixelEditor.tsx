@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { FONT_5X7 } from '@/lib/font5x7'
 import type { Bitmap } from '@/lib/sprite'
 
-export type Tool = 'pencil' | 'eraser' | 'fill' | 'line' | 'rect'
+export type Tool = 'pencil' | 'eraser' | 'fill' | 'line' | 'rect' | 'text'
 
 type Pt = { x: number; y: number }
 
@@ -68,7 +69,52 @@ function fill(b: Bitmap, p: Pt, v: number) {
   }
 }
 
+const INPUT_W = 192
+const INPUT_H = 32
+
+/** Keep the text input inside the canvas (focusing it would otherwise scroll the view). */
+function textInputPos(at: Pt, textH: number, zoom: number, b: Bitmap) {
+  const W = b.width * zoom
+  const H = b.height * zoom
+  const below = (at.y + textH) * zoom + 6
+  const above = at.y * zoom - INPUT_H - 6
+  const top = below + INPUT_H <= H ? below : above >= 0 ? above : Math.max(0, H - INPUT_H)
+  return { left: Math.max(0, Math.min(at.x * zoom, W - INPUT_W)), top, width: Math.min(INPUT_W, W), height: INPUT_H }
+}
+
 const clone = (b: Bitmap): Bitmap => ({ ...b, pixels: new Uint8Array(b.pixels) })
+
+// The GFX font array is laid out as code page 437. Map the few non-ASCII
+// characters people are likely to type; anything else becomes '?'.
+const CP437: Record<string, number> = { '°': 248, '±': 241, '²': 253, '·': 250, '£': 156, '¥': 157, '÷': 246, 'µ': 230 }
+const glyphIndex = (ch: string) => {
+  const c = ch.charCodeAt(0)
+  return c >= 32 && c < 127 ? c : (CP437[ch] ?? 63)
+}
+
+export const GLYPH_W = 6
+export const GLYPH_H = 8
+
+/** Draw text with the 5×7 font, top-left at (x, y), each font pixel scale×scale. */
+function stampText(b: Bitmap, text: string, x: number, y: number, scale: number, v: number) {
+  let cx = x
+  for (const ch of text) {
+    const g = glyphIndex(ch)
+    for (let col = 0; col < 5; col++) {
+      let bits = FONT_5X7[g * 5 + col]
+      for (let row = 0; row < 8; row++, bits >>= 1) {
+        if (!(bits & 1)) continue
+        for (let sy = 0; sy < scale; sy++)
+          for (let sx = 0; sx < scale; sx++) {
+            const px = cx + col * scale + sx
+            const py = y + row * scale + sy
+            if (px >= 0 && py >= 0 && px < b.width && py < b.height) b.pixels[py * b.width + px] = v
+          }
+      }
+    }
+    cx += GLYPH_W * scale
+  }
+}
 
 /**
  * Zoomable 1-bit pixel canvas. Left button paints with the tool, right button erases.
@@ -78,6 +124,7 @@ export function PixelEditor({
   bitmap,
   tool,
   brushSize,
+  textScale,
   mirror,
   showGrid,
   onCommit,
@@ -86,6 +133,8 @@ export function PixelEditor({
   tool: Tool
   /** Square brush edge in pixels; applies to pencil, eraser, line and rectangle. */
   brushSize: number
+  /** Font pixel scale for the text tool (like GFX setTextSize). */
+  textScale: number
   mirror: boolean
   showGrid: boolean
   onCommit: (b: Bitmap) => void
@@ -96,6 +145,24 @@ export function PixelEditor({
   const [draft, setDraft] = useState<Bitmap | null>(null)
   const [cursor, setCursor] = useState<Pt | null>(null)
   const stroke = useRef<{ base: Bitmap; work: Bitmap; start: Pt; last: Pt; v: number } | null>(null)
+  const [text, setText] = useState<{ at: Pt; value: string; v: number } | null>(null)
+
+  const textDraft = useMemo(() => {
+    if (!text?.value) return null
+    const b = clone(bitmap)
+    stampText(b, text.value, text.at.x, text.at.y, textScale, text.v)
+    return b
+  }, [text, bitmap, textScale])
+
+  const commitText = () => {
+    if (textDraft) onCommit(textDraft)
+    setText(null)
+  }
+
+  // Switching tools finishes any text being typed.
+  useEffect(() => {
+    if (tool !== 'text') setText(null)
+  }, [tool])
 
   useLayoutEffect(() => {
     const el = wrapRef.current
@@ -108,7 +175,7 @@ export function PixelEditor({
     return () => ro.disconnect()
   }, [bitmap.width, bitmap.height])
 
-  const shown = draft ?? bitmap
+  const shown = draft ?? textDraft ?? bitmap
 
   useEffect(() => {
     const c = canvasRef.current!
@@ -147,12 +214,20 @@ export function PixelEditor({
           width={bitmap.width}
           height={bitmap.height}
           className="pixelated absolute inset-0 size-full touch-none rounded-sm shadow-[0_0_0_1px_var(--border)]"
-          style={{ cursor: tool === 'fill' ? 'cell' : 'crosshair' }}
+          style={{ cursor: tool === 'fill' ? 'cell' : tool === 'text' ? 'text' : 'crosshair' }}
           onContextMenu={(e) => e.preventDefault()}
           onPointerDown={(e) => {
             e.currentTarget.setPointerCapture(e.pointerId)
             const p = toPt(e)
             const v = e.button === 2 || tool === 'eraser' ? 0 : 1
+            if (tool === 'text') {
+              // Stop the compat mousedown from stealing focus from the new input.
+              // Any text already being typed is committed first.
+              e.preventDefault()
+              if (text) commitText()
+              setText({ at: p, value: '', v })
+              return
+            }
             if (tool === 'fill') {
               const b = clone(bitmap)
               fill(b, p, v)
@@ -194,7 +269,44 @@ export function PixelEditor({
             style={{ left: (bitmap.width / 2) * zoom }}
           />
         )}
-        {cursor && (
+        {text && (
+          <input
+            autoFocus
+            value={text.value}
+            onChange={(e) => setText({ ...text, value: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitText()
+              else if (e.key === 'Escape') setText(null)
+            }}
+            onBlur={commitText}
+            placeholder="Type, Enter to place"
+            className="absolute z-10 rounded-md border border-primary bg-popover px-2 py-1 text-sm shadow-lg outline-none"
+            style={textInputPos(text.at, GLYPH_H * textScale, zoom, bitmap)}
+          />
+        )}
+        {text && (
+          <div
+            className="pointer-events-none absolute outline-1 outline-dashed outline-primary"
+            style={{
+              left: text.at.x * zoom,
+              top: text.at.y * zoom,
+              width: Math.max(1, text.value.length) * GLYPH_W * textScale * zoom,
+              height: GLYPH_H * textScale * zoom,
+            }}
+          />
+        )}
+        {cursor && !text && tool === 'text' && (
+          <div
+            className="pointer-events-none absolute outline-1 outline-primary"
+            style={{
+              left: cursor.x * zoom,
+              top: cursor.y * zoom,
+              width: 5 * textScale * zoom,
+              height: 7 * textScale * zoom,
+            }}
+          />
+        )}
+        {cursor && tool !== 'text' && (
           <div
             className="pointer-events-none absolute outline-1 outline-primary"
             style={{
