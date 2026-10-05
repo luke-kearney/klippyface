@@ -5,15 +5,29 @@ export type Tool = 'pencil' | 'eraser' | 'fill' | 'line' | 'rect'
 
 type Pt = { x: number; y: number }
 
-function plot(b: Bitmap, x: number, y: number, v: number, mirror: boolean) {
-  const set = (px: number) => {
-    if (px >= 0 && y >= 0 && px < b.width && y < b.height) b.pixels[y * b.width + px] = v
-  }
-  set(x)
-  if (mirror) set(b.width - 1 - x)
+interface Brush {
+  v: number
+  size: number
+  mirror: boolean
 }
 
-function line(b: Bitmap, a: Pt, c: Pt, v: number, mirror: boolean) {
+/** Top-left offset of a square brush so odd sizes centre on the cursor pixel. */
+const brushOffset = (size: number) => Math.floor((size - 1) / 2)
+
+/** Stamp a size×size square brush at (x, y). */
+function plot(b: Bitmap, x: number, y: number, { v, size, mirror }: Brush) {
+  const set = (px: number, py: number) => {
+    if (px >= 0 && py >= 0 && px < b.width && py < b.height) b.pixels[py * b.width + px] = v
+  }
+  const o = brushOffset(size)
+  for (let dy = 0; dy < size; dy++)
+    for (let dx = 0; dx < size; dx++) {
+      set(x - o + dx, y - o + dy)
+      if (mirror) set(b.width - 1 - (x - o + dx), y - o + dy)
+    }
+}
+
+function line(b: Bitmap, a: Pt, c: Pt, brush: Brush) {
   let { x, y } = a
   const dx = Math.abs(c.x - x)
   const dy = -Math.abs(c.y - y)
@@ -21,7 +35,7 @@ function line(b: Bitmap, a: Pt, c: Pt, v: number, mirror: boolean) {
   const sy = y < c.y ? 1 : -1
   let err = dx + dy
   for (;;) {
-    plot(b, x, y, v, mirror)
+    plot(b, x, y, brush)
     if (x === c.x && y === c.y) break
     const e2 = 2 * err
     if (e2 >= dy) {
@@ -35,11 +49,11 @@ function line(b: Bitmap, a: Pt, c: Pt, v: number, mirror: boolean) {
   }
 }
 
-function rect(b: Bitmap, a: Pt, c: Pt, v: number, mirror: boolean) {
-  line(b, a, { x: c.x, y: a.y }, v, mirror)
-  line(b, { x: c.x, y: a.y }, c, v, mirror)
-  line(b, c, { x: a.x, y: c.y }, v, mirror)
-  line(b, { x: a.x, y: c.y }, a, v, mirror)
+function rect(b: Bitmap, a: Pt, c: Pt, brush: Brush) {
+  line(b, a, { x: c.x, y: a.y }, brush)
+  line(b, { x: c.x, y: a.y }, c, brush)
+  line(b, c, { x: a.x, y: c.y }, brush)
+  line(b, { x: a.x, y: c.y }, a, brush)
 }
 
 function fill(b: Bitmap, p: Pt, v: number) {
@@ -63,12 +77,15 @@ const clone = (b: Bitmap): Bitmap => ({ ...b, pixels: new Uint8Array(b.pixels) }
 export function PixelEditor({
   bitmap,
   tool,
+  brushSize,
   mirror,
   showGrid,
   onCommit,
 }: {
   bitmap: Bitmap
   tool: Tool
+  /** Square brush edge in pixels; applies to pencil, eraser, line and rectangle. */
+  brushSize: number
   mirror: boolean
   showGrid: boolean
   onCommit: (b: Bitmap) => void
@@ -114,9 +131,9 @@ export function PixelEditor({
   const apply = (s: NonNullable<typeof stroke.current>, p: Pt) => {
     if (tool === 'line' || tool === 'rect') {
       s.work = clone(s.base)
-      ;(tool === 'line' ? line : rect)(s.work, s.start, p, s.v, mirror)
+      ;(tool === 'line' ? line : rect)(s.work, s.start, p, { v: s.v, size: brushSize, mirror })
     } else {
-      line(s.work, s.last, p, s.v, mirror)
+      line(s.work, s.last, p, { v: s.v, size: brushSize, mirror })
     }
     s.last = p
     setDraft(clone(s.work))
@@ -180,7 +197,12 @@ export function PixelEditor({
         {cursor && (
           <div
             className="pointer-events-none absolute outline-1 outline-primary"
-            style={{ left: cursor.x * zoom, top: cursor.y * zoom, width: zoom, height: zoom }}
+            style={{
+              left: (cursor.x - (tool === 'fill' ? 0 : brushOffset(brushSize))) * zoom,
+              top: (cursor.y - (tool === 'fill' ? 0 : brushOffset(brushSize))) * zoom,
+              width: (tool === 'fill' ? 1 : brushSize) * zoom,
+              height: (tool === 'fill' ? 1 : brushSize) * zoom,
+            }}
           />
         )}
       </div>

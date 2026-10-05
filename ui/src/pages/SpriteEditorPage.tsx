@@ -67,6 +67,8 @@ const TOOLS: { id: Tool; label: string; key: string; icon: typeof Pencil }[] = [
   { id: 'rect', label: 'Rectangle', key: 'r', icon: Square },
 ]
 
+const BRUSH_SIZES = [1, 2, 3, 4, 6, 8]
+
 function transform(b: Bitmap, fn: (x: number, y: number) => [number, number] | null): Bitmap {
   const out = new Uint8Array(b.pixels.length)
   for (let y = 0; y < b.height; y++)
@@ -102,6 +104,7 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
   const [savedB64, setSavedB64] = useState(() => encodeSprite(initial))
   const [label, setLabel] = useState(sprite.label)
   const [tool, setTool] = useState<Tool>('pencil')
+  const [brushSize, setBrushSize] = useState(1)
   const [mirror, setMirror] = useState(false)
   const [grid, setGrid] = useState(true)
   const [importFile, setImportFile] = useState<HTMLImageElement | null>(null)
@@ -164,6 +167,9 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
         const t = TOOLS.find((t) => t.key === k)
         if (t) setTool(t.id)
         if (k === 'm') setMirror((m) => !m)
+        const bi = BRUSH_SIZES.indexOf(brushSize)
+        if (k === '[') setBrushSize(BRUSH_SIZES[Math.max(0, bi - 1)])
+        if (k === ']') setBrushSize(BRUSH_SIZES[Math.min(BRUSH_SIZES.length - 1, bi + 1)])
       }
     }
     window.addEventListener('keydown', onKey)
@@ -243,7 +249,7 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
 
       <div className="flex min-h-0 flex-1">
         {/* Tools */}
-        <aside className="flex w-14 shrink-0 flex-col items-center gap-1 border-r py-3">
+        <aside className="flex w-14 shrink-0 flex-col items-center gap-1 overflow-y-auto border-r py-3">
           <ToggleGroup
             type="single"
             orientation="vertical"
@@ -260,6 +266,31 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
                 </TooltipTrigger>
                 <TooltipContent side="right">
                   {t.label} ({t.key.toUpperCase()}) · right-click erases
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </ToggleGroup>
+          <Separator className="my-1 w-8" />
+          <ToggleGroup
+            type="single"
+            orientation="vertical"
+            value={String(brushSize)}
+            onValueChange={(v) => v && setBrushSize(+v)}
+            className="flex-col"
+            disabled={tool === 'fill'}
+          >
+            {BRUSH_SIZES.map((n) => (
+              <Tooltip key={n}>
+                <TooltipTrigger asChild>
+                  <ToggleGroupItem value={String(n)} aria-label={`Brush ${n}px`} className="size-9">
+                    <span
+                      className="rounded-[1px] bg-current"
+                      style={{ width: 2 + n * 1.5, height: 2 + n * 1.5 }}
+                    />
+                  </ToggleGroupItem>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  Brush {n}×{n}px ([ / ] to change)
                 </TooltipContent>
               </Tooltip>
             ))}
@@ -307,7 +338,7 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
         </aside>
 
         <main className="min-w-0 flex-1 p-4">
-          <PixelEditor bitmap={bitmap} tool={tool} mirror={mirror} showGrid={grid} onCommit={commit} />
+          <PixelEditor bitmap={bitmap} tool={tool} brushSize={brushSize} mirror={mirror} showGrid={grid} onCommit={commit} />
         </main>
 
         {/* Side panel */}
