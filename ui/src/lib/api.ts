@@ -128,3 +128,12 @@ export const slugify = (s: string) =>
 
 /** Per-keystroke id cleanup (keeps trailing underscores while typing). */
 export const sanitizeId = (s: string) => s.toLowerCase().replace(/[^a-z0-9_]/g, '_')
+
+/** `base` if unused, otherwise `base_2`, `base_3`… */
+export function uniqueId(base: string, taken: Iterable<string>): string {
+  const set = new Set(taken)
+  if (!set.has(base)) return base
+  let n = 2
+  while (set.has(`${base}_${n}`)) n++
+  return `${base}_${n}`
+}

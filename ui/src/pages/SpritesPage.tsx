@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { Image, Plus } from 'lucide-react'
+import { Copy, Image, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
@@ -16,12 +16,13 @@ import { Input } from '@/components/ui/input'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { EmptyState, ErrorState, Field, Loading, Page, PageHeader } from '@/components/common'
 import { SpriteThumb } from '@/components/SpriteThumb'
-import { keys, useApiMutation, useSpriteBitmaps, useSprites } from '@/hooks/queries'
+import { keys, useApiMutation, useDuplicateSprite, useSpriteBitmaps, useSprites } from '@/hooks/queries'
 import { api, sanitizeId, slugify } from '@/lib/api'
 
 export function SpritesPage() {
   const { data: sprites, isLoading, error } = useSprites()
   const bitmaps = useSpriteBitmaps()
+  const duplicate = useDuplicateSprite()
 
   return (
     <Page>
@@ -40,7 +41,21 @@ export function SpritesPage() {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
         {sprites?.map((s) => (
           <Link key={s.id} to={`/sprites/${s.id}`}>
-            <Card className="gap-0 overflow-hidden p-0 transition-colors hover:border-primary/50">
+            <Card className="group/card relative gap-0 overflow-hidden p-0 transition-colors hover:border-primary/50">
+              <Button
+                variant="secondary"
+                size="icon"
+                className="absolute top-2 right-2 z-10 size-7 opacity-0 transition-opacity group-hover/card:opacity-100 focus-visible:opacity-100"
+                aria-label={`Duplicate ${s.label || s.id}`}
+                title="Duplicate"
+                disabled={duplicate.isPending}
+                onClick={(e) => {
+                  e.preventDefault()
+                  duplicate.mutate(s)
+                }}
+              >
+                <Copy />
+              </Button>
               <div className="grid aspect-square place-items-center bg-black p-4">
                 <SpriteThumb bitmap={bitmaps.get(s.id)} emptyLabel="Empty" />
               </div>

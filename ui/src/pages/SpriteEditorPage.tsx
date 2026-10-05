@@ -7,6 +7,7 @@ import {
   ArrowRight,
   ArrowUp,
   ChevronRight,
+  Copy,
   Contrast,
   Eraser,
   FlipHorizontal2,
@@ -55,7 +56,7 @@ import { ConfirmDelete, ErrorState, Field, Loading } from '@/components/common'
 import { FrameCanvas } from '@/components/DisplayPreview'
 import { PixelEditor, type Tool } from '@/components/PixelEditor'
 import { SpriteThumb } from '@/components/SpriteThumb'
-import { keys, useApiMutation, useSprites } from '@/hooks/queries'
+import { keys, useApiMutation, useDuplicateSprite, useSprites } from '@/hooks/queries'
 import { api } from '@/lib/api'
 import { bitmapFromImage, decodeSprite, encodeSprite, resizeBitmap, type Bitmap } from '@/lib/sprite'
 import type { Sprite } from '@/lib/types'
@@ -150,7 +151,17 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
     },
   })
 
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => dirty && currentLocation.pathname !== nextLocation.pathname)
+  // Set when leaving on purpose (e.g. after duplicating, where the edits live on in the copy).
+  const skipBlock = useRef(false)
+  const duplicate = useDuplicateSprite((copy) => {
+    skipBlock.current = true
+    navigate(`/sprites/${copy.id}`)
+  })
+
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      dirty && !skipBlock.current && currentLocation.pathname !== nextLocation.pathname,
+  )
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -238,6 +249,29 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
           <code className="text-xs text-muted-foreground">{sprite.id}</code>
         </div>
         <div className="ml-auto flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={duplicate.isPending}
+                onClick={() =>
+                  duplicate.mutate({
+                    id: sprite.id,
+                    label: label.trim() || sprite.label,
+                    width: bitmap.width,
+                    height: bitmap.height,
+                    dataBase64: encodeSprite(bitmap),
+                  })
+                }
+              >
+                <Copy /> Duplicate
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {dirty ? 'Copy includes your unsaved edits; this sprite stays as last saved' : 'Make a copy and open it'}
+            </TooltipContent>
+          </Tooltip>
           <ConfirmDelete
             title="Delete sprite?"
             description="Frame elements that use it will draw nothing."

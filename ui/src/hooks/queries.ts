@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { api } from '@/lib/api'
+import { api, uniqueId } from '@/lib/api'
 import { decodeSprite, type Bitmap } from '@/lib/sprite'
+import type { Sprite } from '@/lib/types'
 
 export const keys = {
   nodes: ['nodes'] as const,
@@ -51,4 +52,35 @@ export function useApiMutation<TArgs, TResult>(
     },
     onError: (e: Error) => toast.error(e.message),
   })
+}
+
+/** Copy a sprite (or unsaved edits of one) under a fresh `<id>_copy[_N]` id. */
+export function useDuplicateSprite(onDone?: (s: Sprite) => void) {
+  const qc = useQueryClient()
+  return useApiMutation(
+    async (src: Pick<Sprite, 'id' | 'label' | 'width' | 'height' | 'dataBase64'>) => {
+      const existing = (qc.getQueryData<Sprite[]>(keys.sprites) ?? (await api.getSprites())).map((s) => s.id)
+      // Copying a copy numbers it ("x copy 2") instead of stacking "copy copy".
+      const idBase = `${src.id.replace(/_copy(_\d+)?$/, '')}_copy`
+      const id = uniqueId(idBase, existing)
+      const n = id.slice(idBase.length + 1)
+      const labelBase = (src.label || src.id).replace(/ copy( \d+)?$/, '')
+      return api.createSprite({
+        id,
+        label: `${labelBase} copy${n ? ` ${n}` : ''}`,
+        width: src.width,
+        height: src.height,
+        dataBase64: src.dataBase64,
+      })
+    },
+    {
+      invalidate: [keys.sprites],
+      onSuccess: (s) => {
+        // Seed the cache so the editor can open the copy before the list refetches.
+        qc.setQueryData<Sprite[]>(keys.sprites, (old) => (old ? [...old, s] : [s]))
+        toast.success(`Duplicated as “${s.label}”`)
+        onDone?.(s)
+      },
+    },
+  )
 }
