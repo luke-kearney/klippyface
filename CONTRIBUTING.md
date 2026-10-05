@@ -282,6 +282,8 @@ Firmware builds from the matching `v<VERSION>` tag report the plain version (`0.
    - `klippyface-firmware-X.Y.Z-full.bin` — full image for a blank board (`esptool write-flash 0x0 <file>`)
    - `klippyface-server-X.Y.Z-linux-{arm64,x64}.tar.gz` — self-contained server with the Web UI in `wwwroot`
 
+**Dev builds:** every push to `develop` replaces the rolling `dev` pre-release with the same artifacts, named `X.Y.Z-dev.<sha>`. The firmware reports `X.Y.Z+g<sha>`.
+
 **CI:** the `CI` workflow builds the firmware (`esp32dev`, `esp32dev-mock`), Web UI and server on every PR into `develop`/`master` and every push to `develop`. Run the `Release` workflow manually (Actions → Release → Run workflow) to build the release artifacts from any branch without publishing.
 
 ---
