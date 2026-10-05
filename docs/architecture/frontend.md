@@ -13,6 +13,7 @@ React + TypeScript single-page app built with Vite and served by the .NET server
 - **Build tool:** Vite (outDir → `../server/wwwroot`, dev proxy `/api` → `:5000`)
 - **Language:** TypeScript (strict), React 19
 - **Styling:** Tailwind CSS v4 + shadcn/ui components (Radix primitives), dark theme
+- **Branding:** Nozzle orange (`#F54900`, `#FF6900` in dark) on zinc, with ink (not white) text on primary. Printer-state colours as `state-*` tokens. Fonts are self-hosted via Fontsource: Geist (UI), Geist Mono (`font-mono`), Silkscreen (`font-pixel`). Logo mark and pixel wordmark in `components/Logo.tsx`; favicons in `ui/public/`
 - **Server state:** TanStack Query (`src/hooks/queries.ts`)
 - **Routing:** React Router, hash-based (`#/nodes`, …) — the server has no SPA fallback
 - **Toasts:** sonner
@@ -27,7 +28,7 @@ ui/
 └── src/
     ├── main.tsx                 # Providers: QueryClient, Router, Tooltip, Toaster
     ├── router.tsx               # Route table
-    ├── index.css                # Tailwind + theme tokens
+    ├── index.css                # Tailwind + theme tokens, brand palette, fonts
     ├── lib/
     │   ├── api.ts               # Typed REST client; snake_case ↔ camelCase key conversion
     │   ├── types.ts             # Mirrors server/Models

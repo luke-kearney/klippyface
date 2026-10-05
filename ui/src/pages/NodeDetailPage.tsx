@@ -22,6 +22,7 @@ import { DisplayDialog, busSummary } from '@/components/DisplayDialog'
 import { SetPlayer } from '@/components/DisplayPreview'
 import { keys, useApiMutation, useGroups, useNode, useSpriteBitmaps } from '@/hooks/queries'
 import { api } from '@/lib/api'
+import { cn } from '@/lib/utils'
 import type { Assignment, Node, NodeDisplay } from '@/lib/types'
 
 export function NodeDetailPage() {
@@ -143,12 +144,12 @@ function NodeDetailsCard({ node }: { node: Node }) {
   )
 }
 
-const TRIGGERS: { key: string; label: string }[] = [
-  { key: 'state:printing', label: 'Printing' },
-  { key: 'state:paused', label: 'Paused' },
-  { key: 'state:complete', label: 'Complete' },
-  { key: 'state:error', label: 'Error' },
-  { key: 'state:idle', label: 'Idle' },
+const TRIGGERS: { key: string; label: string; dot: string }[] = [
+  { key: 'state:printing', label: 'Printing', dot: 'bg-state-printing' },
+  { key: 'state:paused', label: 'Paused', dot: 'bg-state-paused' },
+  { key: 'state:complete', label: 'Complete', dot: 'bg-state-complete' },
+  { key: 'state:error', label: 'Error', dot: 'bg-state-error' },
+  { key: 'state:idle', label: 'Idle', dot: 'bg-state-idle' },
 ]
 const NONE = '__none__'
 
@@ -254,15 +255,18 @@ function DisplayCard({ node, display, assignment }: { node: Node; display: NodeD
           </Field>
           <div className="grid gap-2">
             <span className="text-sm font-medium">Printer state triggers</span>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
               {TRIGGERS.map((t) => (
                 <div
                   key={t.key}
-                  className="grid grid-cols-[72px_1fr] items-center gap-2"
+                  className="grid grid-cols-[84px_1fr] items-center gap-2"
                   onMouseEnter={() => triggers[t.key] && setPreviewGroup(triggers[t.key])}
                   onMouseLeave={() => setPreviewGroup(null)}
                 >
-                  <span className="text-sm text-muted-foreground">{t.label}</span>
+                  <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className={cn('size-2 shrink-0 rounded-full', t.dot)} />
+                    {t.label}
+                  </span>
                   {groupSelect(triggers[t.key] ?? '', (v) => setTriggers((p) => ({ ...p, [t.key]: v })), 'Use default')}
                 </div>
               ))}

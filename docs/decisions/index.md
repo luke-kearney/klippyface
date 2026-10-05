@@ -299,6 +299,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-05: Brand identity in the Web UI
+
+**Context:** The UI used shadcn defaults with an orange primary, system fonts, a placeholder Lucide icon as the logo and no favicon. A branding set was designed (mark, pixel wordmark, palette, type, favicons).
+
+**Decision:** Adopt the brand palette (Nozzle orange on zinc) with ink text on primary, since white on `#F54900` fails AA contrast. Add `state-*` colour tokens for printer states that differ in lightness as well as hue. Self-host Geist, Geist Mono and Silkscreen via Fontsource rather than Google Fonts, because the server often runs on a LAN without reliable internet. Favicons are the hand-placed 16/32 px pixel marks as PNGs, not a scaled vector.
+
+**Consequences:** Primary buttons now have dark text. Fonts add ~50 KB (latin subsets) to the bundle, loaded on demand.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations
