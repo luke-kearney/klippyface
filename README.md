@@ -97,7 +97,7 @@ The system has three major components:
 |-----------|-------|---------|
 | **ESP32 firmware** | PlatformIO, Arduino, FreeRTOS | Drives displays, connects to Moonraker, runs animations |
 | **Companion server** | .NET 10, EF Core, SQLite | REST API, node config, sprite/group library |
-| **Web UI** | Vite + vanilla JS | Full visual editor for all content |
+| **Web UI** | React + TypeScript + Vite | Full visual editor for all content |
 
 Hardware compatibility docs are in [`docs/hardware/`](docs/hardware/):
 - [Display drivers](docs/hardware/display.md) — confirmed displays, wiring, pinouts, known issues
