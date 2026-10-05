@@ -5,9 +5,7 @@
   </picture>
 </p>
 
-# Klippyface Display System
-
-**Give your 3D printer a face.** A multi-node ESP32 display system driven by live Moonraker/Klipper printer data. Replace your static 3D printer status display with animated faces, progress bars, temperature readouts, and custom notifications — all configurable from a web UI.
+A multi-node ESP32 display system driven by live Moonraker/Klipper printer data. Replace your static 3D printer status display with animated faces, progress bars, temperature readouts, and custom notifications — all configurable from a web UI.
 
 > ⚠️ Work in Progress  
 >
