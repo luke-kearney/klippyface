@@ -24,7 +24,7 @@ stable: true
 | DELETE | `/api/nodes/{id}` | Delete node + displays + assignments |
 | GET | `/api/ws/node/{mac}` | **WebSocket** — persistent channel for online tracking, heartbeat, config push |
 | GET | `/api/nodes/{id}/displays` | List displays on node |
-| POST | `/api/nodes/{id}/displays` | Add display to node |
+| POST | `/api/nodes/{id}/displays` | Add display to node (gets a default assignment mapping each printer state to its starter group, where those groups exist) |
 | PUT | `/api/nodes/{id}/displays/{did}` | Update display config |
 | DELETE | `/api/nodes/{id}/displays/{did}` | Remove display |
 | PUT | `/api/nodes/{id}/displays/{did}/assignment` | Set assignment (triggers + default group) |
@@ -52,6 +52,7 @@ stable: true
 | PUT | `/api/elements/{eid}` | Update frame element |
 | DELETE | `/api/elements/{eid}` | Delete frame element |
 | PUT | `/api/frames/{fid}/elements/reorder` | Reorder elements |
+| POST | `/api/starter-pack` | Import the built-in starter faces; skips sprite/group ids that already exist. Returns `{ sprites_added, groups_added }` |
 
 ## Sprite Endpoints
 
@@ -77,7 +78,7 @@ stable: true
 ---
 
 ## JSON Contract (Per-Node Config Fetch)
-
+The companion server serializes per-node config. The ESP32 fetches this at boot. `config_version` is the node's `LastConfigVersion`, bumped on every admin edit:
 The companion server serializes per-node config. The ESP32 fetches this at boot:
 
 ```

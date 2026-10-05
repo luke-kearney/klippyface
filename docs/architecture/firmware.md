@@ -134,9 +134,9 @@ Per-display state machine. Each `AnimationEngine` owns:
 
 ```
 tick(now_ms) → const Frame*
-  ├── Advances frame if duration_ms elapsed
+  ├── Advances frame once its duration elapses: frame duration_ms,
+  │   else set frame_time (fallback for frames with none), else 1000ms
   ├── Handles loop_count (0=forever, 1=play-once, N=play-N)
-  ├── Applies set-level frame_time override
   └── Returns current frame (or null between loops)
 ```
 

@@ -159,7 +159,7 @@ public class ConfigExportService
 
         return new JsonObject
         {
-            ["config_version"] = 1,
+            ["config_version"] = node.LastConfigVersion,
             ["node"] = new JsonObject
             {
                 ["id"] = node.Id,

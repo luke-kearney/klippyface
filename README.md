@@ -1,4 +1,9 @@
-# Klippyface Display System
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.png">
+    <img src="docs/assets/banner-light.png" alt="Klippyface - give your 3D printer a face" width="100%">
+  </picture>
+</p>
 
 A multi-node ESP32 display system driven by live Moonraker/Klipper printer data. Replace your static 3D printer status display with animated faces, progress bars, temperature readouts, and custom notifications — all configurable from a web UI.
 
@@ -75,16 +80,22 @@ npm run build
 | Feature | Status |
 |---------|--------|
 | ESP32 firmware with FreeRTOS multitasking | ✅ Done |
-| Display driver abstraction (SH1106, SSD1306, ST7789, ILI9341) | ✅ Done — SH1106 and HX8347D hardware-verified, see [`docs/hardware/`](docs/hardware/) |
-| Real-time Moonraker WebSocket integration | ⚠️ Partial — connection monitoring and screen sleep complete |
-| Configurable animations (Groups → Sets → Frames → Elements) | ⚠️ Partial — element composition model with DataValue bindings |
-| Klipper GCODE macro integration | ⬜ Planned |
+| Display drivers — SH1106 (I²C OLED), HX8347D (8-bit parallel TFT) | ✅ Done — hardware-verified, see [`docs/hardware/`](docs/hardware/). ST7789 planned ([#21](https://github.com/luke-kearney/klippyface/issues/21)) |
+| ESP32-S3 support | ⬜ Planned ([#20](https://github.com/luke-kearney/klippyface/issues/20)) |
+| Real-time Moonraker WebSocket integration | ⚠️ Partial — print state triggers, live progress/nozzle/bed values, connection monitoring, screen sleep. First extruder only ([#22](https://github.com/luke-kearney/klippyface/issues/22)) |
+| Configurable animations (Groups → Sets → Frames → Elements) | ✅ Done — sprite, text and live data elements, per-frame durations, looping. Richer progress/temperature rendering planned ([#3](https://github.com/luke-kearney/klippyface/issues/3), [#4](https://github.com/luke-kearney/klippyface/issues/4)) |
+| Starter faces for every printer state | ✅ Done — imported on first run, or from the Groups page |
+| Klipper GCODE macro integration | ⚠️ Partial — `DISPLAY_FACE` switches group/set; alerts and per-node targeting not yet |
+| Presets (night mode, schedules) | ⚠️ Partial — editable in the Web UI, not yet applied to nodes ([#2](https://github.com/luke-kearney/klippyface/issues/2)) |
 | .NET 10 companion server with SQLite | ✅ Done — full CRUD API + per-node config export |
 | WebSocket channel — node online tracking, heartbeat, config push | ✅ Done — persistent WS at `/api/ws/node/{mac}`, hello/heartbeat/refresh protocol |
-| Web UI — full management (nodes, displays, assignments, groups, sets, frames, sprites, presets, preview) | ⚠️ Partial |
-| Web UI — pixel sprite editor with PNG import | ⚠️ Done, untested |
-| Web UI — animation preview canvas | ✅ Done |
+| Web UI — nodes, displays, state triggers, groups, sets, sprites, presets | ✅ Done — React + TypeScript, edits push to nodes live |
+| Web UI — set editor | ✅ Done — drag-to-place elements, filmstrip, onion skin, playback |
+| Web UI — pixel sprite editor | ✅ Done — pencil/line/rect/fill/text tools, brush sizes, mirror drawing, undo, image import |
+| Web UI — live previews matching the device | ✅ Done |
 | Captive portal first-boot setup | ✅ Done |
+| Release builds (firmware `.bin`, self-contained server) | ✅ Done — [GitHub Releases](https://github.com/luke-kearney/klippyface/releases) |
+| Browser-based firmware flasher | ⬜ Planned ([#24](https://github.com/luke-kearney/klippyface/issues/24)) |
 | Multi-node support | ⚠️ Done, untested |
 
 See [open GitHub Issues](https://github.com/luke-kearney/klippyface/issues) for upcoming work and current priorities.
@@ -97,7 +108,7 @@ The system has three major components:
 |-----------|-------|---------|
 | **ESP32 firmware** | PlatformIO, Arduino, FreeRTOS | Drives displays, connects to Moonraker, runs animations |
 | **Companion server** | .NET 10, EF Core, SQLite | REST API, node config, sprite/group library |
-| **Web UI** | Vite + vanilla JS | Full visual editor for all content |
+| **Web UI** | React + TypeScript + Vite | Full visual editor for all content |
 
 Hardware compatibility docs are in [`docs/hardware/`](docs/hardware/):
 - [Display drivers](docs/hardware/display.md) — confirmed displays, wiring, pinouts, known issues

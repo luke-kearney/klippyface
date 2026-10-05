@@ -42,10 +42,12 @@ static std::vector<uint8_t> base64Decode(const String& input) {
 
         if (bi == 4) {
             uint32_t val = (b64[0] << 18) | (b64[1] << 12) | (b64[2] << 6) | b64[3];
-            result.push_back((val >> 16) & 0xFF);
+            if (result.size() < outputLen) result.push_back((val >> 16) & 0xFF);
             if (result.size() < outputLen) result.push_back((val >> 8) & 0xFF);
             if (result.size() < outputLen) result.push_back(val & 0xFF);
             bi = 0;
+            // Padding ends the data; a second '=' must not start another block.
+            if (c == '=') break;
         }
     }
 

@@ -33,5 +33,5 @@ Use `gh issue list`, `gh issue view <id>`, `gh issue create`, `gh issue close` t
 - **Project:** Klippyface — multi-node ESP32 display system driven by Moonraker/Klipper
 - **Firmware:** PlatformIO + Arduino core + FreeRTOS (C++)
 - **Server:** .NET 10 + SQLite (minimal API)
-- **Web UI:** Vanilla JS + Vite
+- **Web UI:** React + TypeScript + Vite (Tailwind, shadcn/ui)
 - **Build commands:** See `platformio.ini` for env targets (`esp32dev`, `esp32dev-mock`)

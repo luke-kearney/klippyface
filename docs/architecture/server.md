@@ -17,6 +17,7 @@ server/
 ├── appsettings.json              # URLs, CORS config
 ├── Data/
 │   ├── AppDbContext.cs           # EF Core + SQLite
+│   ├── starter-pack.json         # Built-in faces (embedded resource)
 │   └── Migrations/
 ├── Models/
 │   ├── Node.cs
@@ -37,6 +38,7 @@ server/
 │   └── PresetsApi.cs             # CRUD presets
 └── Services/
     ├── ConfigExportService.cs    # Assemble per-node config JSON
+    ├── StarterPackService.cs     # Import starter faces, default display assignment
     ├── SpriteConversionService.cs # PNG → XBM / PNG → RGB565
     └── NodeStatusService.cs      # Track online/offline, last seen
 ```
@@ -45,7 +47,8 @@ server/
 
 - CORS: Read from `Klippyface:Cors` appsettings section. `"*"` maps to `AllowAny*()`.
 - Static files: Serves `wwwroot/` for the built Web UI.
-- Auto-migrates SQLite at startup.
+- Auto-migrates SQLite at startup, then imports the starter pack if the library (groups and sprites) is empty.
+- Starter pack: one group per printer state (`idle`, `printing`, `paused`, `error`, `complete`) plus `sleep`, built from the branding set. Faces are sprites; the status strip uses text and `datavalue` elements so values update live. Existing ids are never overwritten, so re-importing is safe.
 - Snake_case JSON serialization for API responses.
 
 ## Docker Deployment

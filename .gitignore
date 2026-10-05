@@ -50,3 +50,6 @@ __pycache__/
 node_modules/
 ui/dist/
 server/wwwroot/
+
+# TypeScript incremental build
+*.tsbuildinfo

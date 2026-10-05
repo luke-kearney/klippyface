@@ -277,6 +277,48 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-05: Web UI rewritten in React + TypeScript
+
+**Context:** The vanilla JS UI (~3.9k lines of hand-built DOM) had no shared components, so forms, lists and dialogs each behaved differently, and the editors were hard to extend. The set preview drew text top-left (firmware centres it) and the sprite editor packed bits without row padding (firmware expects `ceil(w/8)` byte rows).
+
+**Decision:** Rewrite `ui/` in React 19 + TypeScript, Tailwind v4 and shadcn/ui, with TanStack Query for server state and a hash router (the server has no SPA fallback). Previews use a software renderer (`ui/src/lib/render.ts`) that mirrors `Renderer.cpp` and the Adafruit GFX 5×7 font.
+
+**Rationale:** Shared, accessible components; typed API contract; the canvas editors (drag-to-place elements, pixel editor) need component state that vanilla DOM made awkward.
+
+**Consequences:** Larger bundle (~700 KB, fine on a LAN). Set editor saves edits optimistically and debounced; every save bumps affected nodes' config so devices update live. Sprites decode legacy unpadded data and re-encode padded on save.
+
+---
+
+## 2026-10-05: Per-frame duration takes precedence over set frame_time
+
+**Context:** `AnimationEngine::currentFrameDuration()` used the set's `frame_time` whenever it was non-zero, overriding every frame's `duration_ms`. The server defaults `frame_time` to 1000, so most sets played every frame for exactly 1s regardless of the durations set in the editor (a 5s frame showed for 1s).
+
+**Decision:** Frame `duration_ms` wins. `frame_time` is only a fallback for frames without a duration (missing/0 in config), then 1000ms. The Web UI treats `frame_time` as the default duration for new frames and previews use the same rule.
+
+**Consequences:** Requires a firmware reflash to take effect. Sets whose frames all match `frame_time` play the same as before.
+
+---
+
+## 2026-10-05: Brand identity in the Web UI
+
+**Context:** The UI used shadcn defaults with an orange primary, system fonts, a placeholder Lucide icon as the logo and no favicon. A branding set was designed (mark, pixel wordmark, palette, type, favicons).
+
+**Decision:** Adopt the brand palette (Nozzle orange on zinc) with ink text on primary, since white on `#F54900` fails AA contrast. Add `state-*` colour tokens for printer states that differ in lightness as well as hue. Self-host Geist, Geist Mono and Silkscreen via Fontsource rather than Google Fonts, because the server often runs on a LAN without reliable internet. Favicons are the hand-placed 16/32 px pixel marks as PNGs, not a scaled vector.
+
+**Consequences:** Primary buttons now have dark text. Fonts add ~50 KB (latin subsets) to the bundle, loaded on demand.
+
+---
+
+## 2026-10-05: Starter pack replaces EF seed data
+
+**Context:** `AppDbContext` seeded a demo node (placeholder MAC, two displays) and four sprites with empty bitmaps via `HasData`. Fresh installs started with a fake node and blank faces. Changing `HasData` makes EF generate `DeleteData`/`UpdateData` migrations that overwrite seeded rows in existing databases, which users may have edited.
+
+**Decision:** Remove the seed from the model, snapshot and the `InitialCreate`/`AddNodeOnlineTracking` migrations (affects fresh databases only; existing ones have already applied them and keep their data). Ship faces as an embedded `starter-pack.json`, imported on first run when the library is empty, or on demand via `POST /api/starter-pack` / the Groups page button. Import only adds ids that don't exist. New displays get a default assignment mapping each printer state to its starter group. Expressions stay server-side as editable library content; the firmware only gets a built-in boot splash (#26).
+
+**Consequences:** Existing databases keep the old demo rows until deleted by hand. The `°` in temperature values still renders as two glyphs (firmware prints UTF-8 byte by byte).
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations

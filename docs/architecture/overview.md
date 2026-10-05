@@ -9,7 +9,7 @@ stable: true
 > Multi-node ESP32 display system driven by Moonraker/Klipper printer data.
 > Firmware: PlatformIO + Arduino core + FreeRTOS (C++)
 > Server: .NET 10 + SQLite (minimal API)
-> Web UI: Vanilla JS + Vite
+> Web UI: React + TypeScript + Vite
 
 ## System Diagram
 
@@ -111,7 +111,7 @@ klippyface/
 │   ├── Models/                       # Entity models
 │   ├── Api/                          # Endpoint groups
 │   └── Services/                     # Business logic
-├── ui/                               # Vite vanilla JS Web UI
+├── ui/                               # React + TypeScript Web UI (Vite)
 │   ├── css/
 │   ├── js/
 │   │   ├── app.js, store.js, api.js, utils.js

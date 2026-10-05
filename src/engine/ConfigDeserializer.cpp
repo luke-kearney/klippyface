@@ -189,7 +189,7 @@ void ConfigDeserializer::parseSet(JsonObject& setJson, Set& outSet) {
 }
 
 void ConfigDeserializer::parseFrame(JsonObject& frameJson, Frame& outFrame) {
-    outFrame.duration_ms = frameJson["duration_ms"] | 1000;
+    outFrame.duration_ms = frameJson["duration_ms"] | 0;  // 0 = fall back to set frame_time
 
     String bgColorStr = frameJson["bg_color"] | "";
     if (bgColorStr.length() > 0) {

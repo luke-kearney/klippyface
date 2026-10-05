@@ -53,23 +53,6 @@ namespace Klippyface.Server.Data.Migrations
 
                     b.ToTable("Assignments");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = "d4e5f6a7-b8c9-0123-defa-234567890123",
-                            DefaultGroup = "idle_faces",
-                            DisplayId = "b2c3d4e5-f6a7-8901-bcde-f12345678901",
-                            NodeId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-                            TriggersJson = "{\"state:printing\":\"printing_faces\",\"state:complete\":\"celebration_faces\",\"state:error\":\"error_faces\",\"state:idle\":\"idle_faces\",\"state:paused\":\"paused_faces\",\"state:waiting\":\"waiting_faces\",\"macro:print_start\":\"printing_faces\",\"macro:print_end\":\"celebration_faces\"}"
-                        },
-                        new
-                        {
-                            Id = "e5f6a7b8-c9d0-1234-efab-345678901234",
-                            DefaultGroup = "stats_idle",
-                            DisplayId = "c3d4e5f6-a7b8-9012-cdef-123456789012",
-                            NodeId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-                            TriggersJson = "{\"state:printing\":\"stats_progress\",\"state:complete\":\"stats_done\",\"state:idle\":\"stats_idle\"}"
-                        });
                 });
 
             modelBuilder.Entity("Klippyface.Server.Models.Frame", b =>
@@ -97,47 +80,6 @@ namespace Klippyface.Server.Data.Migrations
 
                     b.ToTable("Frames");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = "b8c9d0e1-f2a3-4567-bcde-678901234567",
-                            BgColor = "#000000",
-                            DurationMs = 3000,
-                            SetId = "f6a7b8c9-d0e1-2345-fabc-456789012345",
-                            SortOrder = 0
-                        },
-                        new
-                        {
-                            Id = "c9d0e1f2-a3b4-5678-cdef-789012345678",
-                            BgColor = "#000000",
-                            DurationMs = 200,
-                            SetId = "f6a7b8c9-d0e1-2345-fabc-456789012345",
-                            SortOrder = 1
-                        },
-                        new
-                        {
-                            Id = "d0e1f2a3-b4c5-6789-defa-890123456789",
-                            BgColor = "#000000",
-                            DurationMs = 600,
-                            SetId = "a7b8c9d0-e1f2-3456-abcd-567890123456",
-                            SortOrder = 0
-                        },
-                        new
-                        {
-                            Id = "e1f2a3b4-c5d6-7890-efab-901234567890",
-                            BgColor = "#000000",
-                            DurationMs = 600,
-                            SetId = "a7b8c9d0-e1f2-3456-abcd-567890123456",
-                            SortOrder = 1
-                        },
-                        new
-                        {
-                            Id = "f2a3b4c5-d6e7-8901-fabc-012345678901",
-                            BgColor = "#000000",
-                            DurationMs = 600,
-                            SetId = "a7b8c9d0-e1f2-3456-abcd-567890123456",
-                            SortOrder = 2
-                        });
                 });
 
             modelBuilder.Entity("Klippyface.Server.Models.FrameElement", b =>
@@ -180,67 +122,6 @@ namespace Klippyface.Server.Data.Migrations
 
                     b.ToTable("FrameElements");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = "a3b4c5d6-e7f8-9012-abcd-123456789012",
-                            Color = "#FFFFFF",
-                            FrameId = "b8c9d0e1-f2a3-4567-bcde-678901234567",
-                            Label = "",
-                            SortOrder = 0,
-                            Type = "text",
-                            Value = "zzz",
-                            X = 64,
-                            Y = 32
-                        },
-                        new
-                        {
-                            Id = "b4c5d6e7-f8a9-0123-bcde-234567890123",
-                            Color = "#FFFFFF",
-                            FrameId = "c9d0e1f2-a3b4-5678-cdef-789012345678",
-                            Label = "",
-                            SortOrder = 0,
-                            Type = "sprite",
-                            Value = "blink",
-                            X = 64,
-                            Y = 32
-                        },
-                        new
-                        {
-                            Id = "c5d6e7f8-a9b0-1234-cdef-345678901234",
-                            Color = "#FFFFFF",
-                            FrameId = "d0e1f2a3-b4c5-6789-defa-890123456789",
-                            Label = "",
-                            SortOrder = 0,
-                            Type = "sprite",
-                            Value = "face_happy",
-                            X = 64,
-                            Y = 32
-                        },
-                        new
-                        {
-                            Id = "d6e7f8a9-b0c1-2345-defa-456789012345",
-                            Color = "#FFFFFF",
-                            FrameId = "e1f2a3b4-c5d6-7890-efab-901234567890",
-                            Label = "",
-                            SortOrder = 0,
-                            Type = "sprite",
-                            Value = "face_excited",
-                            X = 64,
-                            Y = 32
-                        },
-                        new
-                        {
-                            Id = "e7f8a9b0-c1d2-3456-efab-567890123456",
-                            Color = "#FFFFFF",
-                            FrameId = "f2a3b4c5-d6e7-8901-fabc-012345678901",
-                            Label = "",
-                            SortOrder = 0,
-                            Type = "sprite",
-                            Value = "face_wow",
-                            X = 64,
-                            Y = 32
-                        });
                 });
 
             modelBuilder.Entity("Klippyface.Server.Models.Group", b =>
@@ -265,23 +146,6 @@ namespace Klippyface.Server.Data.Migrations
 
                     b.ToTable("Groups");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = "idle_faces",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Label = "Idle Faces",
-                            SortOrder = 0,
-                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            Id = "printing_faces",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Label = "Printing Faces",
-                            SortOrder = 1,
-                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
-                        });
                 });
 
             modelBuilder.Entity("Klippyface.Server.Models.Node", b =>
@@ -320,17 +184,6 @@ namespace Klippyface.Server.Data.Migrations
 
                     b.ToTable("Nodes");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Main 3D printer display",
-                            FriendlyName = "Printer Face",
-                            LastConfigVersion = 1u,
-                            MacAddress = "AA:BB:CC:DD:EE:01",
-                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
-                        });
                 });
 
             modelBuilder.Entity("Klippyface.Server.Models.NodeDisplay", b =>
@@ -376,33 +229,6 @@ namespace Klippyface.Server.Data.Migrations
 
                     b.ToTable("NodeDisplays");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = "b2c3d4e5-f6a7-8901-bcde-f12345678901",
-                            BusConfig = "{\"address\":\"0x3C\"}",
-                            BusType = "i2c",
-                            DriverType = "sh1106",
-                            Height = 64,
-                            Label = "Front Face",
-                            NodeId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-                            Rotation = 0,
-                            SortOrder = 0,
-                            Width = 128
-                        },
-                        new
-                        {
-                            Id = "c3d4e5f6-a7b8-9012-cdef-123456789012",
-                            BusConfig = "{\"address\":\"0x3D\"}",
-                            BusType = "i2c",
-                            DriverType = "sh1106",
-                            Height = 64,
-                            Label = "Info Panel",
-                            NodeId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-                            Rotation = 0,
-                            SortOrder = 1,
-                            Width = 128
-                        });
                 });
 
             modelBuilder.Entity("Klippyface.Server.Models.NodePreset", b =>
@@ -476,25 +302,6 @@ namespace Klippyface.Server.Data.Migrations
 
                     b.ToTable("Sets");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = "f6a7b8c9-d0e1-2345-fabc-456789012345",
-                            FrameTime = 0,
-                            GroupId = "idle_faces",
-                            Label = "Sleepy",
-                            LoopCount = 0,
-                            SortOrder = 0
-                        },
-                        new
-                        {
-                            Id = "a7b8c9d0-e1f2-3456-abcd-567890123456",
-                            FrameTime = 600,
-                            GroupId = "printing_faces",
-                            Label = "Excited",
-                            LoopCount = 0,
-                            SortOrder = 0
-                        });
                 });
 
             modelBuilder.Entity("Klippyface.Server.Models.Sprite", b =>
@@ -523,43 +330,6 @@ namespace Klippyface.Server.Data.Migrations
 
                     b.ToTable("Sprites");
 
-                    b.HasData(
-                        new
-                        {
-                            Id = "blink",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DataBase64 = "",
-                            Height = 16,
-                            Label = "Blink",
-                            Width = 16
-                        },
-                        new
-                        {
-                            Id = "face_happy",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DataBase64 = "",
-                            Height = 64,
-                            Label = "Face Happy",
-                            Width = 64
-                        },
-                        new
-                        {
-                            Id = "face_excited",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DataBase64 = "",
-                            Height = 64,
-                            Label = "Face Excited",
-                            Width = 64
-                        },
-                        new
-                        {
-                            Id = "face_wow",
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DataBase64 = "",
-                            Height = 64,
-                            Label = "Face Wow",
-                            Width = 64
-                        });
                 });
 
             modelBuilder.Entity("Klippyface.Server.Models.Assignment", b =>
