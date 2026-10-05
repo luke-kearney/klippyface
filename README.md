@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="docs/assets/banner.png" alt="Klippyface - give your 3D printer a face" width="100%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.png">
+    <img src="docs/assets/banner-light.png" alt="Klippyface - give your 3D printer a face" width="100%">
+  </picture>
 </p>
 
 # Klippyface Display System
