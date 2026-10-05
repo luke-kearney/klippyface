@@ -1,17 +1,20 @@
 name: Release
 
-# Every push to master is a release: merging develop into master builds the
-# artifacts, tags the merge commit as v<VERSION> and publishes a GitHub
-# Release. Running it manually builds the artifacts without publishing.
+# Two channels:
+#   master  - production. Merging develop into master builds the artifacts,
+#             tags the merge commit v<VERSION> and publishes a GitHub Release.
+#   develop - development. Every push replaces the rolling "dev" pre-release
+#             with artifacts built from that commit.
+# Running it manually builds the artifacts without publishing.
 
 on:
   push:
-    branches: [master]
+    branches: [master, develop]
   workflow_dispatch:
 
 concurrency:
-  group: release
-  cancel-in-progress: false
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/develop' }}
 
 permissions:
   contents: read
@@ -22,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      channel: ${{ steps.version.outputs.channel }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,12 +34,24 @@ jobs:
       - id: version
         run: |
           version=$(tr -d '[:space:]' < VERSION)
-          echo "version=$version" >> "$GITHUB_OUTPUT"
 
-          if [ "$GITHUB_EVENT_NAME" = "push" ] && git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
-            echo "::error::Tag v$version already exists - bump VERSION before merging into master"
-            exit 1
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF_NAME" = "master" ]; then
+            channel=prod
+            if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
+              echo "::error::Tag v$version already exists - bump VERSION before merging into master"
+              exit 1
+            fi
+          elif [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF_NAME" = "develop" ]; then
+            channel=dev
+            version="$version-dev.$(git rev-parse --short HEAD)"
+          else
+            channel=none
+            version="$version-build.$(git rev-parse --short HEAD)"
           fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+          echo "Building $version ($channel)"
 
   firmware:
     name: Firmware
@@ -50,8 +66,9 @@ jobs:
 
       # Tag locally so scripts/version.py stamps the plain release version.
       # The tag is pushed by the publish job once everything has built.
+      # Dev builds stay untagged and report <VERSION>+g<sha>.
       - name: Tag release commit
-        if: github.event_name == 'push'
+        if: needs.version.outputs.channel == 'prod'
         run: git tag "v$VERSION"
 
       - uses: actions/setup-python@v5
@@ -133,25 +150,37 @@ jobs:
           path: dist/*
 
   publish:
-    name: Publish release
-    if: github.event_name == 'push'
+    name: Publish ${{ needs.version.outputs.channel }} release
+    if: needs.version.outputs.channel != 'none'
     needs: [version, firmware, server]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     env:
       VERSION: ${{ needs.version.outputs.version }}
+      CHANNEL: ${{ needs.version.outputs.channel }}
       GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
 
-      - name: Create release
+      - name: Publish production release
+        if: env.CHANNEL == 'prod'
         run: |
           gh release create "v$VERSION" dist/* \
-            --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "v$VERSION" \
             --generate-notes
+
+      - name: Publish dev pre-release
+        if: env.CHANNEL == 'dev'
+        run: |
+          gh release delete dev --cleanup-tag --yes || true
+          gh release create dev dist/* \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "Development build $VERSION" \
+            --notes "Rolling build of \`develop\` at $GITHUB_SHA. Replaced on every push to \`develop\` - not for production use."
