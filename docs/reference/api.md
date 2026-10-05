@@ -77,7 +77,7 @@ stable: true
 ---
 
 ## JSON Contract (Per-Node Config Fetch)
-
+The companion server serializes per-node config. The ESP32 fetches this at boot. `config_version` is the node's `LastConfigVersion`, bumped on every admin edit:
 The companion server serializes per-node config. The ESP32 fetches this at boot:
 
 ```
