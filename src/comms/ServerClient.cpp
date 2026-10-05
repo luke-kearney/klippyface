@@ -1,6 +1,7 @@
 #include "comms/ServerClient.h"
 #include "comms/ConfigFetcher.h"
 #include "config/Settings.h"
+#include "KlippyfaceVersion.h"
 #include <WiFi.h>
 
 static const char* TAG = "SRVCLIENT";
@@ -115,11 +116,13 @@ void ServerClient::sendHello() {
     doc["node_id"] = _nodeId;
     doc["friendly_name"] = _friendlyName;
     doc["config_version"] = _configVersion;
+    doc["fw_version"] = KLIPPYFACE_VERSION;
 
     String output;
     serializeJson(doc, output);
     _ws.sendTXT(output);
-    Serial.printf("[%s] Sent hello (config_version: %u)\n", TAG, _configVersion);
+    Serial.printf("[%s] Sent hello (fw %s, config_version: %u)\n",
+                  TAG, KLIPPYFACE_VERSION, _configVersion);
 }
 
 void ServerClient::sendHeartbeat() {
