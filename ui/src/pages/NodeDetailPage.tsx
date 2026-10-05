@@ -291,6 +291,7 @@ function DisplayCard({ node, display, assignment }: { node: Node; display: NodeD
             <SetPlayer
               autoPlay
               frames={group?.sets?.[0]?.frames}
+              frameTime={group?.sets?.[0]?.frameTime}
               sprites={sprites}
               profile={{ width: display.width, height: display.height, driverType: display.driverType }}
             />

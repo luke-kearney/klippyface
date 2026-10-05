@@ -53,18 +53,22 @@ export function FrameCanvas({
   )
 }
 
-/** Loops through frames using each frame's duration, like the firmware's AnimationEngine. */
-export function useFramePlayback(frames: Frame[] | undefined, playing: boolean, speed = 1) {
+/** Duration the firmware uses: the frame's own, else the set's frame_time, else 1000ms. */
+export const frameDuration = (frame: Frame | undefined, setFrameTime?: number) =>
+  frame?.durationMs || setFrameTime || 1000
+
+/** Loops through frames like the firmware's AnimationEngine. */
+export function useFramePlayback(frames: Frame[] | undefined, playing: boolean, speed = 1, setFrameTime?: number) {
   const [index, setIndex] = useState(0)
   const count = frames?.length ?? 0
   const safe = count ? index % count : 0
 
   useEffect(() => {
     if (!playing || count < 2) return
-    const ms = Math.max(30, (frames![safe]?.durationMs || 1000) / speed)
+    const ms = Math.max(30, frameDuration(frames![safe], setFrameTime) / speed)
     const t = setTimeout(() => setIndex((i) => (i + 1) % count), ms)
     return () => clearTimeout(t)
-  }, [playing, safe, count, frames, speed])
+  }, [playing, safe, count, frames, speed, setFrameTime])
 
   return [safe, setIndex] as const
 }
@@ -72,19 +76,22 @@ export function useFramePlayback(frames: Frame[] | undefined, playing: boolean, 
 /** Self-playing thumbnail of a set. Plays on hover unless `autoPlay`. */
 export function SetPlayer({
   frames,
+  frameTime,
   sprites,
   profile = DISPLAY_PROFILES[0],
   autoPlay = false,
   className,
 }: {
   frames: Frame[] | undefined
+  /** The set's frame_time, used for frames with no duration. */
+  frameTime?: number
   sprites: Map<string, Bitmap>
   profile?: Pick<DisplayProfile, 'width' | 'height' | 'driverType'>
   autoPlay?: boolean
   className?: string
 }) {
   const [hover, setHover] = useState(false)
-  const [index] = useFramePlayback(frames, autoPlay || hover)
+  const [index] = useFramePlayback(frames, autoPlay || hover, 1, frameTime)
   return (
     <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} className={className}>
       <FrameCanvas frame={frames?.[index]} sprites={sprites} profile={profile} />

@@ -165,10 +165,10 @@ export function useSetDocument(groupId: string, setId: string) {
   /** Insert a new frame after `index`, optionally copying another frame's contents. */
   const addFrame = useCallback(
     async (index: number, copyOf?: Frame) => {
-      const base = copyOf ?? framesRef.current[index]
       const created = await track(
         api.createFrame(setId, {
-          durationMs: base?.durationMs ?? set?.frameTime ?? 1000,
+          // Duplicates keep their timing; blank frames start at the set's default.
+          durationMs: copyOf?.durationMs || set?.frameTime || 1000,
           bgColor: copyOf?.bgColor ?? '#000000',
           sortOrder: framesRef.current.length,
         }),

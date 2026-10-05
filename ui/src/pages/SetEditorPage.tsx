@@ -56,7 +56,7 @@ export function SetEditorPage() {
   const [onion, setOnion] = useState(false)
   const [grid, setGrid] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [current, setCurrent] = useFramePlayback(doc.frames, playing, parseFloat(speed))
+  const [current, setCurrent] = useFramePlayback(doc.frames, playing, parseFloat(speed), doc.set?.frameTime)
 
   const frame = doc.frames[current]
   const elements = useMemo(() => frame?.elements ?? [], [frame])

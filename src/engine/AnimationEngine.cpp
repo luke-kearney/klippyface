@@ -41,12 +41,14 @@ uint32_t AnimationEngine::currentFrameDuration() const {
     const Set* set = findCurrentSet();
     if (!set) return 1000;
 
-    if (set->frame_time > 0) {
-        return set->frame_time;
+    // Per-frame duration wins; the set's frame_time is only a fallback for
+    // frames without one.
+    if (_frameIndex < set->frames.size() && set->frames[_frameIndex].duration_ms > 0) {
+        return set->frames[_frameIndex].duration_ms;
     }
 
-    if (_frameIndex < set->frames.size()) {
-        return set->frames[_frameIndex].duration_ms;
+    if (set->frame_time > 0) {
+        return set->frame_time;
     }
 
     return 1000;

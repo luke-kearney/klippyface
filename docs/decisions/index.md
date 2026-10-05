@@ -289,6 +289,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-05: Per-frame duration takes precedence over set frame_time
+
+**Context:** `AnimationEngine::currentFrameDuration()` used the set's `frame_time` whenever it was non-zero, overriding every frame's `duration_ms`. The server defaults `frame_time` to 1000, so most sets played every frame for exactly 1s regardless of the durations set in the editor (a 5s frame showed for 1s).
+
+**Decision:** Frame `duration_ms` wins. `frame_time` is only a fallback for frames without a duration (missing/0 in config), then 1000ms. The Web UI treats `frame_time` as the default duration for new frames and previews use the same rule.
+
+**Consequences:** Requires a firmware reflash to take effect. Sets whose frames all match `frame_time` play the same as before.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations

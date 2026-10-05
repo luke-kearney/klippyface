@@ -28,7 +28,7 @@ struct FrameElement {
 // Frame — a container of elements rendered on one screen
 // -------------------------------------------------------------------
 struct Frame {
-    uint32_t                    duration_ms = 1000;
+    uint32_t                    duration_ms = 0;     // 0 = use set frame_time
     uint32_t                    bg_color    = 0x000000;
     std::vector<FrameElement>   elements;
 };
@@ -61,7 +61,7 @@ struct Set {
     String                  label;
     int32_t                 loop_count    = 1;   // 0 = loop forever
     bool                    loop_forever  = false;
-    uint32_t                frame_time    = 0;   // 0 = use per-frame duration_ms
+    uint32_t                frame_time    = 0;   // fallback for frames with no duration_ms (0 = 1000ms)
     std::vector<Frame>      frames;
 };
 

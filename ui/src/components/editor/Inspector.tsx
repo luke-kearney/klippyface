@@ -200,7 +200,7 @@ export function FrameInspector({
         <Field label="Loops" hint="0 = forever">
           <NumberInput value={set.loopCount} onChange={(loopCount) => onSetChange({ loopCount: Math.max(0, loopCount) })} />
         </Field>
-        <Field label="Default ms" hint="New frames">
+        <Field label="Default ms" hint="For new frames">
           <NumberInput value={set.frameTime} onChange={(frameTime) => onSetChange({ frameTime })} />
         </Field>
       </div>

@@ -51,7 +51,7 @@ function GroupCard({ group, sprites }: { group: Group; sprites: ReturnType<typeo
     <Link to={`/groups/${group.id}`}>
       <Card className="gap-0 overflow-hidden p-0 transition-colors hover:border-primary/50">
         <div className="bg-black p-3">
-          <SetPlayer frames={sets[0]?.frames} sprites={sprites} />
+          <SetPlayer frames={sets[0]?.frames} frameTime={sets[0]?.frameTime} sprites={sprites} />
         </div>
         <div className="flex items-center justify-between gap-2 px-4 py-3">
           <div className="min-w-0">

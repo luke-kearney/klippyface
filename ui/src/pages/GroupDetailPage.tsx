@@ -99,7 +99,7 @@ export function GroupDetailPage() {
         {sets.map((s, i) => (
           <Card key={s.id} className="group/card gap-0 overflow-hidden p-0">
             <Link to={`/groups/${group.id}/sets/${s.id}`} className="block bg-black p-3">
-              <SetPlayer frames={s.frames} sprites={sprites} />
+              <SetPlayer frames={s.frames} frameTime={s.frameTime} sprites={sprites} />
             </Link>
             <div className="flex items-center gap-2 px-4 py-3">
               <Link to={`/groups/${group.id}/sets/${s.id}`} className="min-w-0 flex-1">

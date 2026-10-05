@@ -87,7 +87,7 @@ CREATE TABLE sets (
     label       TEXT NOT NULL,
     sort_order  INTEGER NOT NULL DEFAULT 0,
     loop_count  INTEGER NOT NULL DEFAULT 1,      -- 0 = loop forever
-    frame_time  INTEGER NOT NULL DEFAULT 1000    -- default ms per frame
+    frame_time  INTEGER NOT NULL DEFAULT 1000    -- default ms for new frames; firmware fallback when a frame has no duration_ms
 );
 ```
 
