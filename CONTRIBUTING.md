@@ -276,8 +276,13 @@ Firmware builds from the matching `v<VERSION>` tag report the plain version (`0.
 **Cutting a release:**
 
 1. Bump `VERSION` and `ui/package.json` in a PR into `develop` (`Bump version to X.Y.Z`)
-2. Open a PR from `develop` into `master` and merge it
-3. Tag the merge commit on `master` and push: `git tag vX.Y.Z && git push origin vX.Y.Z`
+2. Open a PR from `develop` into `master` — the `Release check` job fails if `VERSION` and `ui/package.json` differ or `vX.Y.Z` is already tagged
+3. Merge it. The `Release` workflow tags the merge commit `vX.Y.Z` and publishes a GitHub Release with:
+   - `klippyface-firmware-X.Y.Z.bin` — app image for updating a flashed board
+   - `klippyface-firmware-X.Y.Z-full.bin` — full image for a blank board (`esptool write-flash 0x0 <file>`)
+   - `klippyface-server-X.Y.Z-linux-{arm64,x64}.tar.gz` — self-contained server with the Web UI in `wwwroot`
+
+**CI:** the `CI` workflow builds the firmware (`esp32dev`, `esp32dev-mock`), Web UI and server on every PR into `develop`/`master` and every push to `develop`. Run the `Release` workflow manually (Actions → Release → Run workflow) to build the release artifacts from any branch without publishing.
 
 ---
 
