@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { Layers, Plus } from 'lucide-react'
+import { toast } from 'sonner'
+import { Layers, Plus, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import {
@@ -28,13 +29,18 @@ export function GroupsPage() {
       <PageHeader
         title="Groups"
         description="A group is a pool of animated sets. Displays show a group, picking among its sets."
-        actions={<AddGroupDialog nextOrder={groups?.length ?? 0} />}
+        actions={
+          <>
+            <StarterPackButton />
+            <AddGroupDialog nextOrder={groups?.length ?? 0} />
+          </>
+        }
       />
       {error && <ErrorState error={error} />}
       {isLoading && <Loading />}
       {groups?.length === 0 && (
         <EmptyState icon={<Layers />} title="No groups yet">
-          Create a group such as “Idle faces”, then add animated sets to it.
+          Create a group such as “Idle faces”, then add animated sets to it, or add the starter faces.
         </EmptyState>
       )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -64,6 +70,21 @@ function GroupCard({ group, sprites }: { group: Group; sprites: ReturnType<typeo
         </div>
       </Card>
     </Link>
+  )
+}
+
+function StarterPackButton() {
+  const add = useApiMutation(api.importStarterPack, {
+    invalidate: [keys.groups, keys.sprites],
+    onSuccess: (r) =>
+      r.groupsAdded || r.spritesAdded
+        ? toast.success(`Added ${r.groupsAdded} groups and ${r.spritesAdded} sprites`)
+        : toast.info('Starter faces are already in your library'),
+  })
+  return (
+    <Button variant="outline" onClick={() => add.mutate(undefined)} disabled={add.isPending}>
+      <Sparkles /> Starter faces
+    </Button>
   )
 }
 

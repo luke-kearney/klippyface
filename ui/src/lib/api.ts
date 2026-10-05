@@ -84,6 +84,8 @@ export const api = {
   getGroups: () => get<Group[]>('/api/groups'),
   getGroup: (id: string) => get<Group>(`/api/groups/${id}`),
   createGroup: (d: Pick<Group, 'id' | 'label' | 'sortOrder'>) => post<Group>('/api/groups', d),
+  /** Adds the built-in faces; existing sprite/group ids are left alone. */
+  importStarterPack: () => post<{ spritesAdded: number; groupsAdded: number }>('/api/starter-pack', {}),
   updateGroup: (id: string, d: Pick<Group, 'label' | 'sortOrder'>) => put<Group>(`/api/groups/${id}`, d),
   deleteGroup: (id: string) => del(`/api/groups/${id}`),
 
