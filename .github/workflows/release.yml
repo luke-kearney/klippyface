@@ -1,0 +1,157 @@
+name: Release
+
+# Every push to master is a release: merging develop into master builds the
+# artifacts, tags the merge commit as v<VERSION> and publishes a GitHub
+# Release. Running it manually builds the artifacts without publishing.
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: version
+        run: |
+          version=$(tr -d '[:space:]' < VERSION)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
+            echo "::error::Tag v$version already exists - bump VERSION before merging into master"
+            exit 1
+          fi
+
+  firmware:
+    name: Firmware
+    needs: version
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Tag locally so scripts/version.py stamps the plain release version.
+      # The tag is pushed by the publish job once everything has built.
+      - name: Tag release commit
+        if: github.event_name == 'push'
+        run: git tag "v$VERSION"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+
+      - run: pip install platformio esptool
+
+      - run: pio run -e esp32dev
+
+      - name: Package firmware
+        run: |
+          build=.pio/build/esp32dev
+          boot_app0=~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin
+          mkdir -p dist
+
+          cp "$build/firmware.bin" "dist/klippyface-firmware-$VERSION.bin"
+
+          # Single image for a blank board: esptool write-flash 0x0 <file>
+          python -m esptool --chip esp32 merge-bin \
+            -o "dist/klippyface-firmware-$VERSION-full.bin" \
+            0x1000 "$build/bootloader.bin" \
+            0x8000 "$build/partitions.bin" \
+            0xe000 "$boot_app0" \
+            0x10000 "$build/firmware.bin"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: dist/*
+
+  server:
+    name: Server (${{ matrix.rid }})
+    needs: version
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rid: [linux-arm64, linux-x64]
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build Web UI
+        working-directory: ui
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publish server
+        run: |
+          dotnet publish server -c Release -r ${{ matrix.rid }} --self-contained \
+            -o "publish/klippyface-server-$VERSION-${{ matrix.rid }}"
+
+      - name: Package server
+        run: |
+          mkdir -p dist
+          tar -czf "dist/klippyface-server-$VERSION-${{ matrix.rid }}.tar.gz" \
+            -C publish "klippyface-server-$VERSION-${{ matrix.rid }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-${{ matrix.rid }}
+          path: dist/*
+
+  publish:
+    name: Publish release
+    if: github.event_name == 'push'
+    needs: [version, firmware, server]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create release
+        run: |
+          gh release create "v$VERSION" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "v$VERSION" \
+            --generate-notes
