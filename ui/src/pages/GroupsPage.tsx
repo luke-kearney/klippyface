@@ -70,9 +70,14 @@ function GroupCard({ group, sprites }: { group: Group; sprites: ReturnType<typeo
               </p>
             )}
           </div>
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {data ? `${sets.length} set${sets.length === 1 ? '' : 's'}` : ''}
-          </span>
+          <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-muted-foreground">
+            <span>{data ? `${sets.length} set${sets.length === 1 ? '' : 's'}` : ''}</span>
+            {group.pendingPublish && (
+              <span className="text-amber-500" title="Saved changes not yet sent to displays">
+                Unsynced
+              </span>
+            )}
+          </div>
         </div>
       </Card>
     </Link>

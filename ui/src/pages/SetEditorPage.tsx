@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { ChevronRight, Cloud, CloudUpload, Grid3x3, Layers2, Magnet, Pause, Play, Plus } from 'lucide-react'
+import { ChevronRight, Cloud, CloudAlert, CloudCheck, CloudUpload, Grid3x3, Layers2, Magnet, Pause, Play, Plus, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -14,7 +14,7 @@ import { Filmstrip } from '@/components/editor/Filmstrip'
 import { ElementInspector, FrameInspector, TYPE_META } from '@/components/editor/Inspector'
 import { SpriteThumb } from '@/components/SpriteThumb'
 import { useSpriteBitmaps, useSprites } from '@/hooks/queries'
-import { useSetDocument } from '@/hooks/useSetDocument'
+import { useSetDocument, type SetDocument } from '@/hooks/useSetDocument'
 import { DATA_KEYS } from '@/lib/render'
 import { groupByFolder } from '@/lib/sprite'
 import type { FrameElement } from '@/lib/types'
@@ -137,8 +137,14 @@ export function SetEditorPage() {
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (isTyping(e.target)) return
       const mod = e.ctrlKey || e.metaKey
+      // Works from inspector fields too, instead of the browser's Save page.
+      if (mod && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        doc.sync.now()
+        return
+      }
+      if (isTyping(e.target)) return
       if (e.key === ' ') {
         e.preventDefault()
         setPlaying((p) => !p)
@@ -201,15 +207,7 @@ export function SetEditorPage() {
           <ChevronRight className="size-3.5 text-muted-foreground" />
           <span className="truncate font-medium">{doc.set.label || 'Untitled set'}</span>
         </div>
-        <span
-          className={cn(
-            'ml-2 flex items-center gap-1 text-xs',
-            doc.saving ? 'text-muted-foreground' : 'text-muted-foreground/60',
-          )}
-        >
-          {doc.saving ? <CloudUpload className="size-3.5 animate-pulse" /> : <Cloud className="size-3.5" />}
-          {doc.saving ? 'Saving…' : 'All changes saved'}
-        </span>
+        <SyncIndicator saving={doc.saving} sync={doc.sync} />
 
         <div className="ml-auto flex items-center gap-1">
           <Select value={profile.id} onValueChange={setProfileId}>
@@ -462,6 +460,46 @@ export function SetEditorPage() {
           setCurrent(Math.max(0, current - 1))
         }}
       />
+    </div>
+  )
+}
+
+/** Save + node sync state, with a Sync now button while displays are behind. */
+function SyncIndicator({ saving, sync }: { saving: boolean; sync: SetDocument['sync'] }) {
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    if (sync.status !== 'pending') return
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [sync.status])
+  const secs = sync.dueAt ? Math.max(0, Math.ceil((sync.dueAt - now) / 1000)) : 0
+
+  const [Icon, text, tone] = saving
+    ? [CloudUpload, 'Saving…', 'text-muted-foreground']
+    : sync.status === 'syncing'
+      ? [RefreshCw, 'Syncing to displays…', 'text-muted-foreground']
+      : sync.status === 'failed'
+        ? [CloudAlert, 'Sync failed', 'text-destructive']
+        : sync.status === 'pending'
+          ? [Cloud, `Saved · displays sync in ${secs}s`, 'text-amber-500']
+          : [CloudCheck, 'Synced to displays', 'text-muted-foreground/60']
+
+  return (
+    <div className="ml-2 flex items-center gap-1.5">
+      <span className={cn('flex items-center gap-1 text-xs', tone)}>
+        <Icon className={cn('size-3.5', (saving || sync.status === 'syncing') && 'animate-pulse')} />
+        {text}
+      </span>
+      {(sync.status === 'pending' || sync.status === 'failed') && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => sync.now()} disabled={saving}>
+              {sync.status === 'failed' ? 'Retry' : 'Sync now'}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Push your saved edits to assigned displays now (Ctrl+S)</TooltipContent>
+        </Tooltip>
+      )}
     </div>
   )
 }

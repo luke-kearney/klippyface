@@ -90,6 +90,8 @@ export const api = {
   /** Repoints sets, assignments and preset swaps; GCODE macros must be updated by hand. */
   renameGroup: (id: string, newId: string) => post<Group>(`/api/groups/${id}/rename`, { id: newId }),
   deleteGroup: (id: string) => del(`/api/groups/${id}`),
+  /** Refresh nodes showing the group with its saved edits. */
+  publishGroup: (id: string) => post<{ nodes: number }>(`/api/groups/${id}/publish`, {}),
 
   // Sets
   createSet: (groupId: string, d: SetInput) => post<Set>(`/api/groups/${groupId}/sets`, d),

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ArrowRight, Check, Film, Pencil, Plus, Repeat, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Cloud, Film, Pencil, Plus, Repeat, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -40,6 +40,11 @@ export function GroupDetailPage() {
       }),
     { invalidate: [keys.groups, keys.group(groupId)] },
   )
+  const publish = useApiMutation(() => api.publishGroup(groupId), {
+    invalidate: [keys.groups],
+    onSuccess: ({ nodes }) =>
+      toast.success(nodes ? `Synced to ${nodes} node${nodes === 1 ? '' : 's'}` : 'Synced (no nodes show this group)'),
+  })
   const rename = useApiMutation((newId: string) => api.renameGroup(groupId, newId), {
     // Assignments and presets were repointed too.
     invalidate: [keys.groups, keys.nodes, keys.presets],
@@ -127,6 +132,18 @@ export function GroupDetailPage() {
           </>
         }
       />
+
+      {group.pendingPublish && (
+        <div className="-mt-2 mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+          <Cloud className="size-4 shrink-0 text-amber-500" />
+          <span className="flex-1">
+            Saved changes haven't reached displays yet. They sync automatically about a minute after the last edit.
+          </span>
+          <Button size="sm" variant="outline" onClick={() => publish.mutate(undefined)} disabled={publish.isPending}>
+            Sync now
+          </Button>
+        </div>
+      )}
 
       <InlineDescription
         value={group.description}

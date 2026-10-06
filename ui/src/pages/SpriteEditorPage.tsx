@@ -181,7 +181,7 @@ function SpriteEditor({ sprite, sprites }: { sprite: Sprite; sprites: Sprite[] }
     },
     {
       invalidate: [keys.sprites, keys.groups],
-      success: 'Sprite saved',
+      success: 'Sprite saved · displays using it sync within a minute',
       onSuccess: (b64) => setSavedB64(b64),
     },
   )

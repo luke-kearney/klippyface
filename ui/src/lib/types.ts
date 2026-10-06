@@ -48,6 +48,8 @@ export interface Group {
   sortOrder: number
   createdAt: string
   updatedAt: string
+  /** Edited since nodes were last refreshed; the server publishes it after 60 s idle. */
+  pendingPublish: boolean
   sets?: Set[]
 }
 
