@@ -275,7 +275,7 @@ Firmware builds from the matching `v<VERSION>` tag report the plain version (`0.
 
 **Cutting a release:**
 
-1. Bump `VERSION` and `ui/package.json` in a PR into `develop` (`Bump version to X.Y.Z`)
+1. Bump `VERSION` and `ui/package.json` in a PR into `develop` (`Bump version to X.Y.Z`), and add release notes as `docs/releases/X.Y.Z.md`: which file is for which device, and anything untested. The `Release` workflow puts them above GitHub's generated notes
 2. Open a PR from `develop` into `master` — the `Release check` job fails if `VERSION` and `ui/package.json` differ or `vX.Y.Z` is already tagged
 3. Merge it. The `Release` workflow tags the merge commit `vX.Y.Z` and publishes a GitHub Release with:
    - `klippyface-firmware-X.Y.Z-<env>.bin` — app image for updating a flashed board, one per board env (`esp32dev`, `esp32s3-ws-lcd169`, `esp32s3-ws-lcd128`)

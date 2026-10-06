@@ -190,17 +190,30 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
+      # Only for docs/releases/<version>.md, the hand-written notes
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: docs/releases
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
 
+      # docs/releases/<version>.md, if present, goes above the generated notes
       - name: Publish production release
         if: env.CHANNEL == 'prod'
         run: |
+          notes=()
+          if [ -f "docs/releases/$VERSION.md" ]; then
+            notes=(--notes-file "docs/releases/$VERSION.md")
+          else
+            echo "::warning::No docs/releases/$VERSION.md - publishing generated notes only"
+          fi
           gh release create "v$VERSION" dist/* \
             --target "$GITHUB_SHA" \
             --title "v$VERSION" \
+            "${notes[@]}" \
             --generate-notes
 
       - name: Publish dev pre-release
