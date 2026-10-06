@@ -6,10 +6,40 @@ export type Tool = 'pencil' | 'eraser' | 'fill' | 'line' | 'rect' | 'text'
 
 type Pt = { x: number; y: number }
 
+/**
+ * Mirror lines in half-pixel units: `x2 = 2 * lineX`, so even values sit on a pixel
+ * edge and odd values through a pixel centre. Pixel `x` reflects to `x2 - x - 1`.
+ */
+export interface MirrorAxes {
+  x2?: number
+  y2?: number
+}
+
+export type Axis = 'x' | 'y'
+
+export interface ReferenceOverlay {
+  bitmap: Bitmap
+  opacity: number
+  /** Where the reference sits when its size differs from the canvas. */
+  align: 'topleft' | 'centre'
+}
+
 interface Brush {
   v: number
   size: number
-  mirror: boolean
+  mirror: MirrorAxes | null
+}
+
+/** Every reflection of (x, y) across the active mirror lines, not including itself. */
+function reflect(x: number, y: number, m: MirrorAxes | null): Pt[] {
+  if (!m) return []
+  const out: Pt[] = []
+  const mx = m.x2 === undefined ? null : m.x2 - x - 1
+  const my = m.y2 === undefined ? null : m.y2 - y - 1
+  if (mx !== null) out.push({ x: mx, y })
+  if (my !== null) out.push({ x, y: my })
+  if (mx !== null && my !== null) out.push({ x: mx, y: my })
+  return out
 }
 
 /** Top-left offset of a square brush so odd sizes centre on the cursor pixel. */
@@ -24,7 +54,7 @@ function plot(b: Bitmap, x: number, y: number, { v, size, mirror }: Brush) {
   for (let dy = 0; dy < size; dy++)
     for (let dx = 0; dx < size; dx++) {
       set(x - o + dx, y - o + dy)
-      if (mirror) set(b.width - 1 - (x - o + dx), y - o + dy)
+      for (const r of reflect(x - o + dx, y - o + dy, mirror)) set(r.x, r.y)
     }
 }
 
@@ -126,6 +156,9 @@ export function PixelEditor({
   brushSize,
   textScale,
   mirror,
+  placing,
+  onPlaceAxis,
+  reference,
   showGrid,
   onCommit,
 }: {
@@ -135,7 +168,13 @@ export function PixelEditor({
   brushSize: number
   /** Font pixel scale for the text tool (like GFX setTextSize). */
   textScale: number
-  mirror: boolean
+  /** Active mirror lines, or null when mirroring is off. */
+  mirror: MirrorAxes | null
+  /** Set while the user is choosing where a mirror line goes; Shift flips the axis. */
+  placing: Axis | null
+  onPlaceAxis: (axis: Axis, pos2: number) => void
+  /** Faint sprite drawn under the pixels for tracing. */
+  reference?: ReferenceOverlay
   showGrid: boolean
   onCommit: (b: Bitmap) => void
 }) {
@@ -144,6 +183,7 @@ export function PixelEditor({
   const [zoom, setZoom] = useState(8)
   const [draft, setDraft] = useState<Bitmap | null>(null)
   const [cursor, setCursor] = useState<Pt | null>(null)
+  const [place, setPlace] = useState<{ axis: Axis; pos2: number } | null>(null)
   const stroke = useRef<{ base: Bitmap; work: Bitmap; start: Pt; last: Pt; v: number } | null>(null)
   const [text, setText] = useState<{ at: Pt; value: string; v: number } | null>(null)
 
@@ -182,10 +222,33 @@ export function PixelEditor({
     const ctx = c.getContext('2d')!
     ctx.fillStyle = '#000'
     ctx.fillRect(0, 0, c.width, c.height)
+    if (reference) {
+      const r = reference.bitmap
+      const ox = reference.align === 'centre' ? Math.floor((shown.width - r.width) / 2) : 0
+      const oy = reference.align === 'centre' ? Math.floor((shown.height - r.height) / 2) : 0
+      ctx.globalAlpha = reference.opacity
+      ctx.fillStyle = '#EBF0FF'
+      for (let y = 0; y < r.height; y++)
+        for (let x = 0; x < r.width; x++) if (r.pixels[y * r.width + x]) ctx.fillRect(x + ox, y + oy, 1, 1)
+      ctx.globalAlpha = 1
+    }
     ctx.fillStyle = '#EBF0FF'
     for (let y = 0; y < shown.height; y++)
       for (let x = 0; x < shown.width; x++) if (shown.pixels[y * shown.width + x]) ctx.fillRect(x, y, 1, 1)
-  }, [shown])
+  }, [shown, reference])
+
+  useEffect(() => {
+    if (!placing) setPlace(null)
+  }, [placing])
+
+  /** Nearest pixel edge or centre to the pointer, in half-pixel units. */
+  const toPlace = (e: React.PointerEvent): { axis: Axis; pos2: number } => {
+    const r = canvasRef.current!.getBoundingClientRect()
+    const axis = e.shiftKey ? (placing === 'x' ? 'y' : 'x') : placing!
+    const size = axis === 'x' ? bitmap.width : bitmap.height
+    const f = axis === 'x' ? (e.clientX - r.left) / zoom : (e.clientY - r.top) / zoom
+    return { axis, pos2: Math.max(1, Math.min(2 * size - 1, Math.round(f * 2))) }
+  }
 
   const toPt = (e: React.PointerEvent): Pt => {
     const r = canvasRef.current!.getBoundingClientRect()
@@ -214,9 +277,26 @@ export function PixelEditor({
           width={bitmap.width}
           height={bitmap.height}
           className="pixelated absolute inset-0 size-full touch-none rounded-sm shadow-[0_0_0_1px_var(--border)]"
-          style={{ cursor: tool === 'fill' ? 'cell' : tool === 'text' ? 'text' : 'crosshair' }}
+          style={{
+            cursor: placing
+              ? (place?.axis ?? placing) === 'x'
+                ? 'col-resize'
+                : 'row-resize'
+              : tool === 'fill'
+                ? 'cell'
+                : tool === 'text'
+                  ? 'text'
+                  : 'crosshair',
+          }}
           onContextMenu={(e) => e.preventDefault()}
           onPointerDown={(e) => {
+            if (placing) {
+              if (e.button === 0) {
+                const pl = toPlace(e)
+                onPlaceAxis(pl.axis, pl.pos2)
+              }
+              return
+            }
             e.currentTarget.setPointerCapture(e.pointerId)
             const p = toPt(e)
             const v = e.button === 2 || tool === 'eraser' ? 0 : 1
@@ -231,7 +311,8 @@ export function PixelEditor({
             if (tool === 'fill') {
               const b = clone(bitmap)
               fill(b, p, v)
-              if (mirror) fill(b, { x: b.width - 1 - p.x, y: p.y }, v)
+              for (const r of reflect(p.x, p.y, mirror))
+                if (r.x >= 0 && r.y >= 0 && r.x < b.width && r.y < b.height) fill(b, r, v)
               onCommit(b)
               return
             }
@@ -240,6 +321,7 @@ export function PixelEditor({
             apply(s, p)
           }}
           onPointerMove={(e) => {
+            if (placing) setPlace(toPlace(e))
             const p = toPt(e)
             setCursor(p)
             const s = stroke.current
@@ -251,7 +333,10 @@ export function PixelEditor({
             setDraft(null)
             if (s) onCommit(s.work)
           }}
-          onPointerLeave={() => setCursor(null)}
+          onPointerLeave={() => {
+            setCursor(null)
+            setPlace(null)
+          }}
         />
         {showGrid && zoom >= 6 && (
           <div
@@ -263,12 +348,9 @@ export function PixelEditor({
             }}
           />
         )}
-        {mirror && (
-          <div
-            className="pointer-events-none absolute inset-y-0 w-px bg-primary/60"
-            style={{ left: (bitmap.width / 2) * zoom }}
-          />
-        )}
+        {mirror?.x2 !== undefined && <AxisLine axis="x" pos2={mirror.x2} zoom={zoom} />}
+        {mirror?.y2 !== undefined && <AxisLine axis="y" pos2={mirror.y2} zoom={zoom} />}
+        {place && <AxisLine axis={place.axis} pos2={place.pos2} zoom={zoom} preview />}
         {text && (
           <input
             autoFocus
@@ -306,22 +388,63 @@ export function PixelEditor({
             }}
           />
         )}
-        {cursor && tool !== 'text' && (
-          <div
-            className="pointer-events-none absolute outline-1 outline-primary"
-            style={{
-              left: (cursor.x - (tool === 'fill' ? 0 : brushOffset(brushSize))) * zoom,
-              top: (cursor.y - (tool === 'fill' ? 0 : brushOffset(brushSize))) * zoom,
-              width: (tool === 'fill' ? 1 : brushSize) * zoom,
-              height: (tool === 'fill' ? 1 : brushSize) * zoom,
-            }}
-          />
+        {cursor &&
+          tool !== 'text' &&
+          !placing &&
+          (() => {
+            const size = tool === 'fill' ? 1 : brushSize
+            const o = tool === 'fill' ? 0 : brushOffset(brushSize)
+            const left = cursor.x - o
+            const top = cursor.y - o
+            // A mirrored square's near edge is the reflection of the original's far edge.
+            const mx = mirror?.x2 === undefined ? null : mirror.x2 - left - size
+            const my = mirror?.y2 === undefined ? null : mirror.y2 - top - size
+            const ghosts = [
+              mx !== null && { x: mx, y: top },
+              my !== null && { x: left, y: my },
+              mx !== null && my !== null && { x: mx, y: my },
+            ]
+              .filter((g) => !!g)
+              .map((g, key) => ({ ...g, key }))
+            const box = (x: number, y: number) => ({ left: x * zoom, top: y * zoom, width: size * zoom, height: size * zoom })
+            return (
+              <>
+                <div className="pointer-events-none absolute outline-1 outline-primary" style={box(left, top)} />
+                {ghosts.map((g) => (
+                  <div
+                    key={g.key}
+                    className="pointer-events-none absolute bg-primary/15 outline-1 outline-primary/70 outline-dashed"
+                    style={box(g.x, g.y)}
+                  />
+                ))}
+              </>
+            )
+          })()}
+        {placing && (
+          <div className="pointer-events-none absolute top-2 left-1/2 z-10 -translate-x-1/2 rounded-full border bg-popover/90 px-3 py-1 text-xs whitespace-nowrap shadow">
+            Click to place a {(place?.axis ?? placing) === 'x' ? 'vertical' : 'horizontal'} mirror line · Shift for{' '}
+            {(place?.axis ?? placing) === 'x' ? 'horizontal' : 'vertical'} · Esc cancels
+          </div>
         )}
       </div>
       <div className="absolute right-3 bottom-2 font-mono text-[11px] text-muted-foreground">
-        {cursor ? `${cursor.x},${cursor.y} · ` : ''}
+        {place ? `${place.axis} = ${place.pos2 / 2} · ` : cursor ? `${cursor.x},${cursor.y} · ` : ''}
         {bitmap.width}×{bitmap.height} · {zoom}×
       </div>
     </div>
+  )
+}
+
+function AxisLine({ axis, pos2, zoom, preview }: { axis: Axis; pos2: number; zoom: number; preview?: boolean }) {
+  const at = (pos2 / 2) * zoom
+  return (
+    <div
+      className={
+        'pointer-events-none absolute border-dashed ' +
+        (axis === 'x' ? 'inset-y-0 border-l ' : 'inset-x-0 border-t ') +
+        (preview ? 'border-primary/50' : 'border-primary')
+      }
+      style={axis === 'x' ? { left: at } : { top: at }}
+    />
   )
 }

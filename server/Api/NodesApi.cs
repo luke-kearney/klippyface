@@ -86,7 +86,7 @@ public static class NodesApi
             return Results.Ok(result);
         });
 
-        displays.MapPost("/", async (KlippyfaceDbContext db, string nodeId, NodeDisplay display, NodeStatusService statusService, StarterPackService starterPack) =>
+        displays.MapPost("/", async (KlippyfaceDbContext db, string nodeId, NodeDisplay display, NodePublisher publisher, StarterPackService starterPack) =>
         {
             var node = await db.Nodes.FindAsync(nodeId);
             if (node is null) return Results.NotFound("Node not found");
@@ -97,11 +97,11 @@ public static class NodesApi
             // New displays start with each printer state mapped to its starter face
             db.Assignments.Add(await starterPack.DefaultAssignmentAsync(nodeId, display.Id));
             await db.SaveChangesAsync();
-            await BumpConfigAndPushRefreshAsync(db, statusService, nodeId);
+            await publisher.RefreshNodeAsync(nodeId);
             return Results.Created($"/api/nodes/{nodeId}/displays/{display.Id}", display);
         });
 
-        displays.MapPut("/{displayId}", async (KlippyfaceDbContext db, string nodeId, string displayId, NodeDisplay input, NodeStatusService statusService) =>
+        displays.MapPut("/{displayId}", async (KlippyfaceDbContext db, string nodeId, string displayId, NodeDisplay input, NodePublisher publisher) =>
         {
             var display = await db.NodeDisplays
                 .FirstOrDefaultAsync(d => d.Id == displayId && d.NodeId == nodeId);
@@ -116,11 +116,11 @@ public static class NodesApi
             display.Rotation = input.Rotation;
             display.SortOrder = input.SortOrder;
             await db.SaveChangesAsync();
-            await BumpConfigAndPushRefreshAsync(db, statusService, nodeId);
+            await publisher.RefreshNodeAsync(nodeId);
             return Results.Ok(display);
         });
 
-        displays.MapDelete("/{displayId}", async (KlippyfaceDbContext db, string nodeId, string displayId, NodeStatusService statusService) =>
+        displays.MapDelete("/{displayId}", async (KlippyfaceDbContext db, string nodeId, string displayId, NodePublisher publisher) =>
         {
             var display = await db.NodeDisplays
                 .FirstOrDefaultAsync(d => d.Id == displayId && d.NodeId == nodeId);
@@ -128,11 +128,11 @@ public static class NodesApi
 
             db.NodeDisplays.Remove(display);
             await db.SaveChangesAsync();
-            await BumpConfigAndPushRefreshAsync(db, statusService, nodeId);
+            await publisher.RefreshNodeAsync(nodeId);
             return Results.NoContent();
         });
 
-        displays.MapPut("/{displayId}/assignment", async (KlippyfaceDbContext db, string nodeId, string displayId, Assignment input, NodeStatusService statusService) =>
+        displays.MapPut("/{displayId}/assignment", async (KlippyfaceDbContext db, string nodeId, string displayId, Assignment input, NodePublisher publisher) =>
         {
             var display = await db.NodeDisplays
                 .FirstOrDefaultAsync(d => d.Id == displayId && d.NodeId == nodeId);
@@ -156,7 +156,7 @@ public static class NodesApi
             }
 
             await db.SaveChangesAsync();
-            await BumpConfigAndPushRefreshAsync(db, statusService, nodeId);
+            await publisher.RefreshNodeAsync(nodeId);
             var result = await db.Assignments
                 .FirstOrDefaultAsync(a => a.NodeId == nodeId && a.DisplayId == displayId);
             return Results.Ok(result);
@@ -201,7 +201,7 @@ public static class NodesApi
                 var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    statusService.Unregister(macAddress);
+                    statusService.Unregister(macAddress, ws);
                     await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                     return;
                 }
@@ -254,7 +254,7 @@ public static class NodesApi
         }
         finally
         {
-            statusService.Unregister(macAddress);
+            statusService.Unregister(macAddress, ws);
         }
     }
 
@@ -274,21 +274,5 @@ public static class NodesApi
         catch
         {
         }
-    }
-
-    private static async Task BumpConfigAndPushRefreshAsync(KlippyfaceDbContext db, NodeStatusService statusService, string nodeId)
-    {
-        var node = await db.Nodes.FindAsync(nodeId);
-        if (node is null) return;
-
-        node.LastConfigVersion++;
-        node.UpdatedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync();
-
-        // Push refresh to node if it has an active WS connection
-        await statusService.SendToNodeAsync(node.MacAddress, new JsonObject
-        {
-            ["type"] = "refresh_config",
-        });
     }
 }

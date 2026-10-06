@@ -1,8 +1,12 @@
 #include "comms/ServerClient.h"
+
+#include <WiFi.h>
+
+#include <new>
+
 #include "comms/ConfigFetcher.h"
 #include "config/Settings.h"
 #include "KlippyfaceVersion.h"
-#include <WiFi.h>
 
 static const char* TAG = "SRVCLIENT";
 
@@ -46,6 +50,11 @@ bool ServerClient::begin(const String& host, uint16_t port, bool useTls) {
 void ServerClient::tick() {
     if (WiFi.isConnected()) {
         _ws.loop();
+    }
+
+    if (_fetchPending) {
+        _fetchPending = false;
+        fetchAndQueueConfig();
     }
 
     if (_connected && millis() - _lastHeartbeat > HEARTBEAT_INTERVAL) {
@@ -152,7 +161,7 @@ void ServerClient::handleTextMessage(uint8_t* payload, size_t length) {
 
     if (strcmp(type, "refresh_config") == 0) {
         Serial.printf("[%s] Server requested config refresh\n", TAG);
-        triggerConfigFetch();
+        _fetchPending = true;
     } else if (strcmp(type, "refresh_library") == 0) {
         Serial.printf("[%s] Server requested library refresh (not yet implemented)\n", TAG);
     } else if (strcmp(type, "config_status") == 0) {
@@ -161,12 +170,12 @@ void ServerClient::handleTextMessage(uint8_t* payload, size_t length) {
             Serial.printf("[%s] Config is up to date — no fetch needed\n", TAG);
         } else {
             Serial.printf("[%s] Config is stale — fetching\n", TAG);
-            triggerConfigFetch();
+            _fetchPending = true;
         }
     }
 }
 
-void ServerClient::triggerConfigFetch() {
+void ServerClient::fetchAndQueueConfig() {
     if (!_configQueue) {
         Serial.printf("[%s] Config queue not set — skipping fetch\n", TAG);
         return;
@@ -181,16 +190,25 @@ void ServerClient::triggerConfigFetch() {
 
     String json = fetcher.fetchConfig(host, port, svUseTls, svTlsVerify, mac);
 
-    if (json.length() > 0) {
-        char* jsonBuf = new char[json.length() + 1];
-        if (jsonBuf) {
-            strcpy(jsonBuf, json.c_str());
-            if (xQueueSend(_configQueue, &jsonBuf, 0) != pdTRUE) {
-                Serial.printf("[%s] Config queue full — dropping\n", TAG);
-                delete[] jsonBuf;
-            }
-        }
-    } else {
+    if (json.length() == 0) {
         Serial.printf("[%s] Config fetch failed\n", TAG);
+        return;
+    }
+
+    char* jsonBuf = new (std::nothrow) char[json.length() + 1];
+    if (!jsonBuf) {
+        Serial.printf("[%s] No memory for %u byte config\n", TAG, (unsigned)json.length());
+        return;
+    }
+    memcpy(jsonBuf, json.c_str(), json.length() + 1);
+    json = String();  // free the fetch copy before queueing
+
+    // The newest config wins: evict anything older still waiting.
+    while (xQueueSend(_configQueue, &jsonBuf, 0) != pdTRUE) {
+        char* stale = nullptr;
+        if (xQueueReceive(_configQueue, &stale, 0) == pdTRUE) {
+            Serial.printf("[%s] Replacing queued config with newer one\n", TAG);
+            delete[] stale;
+        }
     }
 }

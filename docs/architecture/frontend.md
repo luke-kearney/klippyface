@@ -33,18 +33,21 @@ ui/
     │   ├── api.ts               # Typed REST client; snake_case ↔ camelCase key conversion
     │   ├── types.ts             # Mirrors server/Models
     │   ├── render.ts            # Software renderer mirroring firmware Renderer.cpp
+    │   ├── utils.ts             # cn() class merging
     │   ├── font5x7.ts           # Adafruit GFX classic font (same glyphs as the device)
-    │   └── sprite.ts            # 1bpp encode/decode (row stride ceil(w/8), MSB-left)
+    │   └── sprite.ts            # 1bpp encode/decode (row stride ceil(w/8), MSB-left), image import, groupByFolder
     ├── hooks/
     │   ├── queries.ts           # Query hooks + useApiMutation (toast on error)
-    │   └── useSetDocument.ts    # Optimistic, debounced-save model for the set editor
+    │   └── useSetDocument.ts    # Optimistic, debounced-save model for the set editor + node sync (publish)
     ├── components/
     │   ├── ui/                  # shadcn/ui primitives (generated)
     │   ├── AppLayout.tsx        # Sidebar nav + device list
-    │   ├── common.tsx           # PageHeader, EmptyState, ConfirmDelete, badges…
+    │   ├── common.tsx           # PageHeader, EmptyState, ConfirmDelete, InlineDescription, badges…
+    │   ├── Logo.tsx             # Logo mark and pixel wordmark
+    │   ├── RenameIdDialog.tsx   # Change a sprite or group id
     │   ├── DisplayPreview.tsx   # FrameCanvas, SetPlayer, display profiles
     │   ├── DisplayDialog.tsx    # Display wiring editor (I²C / SPI / parallel pins)
-    │   ├── PixelEditor.tsx      # Sprite drawing canvas (pencil/eraser/fill/line/rect, mirror)
+    │   ├── PixelEditor.tsx      # Sprite drawing canvas (pencil/eraser/fill/line/rect/text, placeable mirror lines, reference overlay)
     │   ├── SpriteThumb.tsx
     │   └── editor/              # Set editor: EditorCanvas, Inspector, Filmstrip
     └── pages/                   # One component per route
@@ -61,9 +64,9 @@ ui/
 
 ## Set editor
 
-`#/groups/:groupId/sets/:setId` is a canvas editor: drag elements to move them, drop sprites from the palette, arrow keys nudge (Shift = 8px), Delete removes, Ctrl+D duplicates, Space plays, `[`/`]` step frames. The filmstrip reorders frames by drag. Onion skin overlays the previous frame.
+`#/groups/:groupId/sets/:setId` is a canvas editor: drag elements to move them (snapping to the panel centre/edges and other elements' edges and centres; toggle with the magnet, hold Alt to bypass), drop sprites from the palette, arrow keys nudge (Shift = 8px), Delete removes, Ctrl+D duplicates, Space plays, `[`/`]` step frames. The filmstrip reorders frames by drag. Onion skin overlays the previous frame by default; its picker can switch to the next frame or pin any frame in the group (marked in the filmstrip).
 
-Edits are applied locally first and saved in the background (`useSetDocument`, 350 ms debounce per entity). Each save bumps the config version of nodes using the group, so assigned devices refresh live.
+Edits are applied locally first and saved in the background (`useSetDocument`, 350 ms debounce per entity). Saves don't reach nodes on their own: the header shows *Saved · displays sync in Ns*, and the group is published (nodes refresh) 30 s after the last save, on **Sync now** / Ctrl+S, or when leaving the editor (closing the tab publishes via `sendBeacon`; the server also publishes groups idle for 60 s). The group page shows a banner while a group has unsynced edits.
 
 ## Routes
 
@@ -74,8 +77,8 @@ Edits are applied locally first and saved in the background (`useSetDocument`, 3
 | `#/groups` | Groups with animated thumbnails |
 | `#/groups/{id}` | Sets in a group |
 | `#/groups/{gid}/sets/{sid}` | Set editor |
-| `#/sprites` | Sprite library |
-| `#/sprites/{id}` | Pixel editor |
+| `#/sprites` | Sprite library: folder sections (drag cards between them), search |
+| `#/sprites/{id}` | Pixel editor; folder, description and ID rename; mirror lines and a reference sprite overlay in the side panel |
 | `#/presets` | Presets |
 
 ## Dev Workflow

@@ -12,7 +12,9 @@ builder.Services.AddDbContext<KlippyfaceDbContext>(options =>
 
 builder.Services.AddScoped<ConfigExportService>();
 builder.Services.AddScoped<StarterPackService>();
+builder.Services.AddScoped<NodePublisher>();
 builder.Services.AddSingleton<NodeStatusService>();
+builder.Services.AddHostedService<PendingPublishSweeper>();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {

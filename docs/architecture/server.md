@@ -33,14 +33,16 @@ server/
 ├── Api/
 │   ├── ConfigApi.cs              # GET /api/config/node?mac=...
 │   ├── NodesApi.cs               # CRUD nodes + displays + assignments
-│   ├── LibraryApi.cs             # CRUD groups/sets/frames
-│   ├── SpritesApi.cs             # CRUD sprites + PNG import
+│   ├── LibraryApi.cs             # CRUD groups/sets/frames/elements, group rename + publish, starter pack
+│   ├── SpritesApi.cs             # CRUD sprites + rename (images are converted in the Web UI)
+│   ├── RenameRequest.cs          # Body + id validation for the rename endpoints
 │   └── PresetsApi.cs             # CRUD presets
 └── Services/
     ├── ConfigExportService.cs    # Assemble per-node config JSON
     ├── StarterPackService.cs     # Import starter faces, default display assignment
-    ├── SpriteConversionService.cs # PNG → XBM / PNG → RGB565
-    └── NodeStatusService.cs      # Track online/offline, last seen
+    ├── NodePublisher.cs          # Mark groups pending; publish = bump + refresh affected nodes
+    ├── PendingPublishSweeper.cs  # Background: publish groups idle for 60 s
+    └── NodeStatusService.cs      # Track online/offline, last seen; per-socket send lock, coalesced refresh_config
 ```
 
 ## Key Config

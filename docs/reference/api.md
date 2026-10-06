@@ -27,9 +27,12 @@ stable: true
 | POST | `/api/nodes/{id}/displays` | Add display to node (gets a default assignment mapping each printer state to its starter group, where those groups exist) |
 | PUT | `/api/nodes/{id}/displays/{did}` | Update display config |
 | DELETE | `/api/nodes/{id}/displays/{did}` | Remove display |
+| GET | `/api/nodes/{id}/displays/{did}/assignment` | Get a display's assignment |
 | PUT | `/api/nodes/{id}/displays/{did}/assignment` | Set assignment (triggers + default group) |
 
 ## Library Endpoints
+
+Writes to groups, sets, frames and elements are saved immediately but **do not** reach nodes: they set the group's `pending_publish` flag. Nodes showing the group are refreshed by `POST /api/groups/{id}/publish` (the Web UI's Sync, or its 30 s idle auto-sync), or by the server once the group has had no edits for 60 s. Saving or deleting a sprite marks every group that draws it. Group rename/delete and node display/assignment changes still refresh nodes immediately. `refresh_config` messages to one node are coalesced to at most one per 5 s.
 
 | Method | Route | Description |
 |--------|-------|-------------|
@@ -37,6 +40,8 @@ stable: true
 | POST | `/api/groups` | Create group |
 | GET | `/api/groups/{id}` | Get group with sets |
 | PUT | `/api/groups/{id}` | Update group |
+| POST | `/api/groups/{id}/rename` | Change the group id (`{ id }`). Repoints sets, assignment `default_group`/triggers and preset `groupSwaps`, then bumps affected nodes. GCODE macros are not touched. `400` bad id, `409` taken |
+| POST | `/api/groups/{id}/publish` | Push pending edits: clear `pending_publish`, bump and refresh nodes showing the group. Returns `{ nodes }` |
 | DELETE | `/api/groups/{id}` | Delete group + cascade |
 | GET | `/api/groups/{gid}/sets` | List sets in group |
 | POST | `/api/groups/{gid}/sets` | Create set |
@@ -59,11 +64,11 @@ stable: true
 | Method | Route | Description |
 |--------|-------|-------------|
 | GET | `/api/sprites` | List all sprites |
-| POST | `/api/sprites` | Create (JSON + base64, or multipart PNG upload) |
+| POST | `/api/sprites` | Create (JSON: `id`, `label`, `folder`, `description`, `width`, `height`, `data_base64`). Image import and 1-bit thresholding happen in the Web UI |
 | GET | `/api/sprites/{id}` | Get sprite with base64 data |
-| PUT | `/api/sprites/{id}` | Update sprite |
+| PUT | `/api/sprites/{id}` | Update sprite (label, folder, description, size, pixels). Marks groups that draw it pending |
+| POST | `/api/sprites/{id}/rename` | Change the sprite id (`{ id }`). Repoints `sprite` frame elements. Returns `{ sprite, elements_updated }`. `400` bad id, `409` taken |
 | DELETE | `/api/sprites/{id}` | Delete sprite |
-| GET | `/api/sprites/{id}/preview` | Render as PNG for browser preview |
 
 ## Preset Endpoints
 

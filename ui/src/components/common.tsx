@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { ChevronRight, Loader2 } from 'lucide-react'
 import {
@@ -179,5 +179,39 @@ export function Field({ label, hint, children, className }: { label: string; hin
       {children}
       {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
     </div>
+  )
+}
+
+/** Borderless multi-line text that saves on blur (Ctrl/Cmd+Enter commits, Esc reverts). */
+export function InlineDescription({
+  value,
+  onSave,
+  placeholder = 'Add a description…',
+  className,
+}: {
+  value: string
+  onSave: (v: string) => unknown
+  placeholder?: string
+  className?: string
+}) {
+  const [text, setText] = useState(value)
+  useEffect(() => setText(value), [value])
+  return (
+    <textarea
+      value={text}
+      rows={1}
+      placeholder={placeholder}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => text.trim() !== value && onSave(text.trim())}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) e.currentTarget.blur()
+        if (e.key === 'Escape') setText(value)
+      }}
+      className={cn(
+        '-mx-1 field-sizing-content w-full resize-none rounded-md bg-transparent px-1 text-sm text-muted-foreground outline-none placeholder:text-muted-foreground/60 hover:bg-accent/50 focus:bg-accent/50 focus:text-foreground',
+        className,
+      )}
+      aria-label="Description"
+    />
   )
 }

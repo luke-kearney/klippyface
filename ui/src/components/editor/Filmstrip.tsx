@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Copy, Plus, Trash2 } from 'lucide-react'
+import { Copy, Layers2, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { FrameCanvas, type DisplayProfile } from '@/components/DisplayPreview'
@@ -12,6 +12,7 @@ const FRAME_MIME = 'application/x-klippyface-frame'
 export function Filmstrip({
   frames,
   current,
+  onionId,
   playing,
   sprites,
   profile,
@@ -23,6 +24,8 @@ export function Filmstrip({
 }: {
   frames: Frame[]
   current: number
+  /** Frame currently shown as the onion skin, marked on its thumbnail. */
+  onionId?: string
   playing: boolean
   sprites: Map<string, Bitmap>
   profile: DisplayProfile
@@ -91,6 +94,9 @@ export function Filmstrip({
               <span className="font-mono">{f.durationMs}ms</span>
             </div>
             {i === current && playing && <span className="absolute top-1 right-1 size-1.5 rounded-full bg-primary" />}
+            {f.id === onionId && (
+              <Layers2 className="absolute top-1 left-1 size-3.5 rounded-sm bg-black/70 p-0.5 text-sky-300" aria-label="Onion skin" />
+            )}
           </button>
         ))}
       </div>

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { ChevronRight, Cloud, CloudUpload, Grid3x3, Layers2, Pause, Play, Plus } from 'lucide-react'
+import { ChevronRight, Cloud, CloudAlert, CloudCheck, CloudUpload, Grid3x3, Layers2, Magnet, Pause, Play, Plus, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Toggle } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -14,12 +14,14 @@ import { Filmstrip } from '@/components/editor/Filmstrip'
 import { ElementInspector, FrameInspector, TYPE_META } from '@/components/editor/Inspector'
 import { SpriteThumb } from '@/components/SpriteThumb'
 import { useSpriteBitmaps, useSprites } from '@/hooks/queries'
-import { useSetDocument } from '@/hooks/useSetDocument'
+import { useSetDocument, type SetDocument } from '@/hooks/useSetDocument'
 import { DATA_KEYS } from '@/lib/render'
+import { groupByFolder } from '@/lib/sprite'
 import type { FrameElement } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 const PROFILE_KEY = 'klippyface.editor.profile'
+const SNAP_KEY = 'klippyface.editor.snap'
 
 function useStoredState<T extends string>(key: string, initial: T) {
   const [v, setV] = useState<T>(() => {
@@ -54,17 +56,39 @@ export function SetEditorPage() {
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState('1')
   const [onion, setOnion] = useState(false)
+  /** 'prev' | 'next' follow the current frame; 'frame:<id>' pins any frame in the group. */
+  const [onionSource, setOnionSource] = useState('prev')
   const [grid, setGrid] = useState(true)
+  const [snap, setSnap] = useStoredState<'on' | 'off'>(SNAP_KEY, 'on')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [current, setCurrent] = useFramePlayback(doc.frames, playing, parseFloat(speed), doc.set?.frameTime)
 
   const frame = doc.frames[current]
+
+  // This set's frames come from the live document (unsaved edits included); other
+  // sets in the group from the server copy.
+  const otherSets = (doc.group?.sets ?? []).filter((s) => s.id !== setId && s.frames?.length)
+  const onionFrame = (() => {
+    if (!onion || playing) return undefined
+    if (onionSource === 'prev') return doc.frames[current - 1]
+    if (onionSource === 'next') return doc.frames[current + 1]
+    const id = onionSource.slice('frame:'.length)
+    return doc.frames.find((f) => f.id === id) ?? otherSets.flatMap((s) => s.frames ?? []).find((f) => f.id === id)
+  })()
+  const onionPinMissing =
+    onionSource.startsWith('frame:') &&
+    !doc.frames.concat(otherSets.flatMap((s) => s.frames ?? [])).some((f) => `frame:${f.id}` === onionSource)
   const elements = useMemo(() => frame?.elements ?? [], [frame])
   const selected = elements.find((e) => e.id === selectedId) ?? null
 
   useEffect(() => {
     if (selectedId && !selected) setSelectedId(null)
   }, [selectedId, selected])
+
+  // A pinned frame that was deleted falls back to the previous frame.
+  useEffect(() => {
+    if (onionPinMissing && !doc.loading) setOnionSource('prev')
+  }, [onionPinMissing, doc.loading])
 
   const addElement = useCallback(
     async (el: Pick<FrameElement, 'type' | 'value'> & Partial<FrameElement>) => {
@@ -113,8 +137,14 @@ export function SetEditorPage() {
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (isTyping(e.target)) return
       const mod = e.ctrlKey || e.metaKey
+      // Works from inspector fields too, instead of the browser's Save page.
+      if (mod && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        doc.sync.now()
+        return
+      }
+      if (isTyping(e.target)) return
       if (e.key === ' ') {
         e.preventDefault()
         setPlaying((p) => !p)
@@ -177,15 +207,7 @@ export function SetEditorPage() {
           <ChevronRight className="size-3.5 text-muted-foreground" />
           <span className="truncate font-medium">{doc.set.label || 'Untitled set'}</span>
         </div>
-        <span
-          className={cn(
-            'ml-2 flex items-center gap-1 text-xs',
-            doc.saving ? 'text-muted-foreground' : 'text-muted-foreground/60',
-          )}
-        >
-          {doc.saving ? <CloudUpload className="size-3.5 animate-pulse" /> : <Cloud className="size-3.5" />}
-          {doc.saving ? 'Saving…' : 'All changes saved'}
-        </span>
+        <SyncIndicator saving={doc.saving} sync={doc.sync} />
 
         <div className="ml-auto flex items-center gap-1">
           <Select value={profile.id} onValueChange={setProfileId}>
@@ -215,7 +237,44 @@ export function SetEditorPage() {
                 <Layers2 />
               </Toggle>
             </TooltipTrigger>
-            <TooltipContent>Onion skin: show previous frame</TooltipContent>
+            <TooltipContent>Onion skin: overlay another frame</TooltipContent>
+          </Tooltip>
+          {onion && (
+            <Select value={onionSource} onValueChange={setOnionSource}>
+              <SelectTrigger size="sm" className="w-36" aria-label="Onion skin frame">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="prev">Previous frame</SelectItem>
+                <SelectItem value="next">Next frame</SelectItem>
+                <SelectGroup>
+                  <SelectLabel>This set</SelectLabel>
+                  {doc.frames.map((f, i) => (
+                    <SelectItem key={f.id} value={`frame:${f.id}`}>
+                      Frame {i + 1}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+                {otherSets.map((s) => (
+                  <SelectGroup key={s.id}>
+                    <SelectLabel>{s.label || 'Untitled set'}</SelectLabel>
+                    {s.frames!.map((f, i) => (
+                      <SelectItem key={f.id} value={`frame:${f.id}`}>
+                        {s.label || 'Untitled set'} · {i + 1}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Toggle size="sm" pressed={snap === 'on'} onPressedChange={(p) => setSnap(p ? 'on' : 'off')} aria-label="Snap">
+                <Magnet />
+              </Toggle>
+            </TooltipTrigger>
+            <TooltipContent>Snap to centre and other elements (hold Alt to bypass)</TooltipContent>
           </Tooltip>
           <Separator orientation="vertical" className="mx-1 !h-6" />
           <Select value={speed} onValueChange={setSpeed}>
@@ -270,28 +329,37 @@ export function SetEditorPage() {
                     Draw a sprite first
                   </Link>
                 )}
-                <div className="grid grid-cols-3 gap-1.5">
-                  {spriteList.map((s) => (
-                    <Tooltip key={s.id}>
-                      <TooltipTrigger asChild>
-                        <button
-                          draggable={!playing}
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData(SPRITE_MIME, s.id)
-                            e.dataTransfer.effectAllowed = 'copy'
-                          }}
-                          onClick={() => !playing && addSprite(s.id)}
-                          className="grid aspect-square cursor-grab place-items-center rounded-md border bg-black p-1 hover:border-primary active:cursor-grabbing"
-                        >
-                          <SpriteThumb bitmap={sprites.get(s.id)} emptyLabel={s.label || s.id} />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {s.label || s.id} · {s.width}×{s.height} — drag onto the canvas
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
-                </div>
+                {groupByFolder(spriteList).map(([folder, list], _, all) => (
+                  <div key={folder} className="grid gap-1">
+                    {(all.length > 1 || folder) && (
+                      <span className={cn('truncate text-[11px] text-muted-foreground', !folder && 'italic')}>
+                        {folder || 'Unfiled'}
+                      </span>
+                    )}
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {list.map((s) => (
+                        <Tooltip key={s.id}>
+                          <TooltipTrigger asChild>
+                            <button
+                              draggable={!playing}
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData(SPRITE_MIME, s.id)
+                                e.dataTransfer.effectAllowed = 'copy'
+                              }}
+                              onClick={() => !playing && addSprite(s.id)}
+                              className="grid aspect-square cursor-grab place-items-center rounded-md border bg-black p-1 hover:border-primary active:cursor-grabbing"
+                            >
+                              <SpriteThumb bitmap={sprites.get(s.id)} emptyLabel={s.label || s.id} />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {s.label || s.id} · {s.width}×{s.height} — drag onto the canvas
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div className="grid gap-1.5">
@@ -322,12 +390,13 @@ export function SetEditorPage() {
         <main className="min-w-0 flex-1 bg-[radial-gradient(circle_at_center,var(--color-muted)_0,transparent_70%)] p-4">
           <EditorCanvas
             frame={frame}
-            onionFrame={onion && !playing && current > 0 ? doc.frames[current - 1] : undefined}
+            onionFrame={onionFrame}
             sprites={sprites}
             profile={profile}
             selectedId={playing ? null : selectedId}
             interactive={!playing}
             showGrid={grid && !playing}
+            snap={snap === 'on'}
             onSelect={setSelectedId}
             onMove={(el, x, y, done) => frame && doc.updateElement(frame.id, el.id, { x, y }, done)}
             onDropSprite={(id, x, y) => addSprite(id, x, y)}
@@ -371,6 +440,7 @@ export function SetEditorPage() {
       <Filmstrip
         frames={doc.frames}
         current={current}
+        onionId={onionFrame?.id}
         playing={playing}
         sprites={sprites}
         profile={profile}
@@ -390,6 +460,46 @@ export function SetEditorPage() {
           setCurrent(Math.max(0, current - 1))
         }}
       />
+    </div>
+  )
+}
+
+/** Save + node sync state, with a Sync now button while displays are behind. */
+function SyncIndicator({ saving, sync }: { saving: boolean; sync: SetDocument['sync'] }) {
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    if (sync.status !== 'pending') return
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [sync.status])
+  const secs = sync.dueAt ? Math.max(0, Math.ceil((sync.dueAt - now) / 1000)) : 0
+
+  const [Icon, text, tone] = saving
+    ? [CloudUpload, 'Saving…', 'text-muted-foreground']
+    : sync.status === 'syncing'
+      ? [RefreshCw, 'Syncing to displays…', 'text-muted-foreground']
+      : sync.status === 'failed'
+        ? [CloudAlert, 'Sync failed', 'text-destructive']
+        : sync.status === 'pending'
+          ? [Cloud, `Saved · displays sync in ${secs}s`, 'text-amber-500']
+          : [CloudCheck, 'Synced to displays', 'text-muted-foreground/60']
+
+  return (
+    <div className="ml-2 flex items-center gap-1.5">
+      <span className={cn('flex items-center gap-1 text-xs', tone)}>
+        <Icon className={cn('size-3.5', (saving || sync.status === 'syncing') && 'animate-pulse')} />
+        {text}
+      </span>
+      {(sync.status === 'pending' || sync.status === 'failed') && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={() => sync.now()} disabled={saving}>
+              {sync.status === 'failed' ? 'Retry' : 'Sync now'}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Push your saved edits to assigned displays now (Ctrl+S)</TooltipContent>
+        </Tooltip>
+      )}
     </div>
   )
 }

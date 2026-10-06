@@ -29,6 +29,9 @@ private:
     bool _useTls = false;
     QueueHandle_t _configQueue = nullptr;
     bool _connected = false;
+    // Set by refresh_config / stale config_status; tick() runs one fetch for any
+    // number of requests, outside the WebSocket callback.
+    bool _fetchPending = false;
 
     unsigned long _lastHeartbeat = 0;
     static const unsigned long HEARTBEAT_INTERVAL = 30000;
@@ -44,7 +47,7 @@ private:
     void sendHello();
     void sendHeartbeat();
     void handleTextMessage(uint8_t* payload, size_t length);
-    void triggerConfigFetch();
+    void fetchAndQueueConfig();
 };
 
 #endif

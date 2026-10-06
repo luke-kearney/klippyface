@@ -18,6 +18,7 @@ uint16_t Hx8347Driver::rgb888to565(uint32_t rgb) {
 
 Hx8347Driver::Hx8347Driver(int16_t width, int16_t height, const JsonObject& busConfig, uint8_t rotation)
     : _gfx(nullptr)
+    , _bus(nullptr)
     , _width(width)
     , _height(height)
     , _rotation(rotation)
@@ -59,27 +60,27 @@ Hx8347Driver::Hx8347Driver(int16_t width, int16_t height, const JsonObject& busC
 
 Hx8347Driver::~Hx8347Driver() {
     delete _gfx;
+    delete _bus;
 }
 
 bool Hx8347Driver::init() {
-    Arduino_DataBus* bus = nullptr;
-
     if (_busType == "parallel8") {
-        bus = new Arduino_ESP32PAR8(_dc, _cs, _wr, _rd, _d0, _d1, _d2, _d3, _d4, _d5, _d6, _d7);
+        _bus = new Arduino_ESP32PAR8(_dc, _cs, _wr, _rd, _d0, _d1, _d2, _d3, _d4, _d5, _d6, _d7);
     }
 
-    if (!bus) {
+    if (!_bus) {
         Serial.printf("[%s] Unknown bus type: %s\n", TAG, _busType.c_str());
         return false;
     }
 
-    _gfx = new Arduino_HX8347D(bus, _rst, _rotation, _ips);
+    _gfx = new Arduino_HX8347D(_bus, _rst, _rotation, _ips);
 
     if (!_gfx->begin()) {
         Serial.printf("[%s] Failed to initialize\n", TAG);
         delete _gfx;
         _gfx = nullptr;
-        delete bus;
+        delete _bus;
+        _bus = nullptr;
         return false;
     }
 

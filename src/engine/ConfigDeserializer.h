@@ -7,7 +7,9 @@
 
 class ConfigDeserializer {
 public:
-    static bool deserialize(const String& json, NodeConfig& outConfig);
+    // Parses in place (ArduinoJson zero-copy): `json` is modified and must
+    // outlive the call, but no second copy of the payload is made.
+    static bool deserialize(char* json, NodeConfig& outConfig);
 
 private:
     static void parseDisplay(JsonObject& dispJson, DisplaySlotConfig& outSlot);

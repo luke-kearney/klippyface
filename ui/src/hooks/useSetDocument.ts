@@ -6,6 +6,10 @@ import { api, type ElementInput, type SetInput } from '@/lib/api'
 import type { Frame, FrameElement, Set } from '@/lib/types'
 
 const SAVE_DELAY = 350
+/** Nodes are refreshed this long after the last saved edit (or on Sync now). */
+export const SYNC_DELAY = 30_000
+
+export type SyncStatus = 'synced' | 'pending' | 'syncing' | 'failed'
 
 const elementBody = (e: FrameElement): ElementInput => ({
   type: e.type,
@@ -20,7 +24,8 @@ const elementBody = (e: FrameElement): ElementInput => ({
 /**
  * Local, optimistic copy of one set (frames + elements) for the editor.
  * Edits apply instantly; field edits are debounced per entity and saved in the
- * background. Each save bumps affected nodes' config, so devices update live.
+ * background. Saves don't reach nodes: the group is published (nodes refresh)
+ * SYNC_DELAY after the last save, on `sync.now()`, or when leaving the editor.
  */
 export function useSetDocument(groupId: string, setId: string) {
   const qc = useQueryClient()
@@ -33,32 +38,54 @@ export function useSetDocument(groupId: string, setId: string) {
   const setRef = useRef(set)
   setRef.current = set
   const timers = useRef(new Map<string, { t: ReturnType<typeof setTimeout>; run: () => Promise<unknown> }>())
+  const inflight = useRef(new globalThis.Set<Promise<unknown>>())
   const loadedFor = useRef<string | null>(null)
+
+  const [sync, setSync] = useState<{ status: SyncStatus; dueAt: number | null }>({ status: 'synced', dueAt: null })
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // Bumped per saved edit, so a publish can tell whether edits landed while it ran.
+  const editGen = useRef(0)
+  const dirty = useRef(false)
+  const syncNowRef = useRef<() => Promise<void>>(async () => {})
+
+  const markDirty = useCallback(() => {
+    editGen.current++
+    dirty.current = true
+    clearTimeout(syncTimer.current)
+    syncTimer.current = setTimeout(() => syncNowRef.current(), SYNC_DELAY)
+    setSync({ status: 'pending', dueAt: Date.now() + SYNC_DELAY })
+  }, [])
 
   useEffect(() => {
     if (!query.data || loadedFor.current === setId) return
     const s = query.data.sets?.find((x) => x.id === setId) ?? null
     loadedFor.current = setId
+    // Unsynced edits left by an earlier session: start the countdown for them too.
+    if (query.data.pendingPublish) markDirty()
     setSet(s)
     setFrames(
       (s?.frames ?? []).map((f) => ({ ...f, elements: [...(f.elements ?? [])].sort((a, b) => a.sortOrder - b.sortOrder) })),
     )
-  }, [query.data, setId])
+  }, [query.data, setId, markDirty])
 
   const track = useCallback(
     async <T>(p: Promise<T>): Promise<T | undefined> => {
       setPending((n) => n + 1)
+      inflight.current.add(p)
       try {
-        return await p
+        const r = await p
+        markDirty()
+        return r
       } catch (e) {
         toast.error(`Save failed: ${(e as Error).message}`)
         return undefined
       } finally {
+        inflight.current.delete(p)
         setPending((n) => n - 1)
         qc.invalidateQueries({ queryKey: keys.group(groupId) })
       }
     },
-    [qc, groupId],
+    [qc, groupId, markDirty],
   )
 
   const schedule = useCallback(
@@ -74,17 +101,64 @@ export function useSetDocument(groupId: string, setId: string) {
     [track],
   )
 
-  // Flush pending debounced saves when leaving the editor.
+  /** Run debounced saves now and wait for every save in flight. */
+  const flush = useCallback(async () => {
+    for (const [key, { t, run }] of timers.current) {
+      clearTimeout(t)
+      timers.current.delete(key)
+      track(run())
+    }
+    while (inflight.current.size) await Promise.allSettled([...inflight.current])
+  }, [track])
+
+  /** Save everything, then refresh nodes showing the group. */
+  const syncNow = useCallback(async () => {
+    clearTimeout(syncTimer.current)
+    await flush()
+    if (!dirty.current) return
+    const gen = editGen.current
+    setSync({ status: 'syncing', dueAt: null })
+    try {
+      await api.publishGroup(groupId)
+      qc.invalidateQueries({ queryKey: keys.groups })
+      // Edits saved meanwhile re-armed the timer; leave their countdown running.
+      if (editGen.current === gen) {
+        dirty.current = false
+        setSync({ status: 'synced', dueAt: null })
+      }
+    } catch (e) {
+      // The server's idle publish still delivers these; the user can retry sooner.
+      toast.error(`Sync failed: ${(e as Error).message}`)
+      if (editGen.current === gen) setSync({ status: 'failed', dueAt: null })
+    }
+  }, [flush, groupId, qc])
+  syncNowRef.current = syncNow
+
+  // Leaving the editor: save debounced edits, then publish (fire and forget).
+  // Closing the tab: publish via beacon if everything is saved, else warn.
   useEffect(() => {
     const map = timers.current
-    return () => {
-      for (const { t, run } of map.values()) {
-        clearTimeout(t)
-        run().catch(() => {})
-      }
-      map.clear()
+    const live = inflight.current
+    const onUnload = (e: BeforeUnloadEvent) => {
+      if (map.size || live.size) e.preventDefault()
+      else if (dirty.current) navigator.sendBeacon(`/api/groups/${encodeURIComponent(groupId)}/publish`)
     }
-  }, [])
+    window.addEventListener('beforeunload', onUnload)
+    return () => {
+      window.removeEventListener('beforeunload', onUnload)
+      clearTimeout(syncTimer.current)
+      const runs = [...map.values()].map(({ t, run }) => {
+        clearTimeout(t)
+        return run()
+      })
+      map.clear()
+      if (!runs.length && !live.size && !dirty.current) return
+      Promise.allSettled([...runs, ...live])
+        .then(() => api.publishGroup(groupId))
+        .then(() => qc.invalidateQueries({ queryKey: keys.groups }))
+        .catch(() => {})
+    }
+  }, [groupId, qc])
 
   const findElement = (id: string) => {
     for (const f of framesRef.current) {
@@ -202,7 +276,7 @@ export function useSetDocument(groupId: string, setId: string) {
       setSet((s) => (s ? { ...s, ...patch } : s))
       schedule('set', async () => {
         const s = setRef.current
-        if (s) await api.updateSet(s.id, { label: s.label, loopCount: s.loopCount, frameTime: s.frameTime, sortOrder: s.sortOrder })
+        if (s) await api.updateSet(s.id, { label: s.label, description: s.description, loopCount: s.loopCount, frameTime: s.frameTime, sortOrder: s.sortOrder })
       })
     },
     [schedule],
@@ -215,6 +289,7 @@ export function useSetDocument(groupId: string, setId: string) {
     set,
     frames,
     saving: pending > 0,
+    sync: { ...sync, now: syncNow },
     updateElement,
     addElement,
     deleteElement,

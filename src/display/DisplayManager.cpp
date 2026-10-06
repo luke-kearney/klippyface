@@ -40,18 +40,105 @@ bool DisplayManager::begin() {
     return !_slots.empty();
 }
 
-bool DisplayManager::applyConfig(const NodeConfig& config) {
-    Serial.printf("[%s] Applying config version %u...\n", TAG, config.config_version);
+// Everything that decides how a driver is built; content (groups, sprites) is not part of it.
+static String hardwareKey(const DisplaySlotConfig& d) {
+    return d.driver_type + "|" + String(d.width) + "x" + String(d.height) + "@" + String(d.rotation)
+         + "|" + d.bus.type + "|" + d.bus.address + "|" + String(d.bus.cs) + "," + String(d.bus.dc)
+         + "," + String(d.bus.rst) + "|" + d.rawBusJson;
+}
 
-    cleanup();
+bool DisplayManager::sameHardware(const NodeConfig& config) const {
+    if (_slots.empty() || _slots.size() != config.displays.size()) return false;
+    for (size_t i = 0; i < _slots.size(); i++) {
+        if (!_slots[i].driver || _slots[i].id != config.displays[i].id
+            || _slots[i].hardwareKey != hardwareKey(config.displays[i]))
+            return false;
+    }
+    return true;
+}
 
-    // Decode sprites
+void DisplayManager::decodeSprites(const NodeConfig& config) {
+    _sprites.clear();
     for (const auto& kv : config.sprites) {
         _sprites[kv.first] = decodeSpriteFromInfo(kv.second);
     }
     if (!config.sprites.empty()) {
         Serial.printf("[%s] Decoded %u sprites\n", TAG, (unsigned)config.sprites.size());
     }
+}
+
+void DisplayManager::logHeap() const {
+    Serial.printf("[%s] Heap free %u, largest block %u\n",
+                  TAG, (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMaxAllocHeap());
+}
+
+// Same displays, new groups/sprites: keep the drivers (no bus or panel re-init,
+// no flicker) and keep each display on the group it was showing if it still exists.
+void DisplayManager::applyContent(const NodeConfig& config) {
+    decodeSprites(config);
+    for (size_t i = 0; i < _slots.size(); i++) {
+        DisplaySlot& slot = _slots[i];
+        String current = slot.engine.currentGroupId();
+        configureEngine(slot, config.displays[i], config);
+        if (!_screenSaverActive && !current.isEmpty() && current != slot.engine.currentGroupId()
+            && config.library_groups.count(current))
+            slot.engine.switchToGroup(current);
+        slot.lastRenderedFrame = nullptr;
+        if (_screenSaverActive) slot.driver->powerSave(false);
+    }
+}
+
+void DisplayManager::configureEngine(DisplaySlot& slot, const DisplaySlotConfig& dispConfig,
+                                     const NodeConfig& config) {
+    std::set<String> refGroupIds;
+    if (!dispConfig.default_group.isEmpty()) {
+        refGroupIds.insert(dispConfig.default_group);
+    }
+    for (const auto& trig : dispConfig.triggers) {
+        if (!trig.second.isEmpty()) {
+            refGroupIds.insert(trig.second);
+        }
+    }
+
+    std::map<String, Group> usedGroups;
+    for (const auto& gid : refGroupIds) {
+        auto it = config.library_groups.find(gid);
+        if (it != config.library_groups.end()) {
+            usedGroups[gid] = it->second;
+        } else {
+            Serial.printf("[%s] Group '%s' referenced but not found\n", TAG, gid.c_str());
+        }
+    }
+
+    String defaultGroup = dispConfig.default_group;
+    if (defaultGroup.isEmpty() && !usedGroups.empty()) {
+        defaultGroup = usedGroups.begin()->first;
+    }
+
+    slot.engine.configure(usedGroups, defaultGroup, dispConfig.triggers);
+
+    Serial.printf("[%s] Display '%s': %s %dx%d, %u groups\n",
+                  TAG, slot.id.c_str(),
+                  dispConfig.driver_type.c_str(),
+                  dispConfig.width, dispConfig.height,
+                  (unsigned)usedGroups.size());
+}
+
+bool DisplayManager::applyConfig(const NodeConfig& config) {
+    Serial.printf("[%s] Applying config version %u...\n", TAG, config.config_version);
+
+    if (sameHardware(config)) {
+        Serial.printf("[%s] Displays unchanged — updating content only\n", TAG);
+        applyContent(config);
+        _configVersion = config.config_version;
+        _lastActivity = millis();
+        _screenSaverActive = false;
+        logHeap();
+        return true;
+    }
+
+    cleanup();
+    decodeSprites(config);
 
     // Initialize display buses from config before creating drivers
     int8_t i2cSda = -1, i2cScl = -1;
@@ -142,41 +229,9 @@ bool DisplayManager::applyConfig(const NodeConfig& config) {
             continue;
         }
 
-        // Collect groups referenced by this display
-        std::set<String> refGroupIds;
-        if (!dispConfig.default_group.isEmpty()) {
-            refGroupIds.insert(dispConfig.default_group);
-        }
-        for (const auto& trig : dispConfig.triggers) {
-            if (!trig.second.isEmpty()) {
-                refGroupIds.insert(trig.second);
-            }
-        }
-
-        std::map<String, Group> usedGroups;
-        for (const auto& gid : refGroupIds) {
-            auto it = config.library_groups.find(gid);
-            if (it != config.library_groups.end()) {
-                usedGroups[gid] = it->second;
-            } else {
-                Serial.printf("[%s] Group '%s' referenced but not found\n", TAG, gid.c_str());
-            }
-        }
-
-        // Determine default group
-        String defaultGroup = dispConfig.default_group;
-        if (defaultGroup.isEmpty() && !usedGroups.empty()) {
-            defaultGroup = usedGroups.begin()->first;
-        }
-
-        slot.engine.configure(usedGroups, defaultGroup, dispConfig.triggers);
+        slot.hardwareKey = hardwareKey(dispConfig);
+        configureEngine(slot, dispConfig, config);
         _slots.push_back(slot);
-
-        Serial.printf("[%s] Display '%s': %s %dx%d, %u groups\n",
-                      TAG, slot.id.c_str(),
-                      dispConfig.driver_type.c_str(),
-                      dispConfig.width, dispConfig.height,
-                      (unsigned)usedGroups.size());
     }
 
     _configVersion = config.config_version;
@@ -187,6 +242,7 @@ bool DisplayManager::applyConfig(const NodeConfig& config) {
     Serial.printf("[%s] Config applied: %u displays, %u sprites (%s)\n",
                   TAG, (unsigned)_slots.size(), (unsigned)_sprites.size(),
                   ok ? "OK" : "NO DISPLAYS");
+    logHeap();
     return ok;
 }
 

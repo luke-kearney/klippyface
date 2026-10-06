@@ -8,22 +8,28 @@ import {
   ArrowUp,
   ChevronRight,
   Copy,
+  Crosshair,
   Contrast,
   Eraser,
+  Eye,
+  EyeOff,
   FlipHorizontal2,
   FlipVertical2,
   Grid3x3,
+  Folder,
   ImageUp,
   PaintBucket,
   Pencil,
   Redo2,
   Save,
   Slash,
+  SquarePen,
   Square,
   SquareSplitHorizontal,
   Trash2,
   Type,
   Undo2,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -46,19 +52,22 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
 import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ConfirmDelete, ErrorState, Field, Loading } from '@/components/common'
 import { FrameCanvas } from '@/components/DisplayPreview'
-import { PixelEditor, type Tool } from '@/components/PixelEditor'
+import { PixelEditor, type Axis, type MirrorAxes, type ReferenceOverlay, type Tool } from '@/components/PixelEditor'
+import { RenameIdDialog } from '@/components/RenameIdDialog'
 import { SpriteThumb } from '@/components/SpriteThumb'
 import { keys, useApiMutation, useDuplicateSprite, useSprites } from '@/hooks/queries'
 import { api } from '@/lib/api'
-import { bitmapFromImage, decodeSprite, encodeSprite, resizeBitmap, type Bitmap } from '@/lib/sprite'
+import { bitmapFromImage, decodeSprite, encodeSprite, groupByFolder, resizeBitmap, type Bitmap } from '@/lib/sprite'
 import type { Sprite } from '@/lib/types'
 
 const TOOLS: { id: Tool; label: string; key: string; icon: typeof Pencil }[] = [
@@ -96,10 +105,10 @@ export function SpriteEditorPage() {
         <ErrorState error={error ?? new Error('Sprite not found')} />
       </div>
     )
-  return <SpriteEditor key={sprite.id} sprite={sprite} />
+  return <SpriteEditor key={sprite.id} sprite={sprite} sprites={sprites!} />
 }
 
-function SpriteEditor({ sprite }: { sprite: Sprite }) {
+function SpriteEditor({ sprite, sprites }: { sprite: Sprite; sprites: Sprite[] }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const initial = useMemo(() => decodeSprite(sprite.dataBase64, sprite.width, sprite.height), [sprite])
@@ -107,16 +116,42 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
   const bitmap = history.stack[history.i]
   const [savedB64, setSavedB64] = useState(() => encodeSprite(initial))
   const [label, setLabel] = useState(sprite.label)
+  const [folder, setFolder] = useState(sprite.folder)
+  const [description, setDescription] = useState(sprite.description)
+  const folders = useMemo(() => [...new Set(sprites.map((s) => s.folder).filter(Boolean))].sort(), [sprites])
   const [tool, setTool] = useState<Tool>('pencil')
   const [brushSize, setBrushSize] = useState(1)
   const [textScale, setTextScale] = useState(1)
-  const [mirror, setMirror] = useState(false)
+  const [axes, setAxes] = useState<MirrorAxes>({})
+  const [mirrorOn, setMirrorOn] = useState(false)
+  const [placing, setPlacing] = useState<Axis | null>(null)
+  const hasAxes = axes.x2 !== undefined || axes.y2 !== undefined
+  const mirror = mirrorOn && hasAxes ? axes : null
+  // M / the toolbar button: cancel placing, else place a first line, else toggle.
+  const toggleMirror = () => {
+    if (placing) setPlacing(null)
+    else if (!hasAxes) setPlacing('x')
+    else setMirrorOn((m) => !m)
+  }
+  const placeAxis = (axis: Axis, pos2: number) => {
+    setAxes((a) => ({ ...a, [`${axis}2`]: pos2 }))
+    setMirrorOn(true)
+    setPlacing(null)
+  }
+  const [reference, setReference] = useReferenceSettings(sprite.id)
+  const referenceOverlay = useMemo((): ReferenceOverlay | undefined => {
+    const r = reference.visible && sprites.find((s) => s.id === reference.id)
+    if (!r) return undefined
+    return { bitmap: decodeSprite(r.dataBase64, r.width, r.height), opacity: reference.opacity, align: reference.align }
+  }, [reference, sprites])
   const [grid, setGrid] = useState(true)
   const [importFile, setImportFile] = useState<HTMLImageElement | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const dirty =
     label !== sprite.label ||
+    folder.trim() !== sprite.folder ||
+    description.trim() !== sprite.description ||
     bitmap.width !== sprite.width ||
     bitmap.height !== sprite.height ||
     encodeSprite(bitmap) !== savedB64
@@ -134,12 +169,19 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
   const save = useApiMutation(
     async () => {
       const dataBase64 = encodeSprite(bitmap)
-      await api.updateSprite(sprite.id, { label: label.trim() || sprite.id, width: bitmap.width, height: bitmap.height, dataBase64 })
+      await api.updateSprite(sprite.id, {
+        label: label.trim() || sprite.id,
+        folder: folder.trim(),
+        description: description.trim(),
+        width: bitmap.width,
+        height: bitmap.height,
+        dataBase64,
+      })
       return dataBase64
     },
     {
       invalidate: [keys.sprites, keys.groups],
-      success: 'Sprite saved',
+      success: 'Sprite saved · displays using it sync within a minute',
       onSuccess: (b64) => setSavedB64(b64),
     },
   )
@@ -158,6 +200,28 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
     navigate(`/sprites/${copy.id}`)
   })
 
+  const rename = useApiMutation(
+    async (newId: string) => {
+      // Save first so pending edits move to the new id instead of being dropped.
+      if (dirty) await save.mutateAsync(undefined)
+      return api.renameSprite(sprite.id, newId)
+    },
+    {
+      // Frame elements that used the old id were repointed.
+      invalidate: [keys.sprites, keys.groups],
+      onSuccess: ({ sprite: renamed, elementsUpdated }) => {
+        qc.setQueryData<Sprite[]>(keys.sprites, (old) => old?.map((s) => (s.id === sprite.id ? renamed : s)))
+        toast.success(
+          elementsUpdated
+            ? `Sprite ID changed; ${elementsUpdated} frame element${elementsUpdated === 1 ? '' : 's'} updated`
+            : 'Sprite ID changed',
+        )
+        skipBlock.current = true
+        navigate(`/sprites/${renamed.id}`, { replace: true })
+      },
+    },
+  )
+
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
       dirty && !skipBlock.current && currentLocation.pathname !== nextLocation.pathname,
@@ -165,7 +229,7 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       const mod = e.ctrlKey || e.metaKey
       const k = e.key.toLowerCase()
       if (mod && k === 'z') {
@@ -181,7 +245,9 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
       } else if (!mod) {
         const t = TOOLS.find((t) => t.key === k)
         if (t) setTool(t.id)
-        if (k === 'm') setMirror((m) => !m)
+        if (k === 'm') toggleMirror()
+        if (k === 'o' && reference.id) setReference({ visible: !reference.visible })
+        if (k === 'escape') setPlacing(null)
         const [sizes, size, setSize] =
           tool === 'text' ? [TEXT_SCALES, textScale, setTextScale] : [BRUSH_SIZES, brushSize, setBrushSize]
         const si = sizes.indexOf(size)
@@ -246,7 +312,26 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
             className="min-w-0 rounded bg-transparent px-1 font-medium outline-none hover:bg-accent/50 focus:bg-accent/50"
             aria-label="Sprite label"
           />
-          <code className="text-xs text-muted-foreground">{sprite.id}</code>
+          <RenameIdDialog
+            title="Change sprite ID"
+            currentId={sprite.id}
+            taken={sprites.map((s) => s.id)}
+            description={
+              dirty
+                ? 'Frame elements that use this sprite are updated to the new ID. Your unsaved edits are saved first.'
+                : 'Frame elements that use this sprite are updated to the new ID.'
+            }
+            onRename={(id) => rename.mutateAsync(id)}
+          >
+            <button
+              type="button"
+              className="group/id flex items-center gap-1 rounded px-1 font-mono text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+              title="Change ID"
+            >
+              {sprite.id}
+              <SquarePen className="size-3 opacity-0 transition-opacity group-hover/id:opacity-100" />
+            </button>
+          </RenameIdDialog>
         </div>
         <div className="ml-auto flex items-center gap-1">
           <Tooltip>
@@ -259,6 +344,8 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
                   duplicate.mutate({
                     id: sprite.id,
                     label: label.trim() || sprite.label,
+                    folder: folder.trim(),
+                    description: description.trim(),
                     width: bitmap.width,
                     height: bitmap.height,
                     dataBase64: encodeSprite(bitmap),
@@ -361,11 +448,17 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
           <Separator className="my-1 w-8" />
           <Tooltip>
             <TooltipTrigger asChild>
-              <Toggle pressed={mirror} onPressedChange={setMirror} className="size-9" aria-label="Mirror">
+              <Toggle pressed={!!mirror || !!placing} onPressedChange={toggleMirror} className="size-9" aria-label="Mirror">
                 <SquareSplitHorizontal />
               </Toggle>
             </TooltipTrigger>
-            <TooltipContent side="right">Mirror drawing left↔right (M)</TooltipContent>
+            <TooltipContent side="right">
+              {placing
+                ? 'Placing mirror line (Esc cancels)'
+                : hasAxes
+                  ? `Mirror ${mirror ? 'on' : 'off'} (M) · move lines in the side panel`
+                  : 'Mirror: click to place a mirror line (M)'}
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -401,11 +494,45 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
         </aside>
 
         <main className="min-w-0 flex-1 p-4">
-          <PixelEditor bitmap={bitmap} tool={tool} brushSize={brushSize} textScale={textScale} mirror={mirror} showGrid={grid} onCommit={commit} />
+          <PixelEditor bitmap={bitmap} tool={tool} brushSize={brushSize} textScale={textScale} mirror={mirror}
+            placing={placing}
+            onPlaceAxis={placeAxis}
+            reference={referenceOverlay}
+            showGrid={grid}
+            onCommit={commit}
+          />
         </main>
 
         {/* Side panel */}
         <aside className="hidden w-72 shrink-0 flex-col gap-5 overflow-y-auto border-l p-4 md:flex">
+          <div className="grid gap-2">
+            <span className="text-xs font-medium text-muted-foreground uppercase">Details</span>
+            <Field label="Folder">
+              <div className="relative">
+                <Folder className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={folder}
+                  onChange={(e) => setFolder(e.target.value)}
+                  placeholder="Unfiled"
+                  list="sprite-folders"
+                  className="pl-8"
+                />
+              </div>
+              <datalist id="sprite-folders">
+                {folders.map((f) => (
+                  <option key={f} value={f} />
+                ))}
+              </datalist>
+            </Field>
+            <Field label="Description">
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Where it's used, how it animates…"
+              />
+            </Field>
+          </div>
+
           <div className="grid gap-2">
             <span className="text-xs font-medium text-muted-foreground uppercase">Preview</span>
             <div className="flex items-end gap-3 rounded-lg border bg-black p-3">
@@ -435,6 +562,20 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
               ))}
             </div>
           </div>
+
+          <MirrorControls
+            axes={axes}
+            on={!!mirror}
+            placing={placing}
+            width={w}
+            height={h}
+            onToggle={() => setMirrorOn((m) => !m)}
+            onPlace={(a) => setPlacing((p) => (p === a ? null : a))}
+            onSet={placeAxis}
+            onRemove={(a) => setAxes(({ [`${a}2` as const]: _, ...rest }) => rest)}
+          />
+
+          <ReferenceControls sprites={sprites} currentId={sprite.id} value={reference} onChange={setReference} />
 
           <ResizeControls bitmap={bitmap} onResize={(nw, nh) => commit(resizeBitmap(bitmap, nw, nh))} />
 
@@ -485,6 +626,193 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  )
+}
+
+interface ReferenceSettings {
+  id: string
+  visible: boolean
+  opacity: number
+  align: 'topleft' | 'centre'
+}
+
+const REFERENCE_DEFAULTS: ReferenceSettings = { id: '', visible: true, opacity: 0.35, align: 'centre' }
+
+/** Reference overlay choice, remembered per sprite in this browser. */
+function useReferenceSettings(spriteId: string) {
+  const key = `klippyface.sprite-reference.${spriteId}`
+  const [value, setValue] = useState<ReferenceSettings>(() => {
+    try {
+      return { ...REFERENCE_DEFAULTS, ...JSON.parse(localStorage.getItem(key) ?? '{}') }
+    } catch {
+      return REFERENCE_DEFAULTS
+    }
+  })
+  const update = (patch: Partial<ReferenceSettings>) =>
+    setValue((v) => {
+      const next = { ...v, ...patch }
+      try {
+        localStorage.setItem(key, JSON.stringify(next))
+      } catch {
+        // per-browser nicety only
+      }
+      return next
+    })
+  return [value, update] as const
+}
+
+function ReferenceControls({
+  sprites,
+  currentId,
+  value,
+  onChange,
+}: {
+  sprites: Sprite[]
+  currentId: string
+  value: ReferenceSettings
+  onChange: (patch: Partial<ReferenceSettings>) => void
+}) {
+  const others = sprites.filter((s) => s.id !== currentId)
+  const selected = others.some((s) => s.id === value.id) ? value.id : ''
+  return (
+    <div className="grid gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground uppercase">Reference</span>
+        {selected && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-6"
+                onClick={() => onChange({ visible: !value.visible })}
+                aria-label={value.visible ? 'Hide reference' : 'Show reference'}
+              >
+                {value.visible ? <Eye /> : <EyeOff />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{value.visible ? 'Hide' : 'Show'} reference (O)</TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+      <Select value={selected || '__none'} onValueChange={(id) => onChange({ id: id === '__none' ? '' : id, visible: true })}>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none">None</SelectItem>
+          {groupByFolder(others).map(([folder, list]) => (
+            <SelectGroup key={folder}>
+              <SelectLabel>{folder || 'Unfiled'}</SelectLabel>
+              {list.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.label || s.id} <span className="text-muted-foreground">{s.width}×{s.height}</span>
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          ))}
+        </SelectContent>
+      </Select>
+      {selected && (
+        <>
+          <Field label={`Opacity · ${Math.round(value.opacity * 100)}%`}>
+            <Slider min={5} max={90} step={5} value={[value.opacity * 100]} onValueChange={([v]) => onChange({ opacity: v / 100 })} />
+          </Field>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            value={value.align}
+            onValueChange={(v) => v && onChange({ align: v as ReferenceSettings['align'] })}
+          >
+            <ToggleGroupItem value="centre" className="flex-1">
+              Centred
+            </ToggleGroupItem>
+            <ToggleGroupItem value="topleft" className="flex-1">
+              Top-left
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </>
+      )}
+      <span className="text-xs text-muted-foreground">Shown faintly under the canvas to trace over. Not saved.</span>
+    </div>
+  )
+}
+
+function MirrorControls({
+  axes,
+  on,
+  placing,
+  width,
+  height,
+  onToggle,
+  onPlace,
+  onSet,
+  onRemove,
+}: {
+  axes: MirrorAxes
+  on: boolean
+  placing: Axis | null
+  width: number
+  height: number
+  onToggle: () => void
+  onPlace: (a: Axis) => void
+  onSet: (a: Axis, pos2: number) => void
+  onRemove: (a: Axis) => void
+}) {
+  const rows: { axis: Axis; label: string; pos2?: number; size: number }[] = [
+    { axis: 'x', label: 'Vertical', pos2: axes.x2, size: width },
+    { axis: 'y', label: 'Horizontal', pos2: axes.y2, size: height },
+  ]
+  return (
+    <div className="grid gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground uppercase">Mirror</span>
+        {(axes.x2 !== undefined || axes.y2 !== undefined) && (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            {on ? 'On' : 'Off'} <Switch checked={on} onCheckedChange={onToggle} />
+          </label>
+        )}
+      </div>
+      {rows.map((r) => (
+        <div key={r.axis} className="flex items-center gap-1 text-sm">
+          <span className="w-20">{r.label}</span>
+          <span className="flex-1 font-mono text-xs text-muted-foreground">
+            {r.pos2 === undefined ? '—' : `${r.axis} = ${r.pos2 / 2}`}
+          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Toggle
+                size="sm"
+                pressed={placing === r.axis}
+                onPressedChange={() => onPlace(r.axis)}
+                className="size-7 min-w-7"
+                aria-label={`Place ${r.label.toLowerCase()} line`}
+              >
+                <Crosshair />
+              </Toggle>
+            </TooltipTrigger>
+            <TooltipContent>Click on the canvas to place</TooltipContent>
+          </Tooltip>
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => onSet(r.axis, r.size)}>
+            Centre
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7"
+            disabled={r.pos2 === undefined}
+            onClick={() => onRemove(r.axis)}
+            aria-label={`Remove ${r.label.toLowerCase()} line`}
+          >
+            <X />
+          </Button>
+        </div>
+      ))}
+      <span className="text-xs text-muted-foreground">
+        Every tool except text draws mirrored across the lines. Use both for 4-way symmetry.
+      </span>
     </div>
   )
 }
