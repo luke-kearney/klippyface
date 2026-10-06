@@ -16,20 +16,20 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 ## How It Works
 
 ```
-┌────────────────┐    WebSocket     ┌──────────────────┐  WS (+HTTP)  ┌──────────────────────┐
-│   Moonraker    │ ←───────────────→│  ESP32 (Node)    │ ←───────────→│  Companion Server    │
-│  (Klipper API) │                  │  SH1106 OLED(s)  │   heartbeat  │  (.NET 10 + SQLite)  │
-└────────────────┘                  └──────────────────┘   hello      └──────────────────────┘
-                                                    config_push               │
-                                                                        ┌─────┴──────┐
-                                                                        │  Web UI    │
-                                                                        │ (Browser)  │
-                                                                        └────────────┘
+┌────────────────┐   WebSocket   ┌──────────────────────┐   WS (+HTTP)   ┌──────────────────┐
+│   Moonraker    │ ←────────────→│  Companion Server    │ ←─────────────→│  ESP32 (Node)    │
+│  (Klipper API) │  one per      │  (.NET 10 + SQLite)  │  state, config │  display(s)      │
+└────────────────┘  server       └──────────┬───────────┘  display cmds  └──────────────────┘
+                                            │                        (one per node)
+                                      ┌─────┴──────┐
+                                      │  Web UI    │
+                                      │ (Browser)  │
+                                      └────────────┘
 ```
 
 1. **ESP32** boots, connects to Companion Server via WebSocket at `/api/ws/node/{mac}`, sends `hello` with its `config_version`
 2. **Companion Server** checks version — if stale, pushes `refresh_config`; if up-to-date, responds `config_status { up_to_date: true }` — no unnecessary redraw
-3. **Moonraker WebSocket** streams real-time printer state to the ESP32 for display triggering
+3. **The server** holds the one connection to Moonraker and relays printer state to each node: only the values that node's faces show, plus the print state that drives triggers
 4. **Display engine** selects the right animation group based on printer state: `printing`, `idle`, `paused`, `error`, `complete`
 5. **Klipper macros** can push commands directly: `DISPLAY_FACE GROUP=celebration SET=party`
 6. **Web UI** provides full visual management — node registry, sprite pixel editor, animation preview, preset scheduling
@@ -80,10 +80,10 @@ npm run build
 | Display drivers — SH1106 (I²C OLED), HX8347D (8-bit parallel TFT) | ✅ Done — hardware-verified, see [`docs/hardware/`](docs/hardware/) |
 | Display drivers — ST7789 and GC9A01 round (SPI TFT, PSRAM frame buffer) | 🟨 Builds, awaiting hardware ([#21](https://github.com/luke-kearney/klippyface/issues/21), [#29](https://github.com/luke-kearney/klippyface/issues/29)) |
 | ESP32-S3 support | 🟨 Build targets, release binaries and panel drivers for two Waveshare S3 boards; awaiting hardware ([#20](https://github.com/luke-kearney/klippyface/issues/20)) |
-| Real-time Moonraker WebSocket integration | ⚠️ Partial — print state triggers, live progress/nozzle/bed values, connection monitoring, screen sleep. First extruder only ([#22](https://github.com/luke-kearney/klippyface/issues/22)) |
+| Real-time Moonraker integration | ⚠️ Partial — relayed by the server: print state triggers, live progress/nozzle/bed values, connection monitoring, screen sleep. First extruder only in the editor ([#22](https://github.com/luke-kearney/klippyface/issues/22)) |
 | Configurable animations (Groups → Sets → Frames → Elements) | ✅ Done — sprite, text and live data elements, per-frame durations, looping. Richer progress/temperature rendering planned ([#3](https://github.com/luke-kearney/klippyface/issues/3), [#4](https://github.com/luke-kearney/klippyface/issues/4)) |
 | Starter faces for every printer state | ✅ Done — imported on first run, or from the Groups page; sized packs for 320×240, 240×320, 240×280 and round 240×240 colour displays ([#32](https://github.com/luke-kearney/klippyface/issues/32)) |
-| Klipper GCODE macro integration | ⚠️ Partial — `DISPLAY_FACE` switches group/set; alerts and per-node targeting not yet |
+| Klipper GCODE macro integration | ⚠️ Partial — `DISPLAY_FACE` switches group/set, `node=` targets one node; alerts not yet |
 | Presets (night mode, schedules) | ⚠️ Partial — editable in the Web UI, not yet applied to nodes ([#2](https://github.com/luke-kearney/klippyface/issues/2)) |
 | .NET 10 companion server with SQLite | ✅ Done — full CRUD API + per-node config export |
 | WebSocket channel — node online tracking, heartbeat, config push | ✅ Done — persistent WS at `/api/ws/node/{mac}`, hello/heartbeat/refresh protocol |
@@ -104,7 +104,7 @@ The system has three major components:
 
 | Component | Stack | Purpose |
 |-----------|-------|---------|
-| **ESP32 firmware** | PlatformIO, Arduino, FreeRTOS | Drives displays, connects to Moonraker, runs animations |
+| **ESP32 firmware** | PlatformIO, Arduino, FreeRTOS | Drives displays, gets printer state from the server, runs animations |
 | **Companion server** | .NET 10, EF Core, SQLite | REST API, node config, sprite/group library |
 | **Web UI** | React + TypeScript + Vite | Full visual editor for all content |
 
@@ -135,7 +135,7 @@ klippyface/
 │   ├── main.cpp             # FreeRTOS task orchestration
 │   ├── display/             # Display drivers, renderer, sprite engine
 │   ├── engine/              # Animation engine, config, data bindings
-│   ├── comms/               # Moonraker WebSocket, config fetcher, GCODE handler
+│   ├── comms/               # Server WebSocket, config fetcher
 │   ├── wifi/                # WiFi manager, captive portal
 │   └── config/              # NVS settings storage
 ├── server/                  # .NET 10 companion server
@@ -148,30 +148,32 @@ klippyface/
 
 ## Moonraker Connection
 
-The ESP32 connects to [Moonraker](https://github.com/Arksine/moonraker) via WebSocket at `ws://{host}:{port}/websocket` and subscribes to real-time printer state updates.
+The companion server connects to [Moonraker](https://github.com/Arksine/moonraker) at `ws://{host}:{port}/websocket`. Set the address on the Web UI's **Printer** page (plus an API key if Moonraker doesn't list the server under `trusted_clients`). Nodes never talk to Moonraker; they only need the server's address.
 
 ### Connection Lifecycle
 
-1. **WiFi connects** → `moonrakerTask` waits for WiFi via event group
-2. **WebSocket connects** → sends `printer.objects.subscribe` JSON-RPC
-3. **State updates arrive** → MoonrakerClient parses JSON, publishes `StateEvent` to FreeRTOS queue
-4. **DisplayManager.onStateChange()** → fans out to all engines → group switch
-5. **Disconnect** → auto-reconnect with backoff, re-subscribes on reconnect
-6. **Keep-alive** → WebSocket PING every 30s (handled by WebSockets library)
+1. **Server connects** → `printer.objects.list`, then subscribes to `print_stats`, `virtual_sdcard`, `display_status`, `toolhead`, `heater_bed` and every `extruder*`
+2. **Updates arrive** (only changed fields, ~4 per second) → merged into the server's copy of the printer state
+3. **Node says hello** → server sends `moonraker_status` and a full `state` with just the keys that node's faces bind to (plus `print_stats.state`), then only changes
+4. **Node** fires `state:<print_stats.state>` triggers and redraws data values
+5. **`RESPOND MSG="display:…"`** → the server turns it into a `display_cmd` for the named node (or all nodes)
+6. **Klipper restarts / Moonraker drops** → nodes get `moonraker_status {connected: false}`; the server resubscribes or reconnects with backoff
 
 ### Connection Status Handling
 
-Three dedicated display groups for connection states:
+Nodes fire a trigger when a link goes down, highest priority first. Map them to a group on a display to show something:
 
-| Group | Content | Trigger |
-|-------|---------|---------|
-| `wifi_offline` | "WiFi Offline" + "Check network" | `wifi:disconnected` |
-| `moonraker_offline` | "Moonraker Down" + "Reconnecting..." | `moonraker:disconnected` |
-| `screen_sleep` | Blank (OLED powers off) | 30s idle timeout |
+| Trigger | When |
+|---------|------|
+| `wifi:disconnected` | Node lost Wi-Fi |
+| `server:disconnected` | Node can't reach the companion server |
+| `moonraker:disconnected` | Server can't reach Moonraker, or Klipper isn't ready |
+
+The screen sleeps after 5 minutes without a trigger or command.
 
 ### Testing Without a Printer
 
-Run the [fake Moonraker](tools/FakeMoonraker/README.md) on your PC and point the node's Moonraker host at it (port 7125):
+Run the [fake Moonraker](tools/FakeMoonraker/README.md) on your PC and set it as the Moonraker host on the **Printer** page (port 7125):
 
 ```bash
 dotnet run --project tools/FakeMoonraker -- --profile single --scenario print-loop
@@ -183,16 +185,14 @@ dotnet run --project tools/FakeMoonraker -- --profile single --scenario print-lo
 [BOOT] Klippyface Display System v0.2
 [WIFI] Connecting to MyNetwork...
 [WIFI] Connected, IP: 192.168.2.100
-[MOONRAKER] Connecting to ws://192.168.2.21:7125/websocket
-[MOONRAKER] Connected
-[MOONRAKER] Subscribed to printer objects
-[MOONRAKER] State: printing
-[MAIN] State: state:printing (progress: 45.2%)
-[DISPLAY] Engine triggered: state:printing → printing_faces
 [SRVCLIENT] Connecting to ws://192.168.1.57:5000/api/ws/node/AA:BB:CC:DD:EE:01
 [SRVCLIENT] Connected to server
-[SRVCLIENT] Sent hello (config_version: 1)
+[SRVCLIENT] Sent hello (fw 0.6.0, board esp32dev, config_version: 1)
 [SRVCLIENT] Config is up to date — no fetch needed
+[SRVCLIENT] Moonraker connected
+[SRVCLIENT] Print state: printing
+[MAIN] Connection: ONLINE
+[ENGINE] Trigger: state:printing → group: printing
 ```
 
 ## Hardware Compatibility

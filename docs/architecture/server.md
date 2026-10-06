@@ -29,21 +29,39 @@ server/
 │   ├── FrameElement.cs
 │   ├── Sprite.cs
 │   ├── Preset.cs
-│   └── NodePreset.cs
+│   ├── NodePreset.cs
+│   └── MoonrakerSettings.cs      # Single row: Moonraker host, port, TLS, API key
 ├── Api/
 │   ├── ConfigApi.cs              # GET /api/config/node?mac=...
 │   ├── NodesApi.cs               # CRUD nodes + displays + assignments
 │   ├── LibraryApi.cs             # CRUD groups/sets/frames/elements, group rename + publish, starter pack
 │   ├── SpritesApi.cs             # CRUD sprites + rename (images are converted in the Web UI)
 │   ├── RenameRequest.cs          # Body + id validation for the rename endpoints
-│   └── PresetsApi.cs             # CRUD presets
+│   ├── PresetsApi.cs             # CRUD presets
+│   └── MoonrakerApi.cs           # Moonraker settings + status, live printer values
 └── Services/
     ├── ConfigExportService.cs    # Assemble per-node config JSON
     ├── StarterPackService.cs     # Import starter faces (base + sized packs), default display assignment
     ├── NodePublisher.cs          # Mark groups pending; publish = bump + refresh affected nodes
     ├── PendingPublishSweeper.cs  # Background: publish groups idle for 60 s
-    └── NodeStatusService.cs      # Track online/offline, last seen; per-socket send lock, coalesced refresh_config
+    ├── NodeStatusService.cs      # Track online/offline, last seen; per-socket send lock, coalesced refresh_config
+    └── Moonraker/
+        ├── MoonrakerService.cs       # Background: the one Moonraker connection (list, subscribe, resubscribe, reconnect)
+        ├── MoonrakerRpcClient.cs     # JSON-RPC over WebSocket: requests ↔ replies, notifications in order
+        ├── PrinterStateStore.cs      # Printer state flattened to data keys; merges change-only updates, derived keys
+        ├── NodeStateRelay.cs         # Sends each node its bound keys (full on hello, then changes), routes display commands
+        ├── DisplayCommand.cs         # Parses RESPOND "display:node=… group=…" lines
+        └── DbMoonrakerSettingsProvider.cs
 ```
+
+## Printer State Relay
+
+The server, not the nodes, talks to Moonraker:
+
+- `MoonrakerService` connects to `ws://host:port/websocket` (settings from the `MoonrakerSettings` row, edited on the Printer page; saving reconnects). It calls `printer.objects.list`, subscribes to `print_stats`, `virtual_sdcard`, `display_status`, `toolhead`, `heater_bed` and every `extruder*`, and keeps reading notifications. A `503` or `notify_klippy_disconnected` means Klipper isn't ready: it waits for `notify_klippy_ready` (retrying every 5 s) and subscribes again. A dropped connection retries after 2, 5, 10, then every 30 s.
+- `PrinterStateStore` flattens the status to keys like `extruder.temperature` and merges each update, returning only what changed. It derives `print_stats.progress` from `display_status.progress`, falling back to `virtual_sdcard.progress`, because Klipper's `print_stats` has no progress field but faces have always bound to that key.
+- `NodeStateRelay` works out a node's keys on every hello: the `datavalue` elements in every group its displays' default group and triggers point at, plus `print_stats.state`. Nodes re-announce after applying a config, so this follows config changes. On hello it sends `moonraker_status` and a full `state`; each change goes only to nodes that bind a changed key. One publish runs at a time, so a snapshot and a change can't arrive out of order.
+- `RESPOND MSG="display:…"` console lines become `display_cmd` messages for the node named by `node=` (name, MAC or id), or every connected node.
 
 ## Key Config
 

@@ -1,6 +1,6 @@
 # Fake Moonraker
 
-A stand-in for Moonraker + Klipper, for developing and testing without a printer. It speaks Moonraker's JSON-RPC over WebSocket, so anything that talks to a real Moonraker (the firmware, or the server once #34 lands) can connect to it unchanged.
+A stand-in for Moonraker + Klipper, for developing and testing without a printer. It speaks Moonraker's JSON-RPC over WebSocket, so the Klippyface server connects to it exactly as it would to a real Moonraker.
 
 ## Run
 
@@ -14,12 +14,12 @@ dotnet run --project tools/FakeMoonraker -- --profile quad --scenario toolchange
 | `--profile` | `single` | `single`, `quad`, or a path to a profile `.json` |
 | `--scenario` | `idle` | see below |
 | `--port` | `7125` | Moonraker's default port |
-| `--host` | `0.0.0.0` | listens on the LAN so a node can reach it — allow the port through your firewall |
+| `--host` | `0.0.0.0` | listens on the LAN so a server on another machine can reach it — allow the port through your firewall |
 | `--replay` | | play back a capture instead of a profile and scenario (see below) |
 | `--speed` | `1` | replay speed multiplier |
 | `--loop` | `true` | start the replay again when it ends |
 
-To point a node at it, set the node's Moonraker host to your machine's LAN IP and port `7125`.
+To use it, set the Moonraker host on the server's **Printer** page to this machine (`127.0.0.1` if the server runs here too) and port `7125`.
 
 ## Profiles
 

@@ -81,6 +81,7 @@ Edits are applied locally first and saved in the background (`useSetDocument`, 3
 | `#/sprites` | Sprite library: folder sections (drag cards between them), search |
 | `#/sprites/{id}` | Pixel editor; folder, description and ID rename; mirror lines and a reference sprite overlay in the side panel |
 | `#/presets` | Presets |
+| `#/printer` | Moonraker connection: host/port/TLS/API key, status, subscribed objects, live values |
 
 ## Dev Workflow
 

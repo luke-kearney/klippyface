@@ -18,24 +18,22 @@ main.cpp: setup()
 │ CORE 0 (protocol / background)     CORE 1 (display / timing)   │
 │                                    │                            │
 │  wifiTask         (pri 8)          │  displayTask    (pri 10)   │
-│  moonrakerTask    (pri 9)          │    ticks all engines       │
-│  serverClientTask (pri 6)          │    renders all displays    │
-│  gcodeHandlerTask (pri 7)          │    ~30fps                 │
-│  captivePortalTask(pri 5, idle)    │                            │
+│  serverClientTask (pri 6)          │    ticks all engines       │
+│  captivePortalTask(pri 5, idle)    │    renders all displays    │
+│                                    │    ~30fps                  │
 └────────────────────────────────────────────────────────────────┘
 ```
 
 ### Inter-Task Communication (FreeRTOS Queues)
 
 ```
-moonrakerTask  ──→ [stateQueue]   ──→ displayTask
-serverClientTask ──→ [configQueue] ──→ displayTask  (on-demand via WS refresh)
-gcodeHandlerTask ──→ [commandQueue] ──→ displayTask
-displayTask ──→ [DisplaySlot*] array (internal, no queue needed)
-captivePortalTask ──→ [wifiConfigQueue] ──→ (saves to NVS, reboots)
+serverClientTask ──→ [configQueue]  ──→ displayTask  (on-demand via WS refresh)
+serverClientTask ──→ [cmdQueue]     ──→ displayTask  (triggers, display commands)
+serverClientTask ──→ PrinterState (mutex) ←── displayTask renderer
+captivePortalTask ──→ (saves to NVS, reboots)
 ```
 
-Each queue carries a small struct (`StateEvent`, `ConfigUpdate`, `DisplayCommand`).
+`configQueue` carries a heap `char*` of config JSON; `cmdQueue` carries a fixed-size `CmdMessage`. Printer values are a key → value map in `PrinterState`, guarded by a mutex because the server task writes it on core 0 while the renderer reads it on core 1.
 
 ## Render Optimization
 
@@ -56,10 +54,8 @@ This prevents flicker on static content (boot screen, idle frames) while still r
 | Priority | Task |
 |----------|------|
 | 10 | `displayTask` (highest — display timing is critical) |
-| 9 | `moonrakerTask` (WebSocket needs timely reads) |
 | 8 | `wifiTask` (keep connection alive) |
-| 7 | `gcodeHandlerTask` (responsiveness matters) |
-| 6 | `serverClientTask` (background WS, config fetch on demand) |
+| 6 | `serverClientTask` (server WS: printer state, commands, config fetch on demand) |
 | 5 | `captivePortalTask` (idle, only active on first boot) |
 
 ## Display Driver Abstraction
@@ -151,7 +147,7 @@ Stateless free function: `renderFrame(Frame, DisplayDriver, PrinterState)`
 2. For each `FrameElement`:
    - `text` → draw static string centred on (x, y) at GFX text size `size`
    - `sprite` → blit named bitmap with its top-left at (x, y); `size` > 1 draws each 1-bit pixel as a `size`×`size` block
-   - `datavalue` → resolve Moonraker key via `PrinterState::resolve()`, draw the value centred on (x, y) at text size `size`
+   - `datavalue` → resolve the data key via `PrinterState::resolve()` (`.temperature`/`.target` → `210°C`, `…progress` 0–1 → `42.0%`, unknown → `--`), draw it centred on (x, y) at text size `size`
 
 ## Sprite Format
 
@@ -195,12 +191,16 @@ ESP32 has 4 MB flash and ~320 KB usable RAM.
 
 ## Connection State Machine
 
-Priority-based state monitoring in `main.cpp`:
+Priority-based state monitoring in `serverClientTask` (`main.cpp`):
 
 ```
-WiFi off          → WIFI_OFFLINE       → send "wifi:disconnected"
-WiFi on, MR off   → MOONRAKER_OFFLINE  → send "moonraker:disconnected"
-WiFi on, MR on    → ONLINE             → (normal flow, no trigger)
+WiFi off                      → WIFI_OFFLINE       → send "wifi:disconnected"
+WiFi on, server down          → SERVER_OFFLINE     → send "server:disconnected"
+server up, Moonraker down     → MOONRAKER_OFFLINE  → send "moonraker:disconnected"
+everything up                 → ONLINE             → (normal flow, no trigger)
+```
+
+"Moonraker down" is what the server reports in `moonraker_status`: Moonraker unreachable or Klipper not ready.
 
 ## Companion Server WebSocket (ServerClient)
 
@@ -211,7 +211,9 @@ to the companion server, replacing the old 5-minute HTTP polling:
 - **On connect:** sends `hello` with identity and `config_version`
 - **Heartbeat:** every 30s, carries `heap_free`, `uptime_s`, `rssi`, `display_count`
 - **Commands:** handles `refresh_config` (fetches config on-demand), `config_status` (version check). Both only set a pending flag; `tick()` runs one fetch for any number of requests, outside the WS callback. The fetched JSON is queued for `displayTask` as a heap `char*` (newest wins: an older queued config is evicted and freed) and parsed in place (ArduinoJson zero-copy).
+- **Printer state:** `state` messages go into `PrinterState` (`full: true` replaces everything). A change of `print_stats.state` fires `state:<value>`; a full snapshot fires it again, because the node re-announces after applying a config and its new engines need the current state.
+- **Moonraker status:** `moonraker_status { connected }` feeds the connection monitor and the `moonraker.connected` data key.
+- **Display commands:** `display_cmd { group, set?, loop? }` → `DisplayManager::directCommand()`. The server parses `RESPOND` lines and picks the node; the firmware no longer reads console output.
 - **Reconnect:** auto-reconnect at 5s interval (WebSockets library manages this)
-```
 
-Three dedicated groups: `wifi_offline`, `moonraker_offline`, `screen_sleep` (powers off display after 5min idle).
+No connection groups exist by default: map the `wifi:`/`server:`/`moonraker:disconnected` triggers to a group on a display to show one. The screen sleeps (powers off) after 5 minutes without a trigger or command.

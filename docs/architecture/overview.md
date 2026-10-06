@@ -63,12 +63,12 @@ stable: true
   6. Server registers node as online; ESP32 sends `heartbeat` every 30s
   7. DisplayManager on ESP32 creates DisplayDriver instances for each physical display
   8. DisplayManager creates AnimationEngine per display, each with its own trigger→group mapping
-  9. ESP32 connects to Moonraker WebSocket for real-time state
- 10. Moonraker sends: printer state, temperatures, progress, GCODE responses
- 11. DisplayManager fans out state changes to all AnimationEngines
+  9. The server holds the one Moonraker WebSocket (settings on the Printer page): subscribes to print_stats, virtual_sdcard, display_status, toolhead, heater_bed and extruder*, and merges the change-only updates
+ 10. On each hello the server sends the node `moonraker_status` and a full `state` with only the keys its faces bind to (+ `print_stats.state`); after that, only changed keys
+ 11. The node fires `state:<print_stats.state>` triggers; DisplayManager fans them out to all AnimationEngines
  12. Each engine selects the right group/set/frame based on its triggers
- 13. Renderer draws frames to each display's driver
- 14. Klipper macros can send: RESPOND MSG="display:node=printer_face group=celebration set=win"
+ 13. Renderer draws frames to each display's driver, resolving data values from the relayed state
+ 14. Klipper macros can send: RESPOND MSG="display:node=printer_face group=celebration set=win" → the server sends `display_cmd` to that node (all nodes if `node=` is left out)
  15. Admin edits in the Web UI are saved immediately but published in batches (Sync now, 30 s after the last edit, or by the server after 60 s idle). A publish bumps `LastConfigVersion` and pushes `refresh_config` via WS (at most one per node per 5 s) → node fetches and re-applies in seconds
 ```
 
@@ -102,7 +102,7 @@ klippyface/
 │   ├── main.cpp                      # setup() + xTaskCreatePinnedToCore()
 │   ├── display/                      # DisplayDriver, factory, drivers, renderer
 │   ├── engine/                       # Animation engine, config structs, deserializer
-│   ├── comms/                        # Moonraker WS, server WS, config fetcher, GCODE handler
+│   ├── comms/                        # Server WS (config + relayed printer state), config fetcher
 │   ├── wifi/                         # WiFi manager, captive portal, setup server
 │   └── config/                       # NVS settings
 ├── server/                           # .NET 10 Companion Server

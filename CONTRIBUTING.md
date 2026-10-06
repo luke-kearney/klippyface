@@ -59,7 +59,7 @@ npm run build
 ### Without a Printer
 
 ```bash
-# Fake Moonraker on :7125 — point a node's Moonraker host at this machine
+# Fake Moonraker on :7125 — set it as the Moonraker host on the server's Printer page
 dotnet run --project tools/FakeMoonraker -- --profile quad --scenario print-loop
 ```
 
@@ -147,7 +147,7 @@ xTaskCreatePinnedToCore(
 ```
 
 **Core assignment:**
-- Core 0: Protocol, networking, background I/O (WiFi, Moonraker, config fetch, GCODE)
+- Core 0: Protocol, networking, background I/O (WiFi, server WebSocket and relayed printer state, config fetch)
 - Core 1: Display rendering (timing-critical, ~30fps tick)
 
 **Priority guidelines:**
@@ -155,15 +155,13 @@ xTaskCreatePinnedToCore(
 | Priority | Task |
 |----------|------|
 | 10 | `displayTask` |
-| 9 | `moonrakerTask` |
 | 8 | `wifiTask` |
-| 7 | `gcodeHandlerTask` |
 | 6 | `serverClientTask` |
 | 5 | `captivePortalTask` |
 
 **Inter-task communication:**
 - Use **Event Groups** for signalling state changes (WiFi up/down, config ready). Document bit assignments.
-- Use **Queues** for structured data transfer. Carry small structs by value (`StateEvent`, `ConfigUpdate`, `DisplayCommand`). Queue depth 5-10.
+- Use **Queues** for structured data transfer. Carry small structs by value (e.g. `CmdMessage`). Queue depth 5-10.
 - Never share mutable data between tasks without a queue or mutex. No shared pointers.
 - Never call `delay()` inside a task — use `vTaskDelay(pdMS_TO_TICKS(N))`.
 
@@ -190,8 +188,6 @@ xTaskCreatePinnedToCore(
 | `[GFX]` | `GfxDriver` (HX8347D, ST7789, GC9A01) |
 | `[CONFIG]` | `ConfigFetcher`, `ConfigDeserializer` |
 | `[SRVCLIENT]` | `ServerClient` |
-| `[MOONRAKER]` | `MoonrakerClient` |
-| `[GCODE]` | `GcodeHandler` |
 | `[ENGINE]` | `AnimationEngine` |
 | `[PORTAL]` | `CaptivePortal` |
 
@@ -221,7 +217,7 @@ src/
 ├── wifi/                 # WiFi management
 ├── display/              # DisplayDriver abstraction + implementations
 ├── engine/               # Animation engine, config structs, data binding
-└── comms/                # Moonraker, HTTP, GCODE handling
+└── comms/                # Server WebSocket, config fetch over HTTP
 ```
 
 One `.h`/`.cpp` pair per class. Free functions may share a pair when closely related.

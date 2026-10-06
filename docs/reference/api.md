@@ -13,6 +13,16 @@ stable: true
 | GET | `/api/config/node?mac={mac}` | **Main endpoint ESP32 calls.** Returns per-node config JSON. |
 | GET | `/api/config/library` | Returns full library (for web UI preview/edit) |
 
+## Moonraker Endpoints
+
+The server's one connection to Moonraker (Web UI **Printer** page).
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/moonraker` | Settings and live status: `{ host, port, use_tls, has_api_key, status: { state, detail?, connected, objects[] } }`. `state` is `NotConfigured`, `Connecting`, `KlippyNotReady`, `Ready` or `Disconnected` |
+| PUT | `/api/moonraker` | Save `{ host, port, use_tls, api_key? }` and reconnect. `api_key` omitted keeps the saved key, `""` clears it. `400` for a URL instead of a host, or a bad port |
+| GET | `/api/moonraker/state` | Every value the server has, flattened to data keys (`{ "extruder.temperature": 210.5, ... }`) |
+
 ## Node Endpoints
 
 | Method | Route | Description |
@@ -22,7 +32,7 @@ stable: true
 | GET | `/api/nodes/{id}` | Get node + displays + assignments |
 | PUT | `/api/nodes/{id}` | Update node |
 | DELETE | `/api/nodes/{id}` | Delete node + displays + assignments |
-| GET | `/api/ws/node/{mac}` | **WebSocket** — persistent channel for online tracking, heartbeat, config push |
+| GET | `/api/ws/node/{mac}` | **WebSocket** — persistent channel for online tracking, heartbeat, config push and relayed printer state |
 | GET | `/api/nodes/{id}/displays` | List displays on node |
 | POST | `/api/nodes/{id}/displays` | Add display to node (gets a default assignment mapping each printer state to the starter group sized for it; a sized pack is imported on demand) |
 | POST | `/api/nodes/{id}/displays/{did}/starter-faces` | Point the display at the starter faces sized for it (importing them if needed): replaces default group and triggers, keeps the active preset, refreshes the node |
@@ -161,8 +171,9 @@ GET /api/config/node?mac=AA:BB:CC:DD:EE:01
 
 ## WebSocket Protocol (`/api/ws/node/{mac}`)
 
-The ESP32 maintains a persistent WebSocket to the companion server for online tracking
-and instant config push. Messages are JSON with a `type` field:
+The ESP32 maintains a persistent WebSocket to the companion server for online tracking,
+instant config push and printer state (nodes don't connect to Moonraker). Messages are JSON
+with a `type` field:
 
 ### Node → Server
 
@@ -178,15 +189,20 @@ and instant config push. Messages are JSON with a `type` field:
 | `config_status` | `{ up_to_date: bool }` | Response to hello |
 | `refresh_config` | `{}` | Admin-edited config (display/group/assignment changes) |
 | `refresh_library` | `{}` | Admin-edited library (future) |
+| `moonraker_status` | `{ connected: bool }` | After every hello, and whenever the server's Moonraker connection changes. `false` while Moonraker is unreachable or Klipper isn't ready |
+| `state` | `{ full: bool, values: { "<data key>": value } }` | After every hello (`full: true`, replaces everything), then changes only. Values are raw Moonraker values (numbers, strings, `null` = key gone). Only the keys the node's faces bind to, plus `print_stats.state` |
+| `display_cmd` | `{ group, set?, loop? }` | A Klipper `RESPOND MSG="display:…"` line addressed to this node (or to all nodes, without `node=`) |
 
 ### Connection Lifecycle
 
 1. ESP connects → sends `hello` with `config_version`
 2. Server compares against DB `LastConfigVersion` — if stale, sends `refresh_config`
-3. ESP fetches config via HTTP `GET /api/config/node?mac=...`, applies, re-announces with updated version
-4. ESP sends `heartbeat` every 30s; server persists `LastSeen` and tracks `IsOnline`
-5. On disconnect → auto-reconnect with 5s interval, repeat from step 1
-6. No config redraw if version is unchanged from prior session
+3. Server sends `moonraker_status` and a full `state` for the keys the node's faces bind to
+4. ESP fetches config via HTTP `GET /api/config/node?mac=...`, applies, re-announces with updated version (and gets a fresh `state` for the new faces)
+5. Printer changes arrive as `state` (`full: false`); `print_stats.state` changes fire `state:<value>` triggers
+6. ESP sends `heartbeat` every 30s; server persists `LastSeen` and tracks `IsOnline`
+7. On disconnect → auto-reconnect with 5s interval, repeat from step 1
+8. No config redraw if version is unchanged from prior session
 
 ## FrameElement Types
 
@@ -194,15 +210,18 @@ and instant config push. Messages are JSON with a `type` field:
 |------|-----------------|
 | `text` | Draws static text string. Color from `color` field. |
 | `sprite` | Draws a named sprite from `sprites` dict at `(x, y)`. |
-| `datavalue` | Resolves a Moonraker data binding key, formats the value, and draws `label: value` at `(x, y)`. |
+| `datavalue` | Resolves a data binding key from the relayed printer state, formats the value, and draws it centred on `(x, y)`. |
 
 ### Data Binding Keys
 
+A key is `<Klipper object>.<field>` (nested fields joined with `.`), for any object the server subscribes to: `print_stats`, `virtual_sdcard`, `display_status`, `toolhead`, `heater_bed`, `extruder*`. The node formats by the key's ending: `.temperature`/`.target` → `°C`, ending in `progress` (0–1) → `%`, otherwise the number or text as is. A key the printer doesn't have shows `--`.
+
 | Key | Source | Example output |
 |-----|--------|----------------|
-| `print_stats.progress` | Moonraker progress | `"73.0%"` |
+| `print_stats.progress` | Print progress. Klipper's `print_stats` has no progress field; the server fills this from `display_status.progress` (M73), falling back to `virtual_sdcard.progress` | `"73.0%"` |
 | `extruder.temperature` | Nozzle temp | `"210°C"` |
 | `extruder.target` | Nozzle target | `"220°C"` |
 | `heater_bed.temperature` | Bed temp | `"60°C"` |
 | `heater_bed.target` | Bed target | `"65°C"` |
-| `moonraker.connected` | Connection state | `"Online"` / `"Offline"` |
+| `print_stats.state` | `standby`, `printing`, `paused`, `complete`, `cancelled`, `error` | `"printing"` |
+| `moonraker.connected` | Node-side: server and Moonraker both reachable, Klipper ready | `"Online"` / `"Offline"` |

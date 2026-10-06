@@ -369,6 +369,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-06: The server relays Moonraker to nodes
+
+**Context:** Every node opened its own WebSocket to Moonraker beside the one it already held to the server, and parsed Moonraker's JSON itself. That meant per-node Moonraker settings in the setup portal, a firmware release for every new data key, and per-node handling of Moonraker's change-only updates — which the firmware got wrong (missing fields read as 0, the subscribe reply's initial state ignored, and `print_stats.progress`, a field Klipper doesn't have, as the progress source) (#34).
+
+**Decision:** The server holds the one Moonraker connection (settings in the database, Printer page in the Web UI), merges updates into a store keyed by data key, and sends each node only the keys its faces bind to plus `print_stats.state`, over the node WebSocket: a full `state` on every hello, then changes. Values are sent raw, and the node formats them by key ending, so number-based renderers (#3, #4) stay possible. `RESPOND MSG="display:…"` is parsed on the server and routed by `node=`. Nodes lose `MoonrakerClient`, `GcodeHandler` and their Moonraker settings, and gain a `server:disconnected` trigger. `print_stats.progress` stays as a key the server derives from `display_status.progress` / `virtual_sdcard.progress`, so existing faces keep working.
+
+**Consequences:** No live printer data on a node while the server is down (it already needed the server to boot). New data keys need no firmware change. Nodes provisioned before this fall back to their saved Moonraker host as the server address, which matches the usual setup of the server running on the printer's host.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations
