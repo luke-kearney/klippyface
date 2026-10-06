@@ -31,6 +31,7 @@ ui/
     ├── index.css                # Tailwind + theme tokens, brand palette, fonts
     ├── lib/
     │   ├── api.ts               # Typed REST client; snake_case ↔ camelCase key conversion
+    │   ├── boards.ts            # Board presets for the display dialog (driver, size, pins)
     │   ├── types.ts             # Mirrors server/Models
     │   ├── render.ts            # Software renderer mirroring firmware Renderer.cpp
     │   ├── utils.ts             # cn() class merging
@@ -46,7 +47,7 @@ ui/
     │   ├── Logo.tsx             # Logo mark and pixel wordmark
     │   ├── RenameIdDialog.tsx   # Change a sprite or group id
     │   ├── DisplayPreview.tsx   # FrameCanvas, SetPlayer, display profiles
-    │   ├── DisplayDialog.tsx    # Display wiring editor (I²C / SPI / parallel pins)
+    │   ├── DisplayDialog.tsx    # Display wiring editor (I²C / SPI / parallel pins), board presets
     │   ├── PixelEditor.tsx      # Sprite drawing canvas (pencil/eraser/fill/line/rect/text, placeable mirror lines, reference overlay)
     │   ├── SpriteThumb.tsx
     │   └── editor/              # Set editor: EditorCanvas, Inspector, Filmstrip

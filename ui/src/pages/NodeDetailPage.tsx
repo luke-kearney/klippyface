@@ -57,6 +57,12 @@ export function NodeDetailPage() {
         description={
           <>
             <code>{node.macAddress}</code> · seen {relativeTime(node.lastSeen)} · config v{node.lastConfigVersion}
+            {node.board && (
+              <>
+                {' '}· board <code>{node.board}</code>
+              </>
+            )}
+            {node.firmwareVersion && <> · fw {node.firmwareVersion}</>}
           </>
         }
         actions={
@@ -77,7 +83,7 @@ export function NodeDetailPage() {
         <div className="grid gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Displays</h2>
-            <DisplayDialog nodeId={node.id} sortOrder={node.displays?.length ?? 0}>
+            <DisplayDialog nodeId={node.id} board={node.board} sortOrder={node.displays?.length ?? 0}>
               <Button size="sm">
                 <Plus /> Add display
               </Button>
@@ -232,7 +238,7 @@ function DisplayCard({ node, display, assignment }: { node: Node; display: NodeD
           </CardDescription>
         </div>
         <div className="flex gap-1">
-          <DisplayDialog nodeId={node.id} display={display} sortOrder={display.sortOrder}>
+          <DisplayDialog nodeId={node.id} board={node.board} display={display} sortOrder={display.sortOrder}>
             <Button variant="ghost" size="icon" aria-label="Edit display">
               <Pencil />
             </Button>

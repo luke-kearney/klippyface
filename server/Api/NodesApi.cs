@@ -237,7 +237,8 @@ public static class NodesApi
                             });
                         }
 
-                        await PersistLastSeenAsync(scopeFactory, dbNodeId);
+                        await PersistHelloAsync(scopeFactory, dbNodeId,
+                            msg["board"]?.GetValue<string>(), msg["fw_version"]?.GetValue<string>());
                         break;
                     }
                     case "heartbeat":
@@ -255,6 +256,26 @@ public static class NodesApi
         finally
         {
             statusService.Unregister(macAddress, ws);
+        }
+    }
+
+    // Older firmware doesn't send `board`; keep what we have rather than blanking it.
+    private static async Task PersistHelloAsync(IServiceScopeFactory scopeFactory, string dbNodeId,
+                                                string? board, string? firmwareVersion)
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<KlippyfaceDbContext>();
+            var node = await db.Nodes.FindAsync(dbNodeId);
+            if (node is null) return;
+            node.LastSeen = DateTime.UtcNow;
+            if (!string.IsNullOrEmpty(board)) node.Board = board;
+            if (!string.IsNullOrEmpty(firmwareVersion)) node.FirmwareVersion = firmwareVersion;
+            await db.SaveChangesAsync();
+        }
+        catch
+        {
         }
     }
 

@@ -11,6 +11,9 @@ export interface Node {
   updatedAt: string
   lastSeen: string | null
   lastConfigVersion: number
+  /** Firmware build env from the node's last hello, e.g. 'esp32s3-ws-lcd169'; '' if unknown. */
+  board: string
+  firmwareVersion: string
   isOnline: boolean
   displays?: NodeDisplay[]
   assignments?: Assignment[]

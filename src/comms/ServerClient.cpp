@@ -5,6 +5,7 @@
 #include <new>
 
 #include "comms/ConfigFetcher.h"
+#include "config/Board.h"
 #include "config/Settings.h"
 #include "KlippyfaceVersion.h"
 
@@ -126,12 +127,13 @@ void ServerClient::sendHello() {
     doc["friendly_name"] = _friendlyName;
     doc["config_version"] = _configVersion;
     doc["fw_version"] = KLIPPYFACE_VERSION;
+    doc["board"] = BOARD_NAME;
 
     String output;
     serializeJson(doc, output);
     _ws.sendTXT(output);
-    Serial.printf("[%s] Sent hello (fw %s, config_version: %u)\n",
-                  TAG, KLIPPYFACE_VERSION, _configVersion);
+    Serial.printf("[%s] Sent hello (fw %s, board %s, config_version: %u)\n",
+                  TAG, KLIPPYFACE_VERSION, BOARD_NAME, _configVersion);
 }
 
 void ServerClient::sendHeartbeat() {

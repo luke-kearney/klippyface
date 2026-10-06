@@ -30,6 +30,8 @@ CREATE TABLE nodes (
     description         TEXT NOT NULL DEFAULT '',
     last_seen           TEXT,                            -- set by WS heartbeat
     last_config_version INTEGER NOT NULL DEFAULT 0,      -- bumped on admin edits
+    board               TEXT NOT NULL DEFAULT '',        -- firmware build env from hello, e.g. esp32s3-ws-lcd169
+    firmware_version    TEXT NOT NULL DEFAULT '',        -- fw_version from hello
     created_at          TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );

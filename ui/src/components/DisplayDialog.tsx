@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch'
 import { Field } from '@/components/common'
 import { keys, useApiMutation } from '@/hooks/queries'
 import { api } from '@/lib/api'
+import { BOARD_PRESETS, defaultPresetFor, type BoardPreset } from '@/lib/boards'
 import type { NodeDisplay } from '@/lib/types'
 
 const DRIVERS = [
@@ -85,11 +86,14 @@ export function busSummary(d: NodeDisplay): string {
 
 export function DisplayDialog({
   nodeId,
+  board,
   display,
   sortOrder,
   children,
 }: {
   nodeId: string
+  /** The node's reported firmware board, used to suggest a preset. */
+  board?: string
   display?: NodeDisplay
   sortOrder: number
   children: ReactNode
@@ -102,6 +106,18 @@ export function DisplayDialog({
   const [width, setWidth] = useState(128)
   const [height, setHeight] = useState(64)
   const [rotation, setRotation] = useState(0)
+  const [presetId, setPresetId] = useState('custom')
+
+  function applyPreset(p: BoardPreset) {
+    setPresetId(p.id)
+    setDriverType(p.driverType)
+    setBusType(p.busType)
+    setWidth(p.width)
+    setHeight(p.height)
+    setRotation(p.rotation)
+    setPins({ ...p.busConfig })
+    setLabel((l) => l || (p.driverType === 'gc9a01' ? 'Round face' : 'Face'))
+  }
 
   function reset() {
     setLabel(display?.label ?? '')
@@ -111,6 +127,10 @@ export function DisplayDialog({
     setWidth(display?.width ?? 128)
     setHeight(display?.height ?? 64)
     setRotation(display?.rotation ?? 0)
+    setPresetId('custom')
+    // New display on a node whose board we know: start from its preset
+    const suggested = !display ? defaultPresetFor(board) : undefined
+    if (suggested) applyPreset(suggested)
   }
 
   const save = useApiMutation(
@@ -173,6 +193,36 @@ export function DisplayDialog({
             <DialogTitle>{display ? 'Edit display' : 'Add display'}</DialogTitle>
             <DialogDescription>Wiring and panel settings. Saving pushes new config to the node.</DialogDescription>
           </DialogHeader>
+          <Field
+            label="Board preset"
+            hint={
+              board
+                ? `This node reports board ${board}. Picking a preset fills in the fields below; you can still edit them.`
+                : 'Fills in driver, size and pins; you can still edit them.'
+            }
+          >
+            <Select
+              value={presetId}
+              onValueChange={(v) => {
+                const p = BOARD_PRESETS.find((x) => x.id === v)
+                if (p) applyPreset(p)
+                else setPresetId('custom')
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="custom">Custom</SelectItem>
+                {BOARD_PRESETS.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.label}
+                    {p.board === board && <span className="text-muted-foreground"> · this board</span>}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
           <Field label="Label">
             <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Front face" required />
           </Field>

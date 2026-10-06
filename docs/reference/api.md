@@ -167,7 +167,7 @@ and instant config push. Messages are JSON with a `type` field:
 
 | Type | Payload | Timing |
 |------|---------|--------|
-| `hello` | `{ node_id, friendly_name, config_version, fw_version }` | On connect/reconnect |
+| `hello` | `{ node_id, friendly_name, config_version, fw_version, board }` | On connect/reconnect. `board` is the firmware build env (e.g. `esp32dev`, `esp32s3-ws-lcd169`); the server stores it and `fw_version` on the node |
 | `heartbeat` | `{ heap_free, uptime_s, rssi, display_count }` | Every 30s |
 
 ### Server → Node
