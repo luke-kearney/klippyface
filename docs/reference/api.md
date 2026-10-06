@@ -24,12 +24,16 @@ stable: true
 | DELETE | `/api/nodes/{id}` | Delete node + displays + assignments |
 | GET | `/api/ws/node/{mac}` | **WebSocket** — persistent channel for online tracking, heartbeat, config push |
 | GET | `/api/nodes/{id}/displays` | List displays on node |
-| POST | `/api/nodes/{id}/displays` | Add display to node |
+| POST | `/api/nodes/{id}/displays` | Add display to node (gets a default assignment mapping each printer state to the starter group sized for it; a sized pack is imported on demand) |
+| POST | `/api/nodes/{id}/displays/{did}/starter-faces` | Point the display at the starter faces sized for it (importing them if needed): replaces default group and triggers, keeps the active preset, refreshes the node |
 | PUT | `/api/nodes/{id}/displays/{did}` | Update display config |
 | DELETE | `/api/nodes/{id}/displays/{did}` | Remove display |
+| GET | `/api/nodes/{id}/displays/{did}/assignment` | Get a display's assignment |
 | PUT | `/api/nodes/{id}/displays/{did}/assignment` | Set assignment (triggers + default group) |
 
 ## Library Endpoints
+
+Writes to groups, sets, frames and elements are saved immediately but **do not** reach nodes: they set the group's `pending_publish` flag. Nodes showing the group are refreshed by `POST /api/groups/{id}/publish` (the Web UI's Sync, or its 30 s idle auto-sync), or by the server once the group has had no edits for 60 s. Saving or deleting a sprite marks every group that draws it. Group rename/delete and node display/assignment changes still refresh nodes immediately. `refresh_config` messages to one node are coalesced to at most one per 5 s.
 
 | Method | Route | Description |
 |--------|-------|-------------|
@@ -37,6 +41,8 @@ stable: true
 | POST | `/api/groups` | Create group |
 | GET | `/api/groups/{id}` | Get group with sets |
 | PUT | `/api/groups/{id}` | Update group |
+| POST | `/api/groups/{id}/rename` | Change the group id (`{ id }`). Repoints sets, assignment `default_group`/triggers and preset `groupSwaps`, then bumps affected nodes. GCODE macros are not touched. `400` bad id, `409` taken |
+| POST | `/api/groups/{id}/publish` | Push pending edits: clear `pending_publish`, bump and refresh nodes showing the group. Returns `{ nodes }` |
 | DELETE | `/api/groups/{id}` | Delete group + cascade |
 | GET | `/api/groups/{gid}/sets` | List sets in group |
 | POST | `/api/groups/{gid}/sets` | Create set |
@@ -52,17 +58,18 @@ stable: true
 | PUT | `/api/elements/{eid}` | Update frame element |
 | DELETE | `/api/elements/{eid}` | Delete frame element |
 | PUT | `/api/frames/{fid}/elements/reorder` | Reorder elements |
+| POST | `/api/starter-pack` | Import the built-in starter faces: the base 128×64 groups plus the sized pack for every display in the system; skips sprite/group ids that already exist. Returns `{ sprites_added, groups_added }` |
 
 ## Sprite Endpoints
 
 | Method | Route | Description |
 |--------|-------|-------------|
 | GET | `/api/sprites` | List all sprites |
-| POST | `/api/sprites` | Create (JSON + base64, or multipart PNG upload) |
+| POST | `/api/sprites` | Create (JSON: `id`, `label`, `folder`, `description`, `width`, `height`, `data_base64`). Image import and 1-bit thresholding happen in the Web UI |
 | GET | `/api/sprites/{id}` | Get sprite with base64 data |
-| PUT | `/api/sprites/{id}` | Update sprite |
+| PUT | `/api/sprites/{id}` | Update sprite (label, folder, description, size, pixels). Marks groups that draw it pending |
+| POST | `/api/sprites/{id}/rename` | Change the sprite id (`{ id }`). Repoints `sprite` frame elements. Returns `{ sprite, elements_updated }`. `400` bad id, `409` taken |
 | DELETE | `/api/sprites/{id}` | Delete sprite |
-| GET | `/api/sprites/{id}/preview` | Render as PNG for browser preview |
 
 ## Preset Endpoints
 
@@ -77,7 +84,7 @@ stable: true
 ---
 
 ## JSON Contract (Per-Node Config Fetch)
-
+The companion server serializes per-node config. The ESP32 fetches this at boot. `config_version` is the node's `LastConfigVersion`, bumped on every admin edit:
 The companion server serializes per-node config. The ESP32 fetches this at boot:
 
 ```
@@ -136,7 +143,7 @@ GET /api/config/node?mac=AA:BB:CC:DD:EE:01
               {
                 "duration_ms": 3000, "bg_color": "#000000",
                 "elements": [
-                  { "type": "text", "value": "zzz", "x": 64, "y": 32, "color": "#FFFFFF" }
+                  { "type": "text", "value": "zzz", "x": 64, "y": 32, "color": "#FFFFFF", "size": 1 }
                 ]
               }
             ]
@@ -161,7 +168,7 @@ and instant config push. Messages are JSON with a `type` field:
 
 | Type | Payload | Timing |
 |------|---------|--------|
-| `hello` | `{ node_id, friendly_name, config_version, fw_version }` | On connect/reconnect |
+| `hello` | `{ node_id, friendly_name, config_version, fw_version, board }` | On connect/reconnect. `board` is the firmware build env (e.g. `esp32dev`, `esp32s3-ws-lcd169`); the server stores it and `fw_version` on the node |
 | `heartbeat` | `{ heap_free, uptime_s, rssi, display_count }` | Every 30s |
 
 ### Server → Node

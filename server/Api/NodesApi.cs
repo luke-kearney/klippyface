@@ -86,7 +86,7 @@ public static class NodesApi
             return Results.Ok(result);
         });
 
-        displays.MapPost("/", async (KlippyfaceDbContext db, string nodeId, NodeDisplay display, NodeStatusService statusService) =>
+        displays.MapPost("/", async (KlippyfaceDbContext db, string nodeId, NodeDisplay display, NodePublisher publisher, StarterPackService starterPack) =>
         {
             var node = await db.Nodes.FindAsync(nodeId);
             if (node is null) return Results.NotFound("Node not found");
@@ -94,12 +94,39 @@ public static class NodesApi
             display.Id = Guid.NewGuid().ToString();
             display.NodeId = nodeId;
             db.NodeDisplays.Add(display);
+            // New displays start with each printer state mapped to its starter face
+            db.Assignments.Add(await starterPack.DefaultAssignmentAsync(nodeId, display));
             await db.SaveChangesAsync();
-            await BumpConfigAndPushRefreshAsync(db, statusService, nodeId);
+            await publisher.RefreshNodeAsync(nodeId);
             return Results.Created($"/api/nodes/{nodeId}/displays/{display.Id}", display);
         });
 
-        displays.MapPut("/{displayId}", async (KlippyfaceDbContext db, string nodeId, string displayId, NodeDisplay input, NodeStatusService statusService) =>
+        // Re-point a display at the starter faces sized for it (importing them if
+        // needed). Replaces default group and triggers; keeps the active preset.
+        displays.MapPost("/{displayId}/starter-faces", async (KlippyfaceDbContext db, string nodeId, string displayId,
+            NodePublisher publisher, StarterPackService starterPack) =>
+        {
+            var display = await db.NodeDisplays.FirstOrDefaultAsync(d => d.Id == displayId && d.NodeId == nodeId);
+            if (display is null) return Results.NotFound();
+
+            var template = await starterPack.DefaultAssignmentAsync(nodeId, display);
+            var assignment = await db.Assignments.FirstOrDefaultAsync(a => a.NodeId == nodeId && a.DisplayId == displayId);
+            if (assignment is null)
+            {
+                db.Assignments.Add(template);
+                assignment = template;
+            }
+            else
+            {
+                assignment.DefaultGroup = template.DefaultGroup;
+                assignment.TriggersJson = template.TriggersJson;
+            }
+            await db.SaveChangesAsync();
+            await publisher.RefreshNodeAsync(nodeId);
+            return Results.Ok(assignment);
+        });
+
+        displays.MapPut("/{displayId}", async (KlippyfaceDbContext db, string nodeId, string displayId, NodeDisplay input, NodePublisher publisher) =>
         {
             var display = await db.NodeDisplays
                 .FirstOrDefaultAsync(d => d.Id == displayId && d.NodeId == nodeId);
@@ -114,11 +141,11 @@ public static class NodesApi
             display.Rotation = input.Rotation;
             display.SortOrder = input.SortOrder;
             await db.SaveChangesAsync();
-            await BumpConfigAndPushRefreshAsync(db, statusService, nodeId);
+            await publisher.RefreshNodeAsync(nodeId);
             return Results.Ok(display);
         });
 
-        displays.MapDelete("/{displayId}", async (KlippyfaceDbContext db, string nodeId, string displayId, NodeStatusService statusService) =>
+        displays.MapDelete("/{displayId}", async (KlippyfaceDbContext db, string nodeId, string displayId, NodePublisher publisher) =>
         {
             var display = await db.NodeDisplays
                 .FirstOrDefaultAsync(d => d.Id == displayId && d.NodeId == nodeId);
@@ -126,11 +153,11 @@ public static class NodesApi
 
             db.NodeDisplays.Remove(display);
             await db.SaveChangesAsync();
-            await BumpConfigAndPushRefreshAsync(db, statusService, nodeId);
+            await publisher.RefreshNodeAsync(nodeId);
             return Results.NoContent();
         });
 
-        displays.MapPut("/{displayId}/assignment", async (KlippyfaceDbContext db, string nodeId, string displayId, Assignment input, NodeStatusService statusService) =>
+        displays.MapPut("/{displayId}/assignment", async (KlippyfaceDbContext db, string nodeId, string displayId, Assignment input, NodePublisher publisher) =>
         {
             var display = await db.NodeDisplays
                 .FirstOrDefaultAsync(d => d.Id == displayId && d.NodeId == nodeId);
@@ -154,7 +181,7 @@ public static class NodesApi
             }
 
             await db.SaveChangesAsync();
-            await BumpConfigAndPushRefreshAsync(db, statusService, nodeId);
+            await publisher.RefreshNodeAsync(nodeId);
             var result = await db.Assignments
                 .FirstOrDefaultAsync(a => a.NodeId == nodeId && a.DisplayId == displayId);
             return Results.Ok(result);
@@ -199,7 +226,7 @@ public static class NodesApi
                 var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    statusService.Unregister(macAddress);
+                    statusService.Unregister(macAddress, ws);
                     await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                     return;
                 }
@@ -235,7 +262,8 @@ public static class NodesApi
                             });
                         }
 
-                        await PersistLastSeenAsync(scopeFactory, dbNodeId);
+                        await PersistHelloAsync(scopeFactory, dbNodeId,
+                            msg["board"]?.GetValue<string>(), msg["fw_version"]?.GetValue<string>());
                         break;
                     }
                     case "heartbeat":
@@ -252,7 +280,27 @@ public static class NodesApi
         }
         finally
         {
-            statusService.Unregister(macAddress);
+            statusService.Unregister(macAddress, ws);
+        }
+    }
+
+    // Older firmware doesn't send `board`; keep what we have rather than blanking it.
+    private static async Task PersistHelloAsync(IServiceScopeFactory scopeFactory, string dbNodeId,
+                                                string? board, string? firmwareVersion)
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<KlippyfaceDbContext>();
+            var node = await db.Nodes.FindAsync(dbNodeId);
+            if (node is null) return;
+            node.LastSeen = DateTime.UtcNow;
+            if (!string.IsNullOrEmpty(board)) node.Board = board;
+            if (!string.IsNullOrEmpty(firmwareVersion)) node.FirmwareVersion = firmwareVersion;
+            await db.SaveChangesAsync();
+        }
+        catch
+        {
         }
     }
 
@@ -272,21 +320,5 @@ public static class NodesApi
         catch
         {
         }
-    }
-
-    private static async Task BumpConfigAndPushRefreshAsync(KlippyfaceDbContext db, NodeStatusService statusService, string nodeId)
-    {
-        var node = await db.Nodes.FindAsync(nodeId);
-        if (node is null) return;
-
-        node.LastConfigVersion++;
-        node.UpdatedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync();
-
-        // Push refresh to node if it has an active WS connection
-        await statusService.SendToNodeAsync(node.MacAddress, new JsonObject
-        {
-            ["type"] = "refresh_config",
-        });
     }
 }

@@ -105,24 +105,27 @@ DisplayDriver* createDriver(const char* type, const JsonObject& busConfig,
 
 Adding a new display type = one class implementing `DisplayDriver` + one line in the factory.
 
-**Bus config passthrough:** Drivers that need pin-level bus config (parallel, SPI) receive the raw `bus_config` JSON from the server database. The `DisplaySlotConfig::rawBusJson` field carries the full JSON blob, and `DisplayManager::applyConfig()` passes it directly to the factory, preserving all pins. I2C drivers fall back to the struct-based `DisplayBusConfig` fields.
+**Bus config passthrough:** Drivers that need pin-level bus config (parallel, SPI) receive the raw `bus_config` JSON from the server database. The `DisplaySlotConfig::rawBusJson` field carries the full JSON blob, and `DisplayManager::applyConfig()` passes it directly to the factory, preserving all pins. If every display's driver type, size, rotation and bus config are unchanged from the running config, `applyConfig()` keeps the drivers and only swaps sprites and animation engines (no bus/panel re-init or flicker), keeping each display on the group it was showing. I2C drivers fall back to the struct-based `DisplayBusConfig` fields.
 
 ### Drivers
 
-| Driver | Display | Bus | Color | Framebuffer |
-|--------|---------|-----|-------|-------------|
-| `Sh1106Driver` | SH1106 128×64 | I2C | 1-bit mono | 1 KB (internal) |
-| `Ssd1306Driver` | SSD1306 128×64 | I2C | 1-bit mono | 1 KB (internal) |
-| `Hx8347Driver` | HX8347D 320×240 | 8-bit parallel8 | 16-bit RGB565 | Internal GRAM |
-| `St7789Driver` | ST7789 240×240 (future) | SPI | 16-bit RGB565 | 115 KB (PSRAM) |
-| `Ili9341Driver` | ILI9341 320×240 (future) | SPI | 16-bit RGB565 | 150 KB (PSRAM) |
+| Driver type | Class | Display | Bus | Color | Framebuffer |
+|-------------|-------|---------|-----|-------|-------------|
+| `sh1106` | `Sh1106Driver` | SH1106 128×64 | I2C | 1-bit mono | 1 KB (internal) |
+| `hx8347` | `GfxDriver` | HX8347D 320×240 | 8-bit parallel | 16-bit RGB565 | Full canvas with PSRAM, else 10 bands of ~15 KB |
+| `st7789` | `GfxDriver` | ST7789 / ST7789V2, any size (e.g. 240×240, 240×280) | SPI | 16-bit RGB565 | Full canvas w×h×2 (PSRAM if present), else bands |
+| `gc9a01` | `GfxDriver` | GC9A01 240×240 round | SPI | 16-bit RGB565 | Full canvas 115 KB (PSRAM if present), else bands |
 
-**HX8347D notes:**
-- Uses `moononournation/GFX Library for Arduino@1.3.5` (Arduino_GFX) via `Arduino_HX8347D` + `Arduino_ESP32PAR8`
-- `show()` is a no-op — writes go directly to display GRAM
+`ssd1306` and `ili9341` appear in the Web UI but have no firmware driver yet.
+
+**`GfxDriver` (Arduino_GFX) notes:**
+- Uses `moononournation/GFX Library for Arduino@1.3.5`: `Arduino_ESP32PAR8` + `Arduino_HX8347D`, or `Arduino_ESP32SPI` + `Arduino_ST7789` / `Arduino_GC9A01`. The driver owns and frees the bus, panel and canvas (the library frees none of them)
+- Frames are drawn off-screen and pushed whole, so the panel never shows a cleared or half-drawn frame (drawing straight to the panel blanked it on every frame change). With PSRAM, or 48 KB of RAM to spare, that's one full-frame `Arduino_Canvas` flushed in `show()`. Otherwise the frame is rendered in equal horizontal **bands** of ~16 KB through one band-sized canvas: `DisplayManager` calls `beginBand(i)`, `renderFrame()` and `show()` once per band (`DisplayDriver::bandCount()`), drawing calls are offset to the band, and `Renderer` skips elements outside it (`rowsVisible()`). HX8347D on a classic ESP32: 10 bands of 240×32 (15 KB), ~51 ms per frame, dominated by the bus push. Direct drawing remains only as a fallback if even a band can't be allocated
+- Bus config: SPI needs `sclk`, `mosi`, `dc`; `cs`, `rst`, `miso`, `bl` optional. `ips` (default on for SPI panels, off for HX8347D), `col_offset` / `row_offset` (e.g. `row_offset: 20` for 240×280 ST7789V2; `col_offset2` / `row_offset2` for the flipped rotations, default the same), `freq` (SPI Hz)
+- Width/height for SPI panels are the panel's native size at rotation 0; HX8347D uses the controller's native 240×320 and `rotation` picks the orientation
+- `DisplayManager` skips its shared `SPI.begin()` for these panels: Arduino_GFX sets up its own SPI host and pins
 - Color conversion: `rgb888to565()` static helper (`0xRRGGBB` → `uint16_t RGB565`)
-- Backlight control via optional `bl` pin in bus config
-- `ips` flag configures IPS vs non-IPS panel mode
+- Backlight: optional `bl` pin, switched on at init and toggled by `powerSave()`
 
 ## Animation Engine
 
@@ -134,9 +137,9 @@ Per-display state machine. Each `AnimationEngine` owns:
 
 ```
 tick(now_ms) → const Frame*
-  ├── Advances frame if duration_ms elapsed
+  ├── Advances frame once its duration elapses: frame duration_ms,
+  │   else set frame_time (fallback for frames with none), else 1000ms
   ├── Handles loop_count (0=forever, 1=play-once, N=play-N)
-  ├── Applies set-level frame_time override
   └── Returns current frame (or null between loops)
 ```
 
@@ -146,9 +149,9 @@ Stateless free function: `renderFrame(Frame, DisplayDriver, PrinterState)`
 
 1. Clear canvas to `Frame::bg_color`
 2. For each `FrameElement`:
-   - `text` → draw static string at (x, y)
-   - `sprite` → blit named bitmap at (x, y)
-   - `datavalue` → resolve Moonraker key via `PrinterState::resolve()`, draw `label: value` at (x, y)
+   - `text` → draw static string centred on (x, y) at GFX text size `size`
+   - `sprite` → blit named bitmap with its top-left at (x, y); `size` > 1 draws each 1-bit pixel as a `size`×`size` block
+   - `datavalue` → resolve Moonraker key via `PrinterState::resolve()`, draw the value centred on (x, y) at text size `size`
 
 ## Sprite Format
 
@@ -207,7 +210,7 @@ to the companion server, replacing the old 5-minute HTTP polling:
 - **Connect:** `ws://{host}:{port}/api/ws/node/{mac}`
 - **On connect:** sends `hello` with identity and `config_version`
 - **Heartbeat:** every 30s, carries `heap_free`, `uptime_s`, `rssi`, `display_count`
-- **Commands:** handles `refresh_config` (fetches config on-demand), `config_status` (version check)
+- **Commands:** handles `refresh_config` (fetches config on-demand), `config_status` (version check). Both only set a pending flag; `tick()` runs one fetch for any number of requests, outside the WS callback. The fetched JSON is queued for `displayTask` as a heap `char*` (newest wins: an older queued config is evicted and freed) and parsed in place (ArduinoJson zero-copy).
 - **Reconnect:** auto-reconnect at 5s interval (WebSockets library manages this)
 ```
 

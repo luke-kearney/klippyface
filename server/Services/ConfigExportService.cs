@@ -89,6 +89,7 @@ public class ConfigExportService
                             ["color"] = element.Color,
                             ["x"] = element.X,
                             ["y"] = element.Y,
+                            ["size"] = element.Size,
                         });
                     }
 
@@ -159,7 +160,7 @@ public class ConfigExportService
 
         return new JsonObject
         {
-            ["config_version"] = 1,
+            ["config_version"] = node.LastConfigVersion,
             ["node"] = new JsonObject
             {
                 ["id"] = node.Id,
@@ -224,6 +225,7 @@ public class ConfigExportService
                             ["color"] = element.Color,
                             ["x"] = element.X,
                             ["y"] = element.Y,
+                            ["size"] = element.Size,
                         });
                     }
 

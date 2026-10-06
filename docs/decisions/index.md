@@ -277,6 +277,88 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-05: Web UI rewritten in React + TypeScript
+
+**Context:** The vanilla JS UI (~3.9k lines of hand-built DOM) had no shared components, so forms, lists and dialogs each behaved differently, and the editors were hard to extend. The set preview drew text top-left (firmware centres it) and the sprite editor packed bits without row padding (firmware expects `ceil(w/8)` byte rows).
+
+**Decision:** Rewrite `ui/` in React 19 + TypeScript, Tailwind v4 and shadcn/ui, with TanStack Query for server state and a hash router (the server has no SPA fallback). Previews use a software renderer (`ui/src/lib/render.ts`) that mirrors `Renderer.cpp` and the Adafruit GFX 5×7 font.
+
+**Rationale:** Shared, accessible components; typed API contract; the canvas editors (drag-to-place elements, pixel editor) need component state that vanilla DOM made awkward.
+
+**Consequences:** Larger bundle (~700 KB, fine on a LAN). Set editor saves edits optimistically and debounced; every save bumps affected nodes' config so devices update live. Sprites decode legacy unpadded data and re-encode padded on save.
+
+---
+
+## 2026-10-05: Per-frame duration takes precedence over set frame_time
+
+**Context:** `AnimationEngine::currentFrameDuration()` used the set's `frame_time` whenever it was non-zero, overriding every frame's `duration_ms`. The server defaults `frame_time` to 1000, so most sets played every frame for exactly 1s regardless of the durations set in the editor (a 5s frame showed for 1s).
+
+**Decision:** Frame `duration_ms` wins. `frame_time` is only a fallback for frames without a duration (missing/0 in config), then 1000ms. The Web UI treats `frame_time` as the default duration for new frames and previews use the same rule.
+
+**Consequences:** Requires a firmware reflash to take effect. Sets whose frames all match `frame_time` play the same as before.
+
+---
+
+## 2026-10-05: Brand identity in the Web UI
+
+**Context:** The UI used shadcn defaults with an orange primary, system fonts, a placeholder Lucide icon as the logo and no favicon. A branding set was designed (mark, pixel wordmark, palette, type, favicons).
+
+**Decision:** Adopt the brand palette (Nozzle orange on zinc) with ink text on primary, since white on `#F54900` fails AA contrast. Add `state-*` colour tokens for printer states that differ in lightness as well as hue. Self-host Geist, Geist Mono and Silkscreen via Fontsource rather than Google Fonts, because the server often runs on a LAN without reliable internet. Favicons are the hand-placed 16/32 px pixel marks as PNGs, not a scaled vector.
+
+**Consequences:** Primary buttons now have dark text. Fonts add ~50 KB (latin subsets) to the bundle, loaded on demand.
+
+---
+
+## 2026-10-05: Starter pack replaces EF seed data
+
+**Context:** `AppDbContext` seeded a demo node (placeholder MAC, two displays) and four sprites with empty bitmaps via `HasData`. Fresh installs started with a fake node and blank faces. Changing `HasData` makes EF generate `DeleteData`/`UpdateData` migrations that overwrite seeded rows in existing databases, which users may have edited.
+
+**Decision:** Remove the seed from the model, snapshot and the `InitialCreate`/`AddNodeOnlineTracking` migrations (affects fresh databases only; existing ones have already applied them and keep their data). Ship faces as an embedded `starter-pack.json`, imported on first run when the library is empty, or on demand via `POST /api/starter-pack` / the Groups page button. Import only adds ids that don't exist. New displays get a default assignment mapping each printer state to its starter group. Expressions stay server-side as editable library content; the firmware only gets a built-in boot splash (#26).
+
+**Consequences:** Existing databases keep the old demo rows until deleted by hand. The `°` in temperature values still renders as two glyphs (firmware prints UTF-8 byte by byte).
+
+---
+
+## 2026-10-06: Library edits publish to nodes in batches
+
+**Context:** Every library write bumped the config version of affected nodes and sent `refresh_config`. A few seconds of editing meant dozens of full config downloads and driver re-inits on the ESP32, and nodes wedged until power-cycled (#25).
+
+**Decision:** Split persisting from publishing. Group/set/frame/element writes (and sprite saves, for groups that draw the sprite) only set `groups.pending_publish`. `POST /api/groups/{id}/publish` bumps and refreshes nodes showing the group; the Web UI calls it from a Sync button and 30 s after the last edit, and `PendingPublishSweeper` publishes any group idle for 60 s so edits still land if the tab closes. Structural changes (group rename/delete, displays, assignments) still refresh immediately. `NodeStatusService` serialises sends per socket and coalesces `refresh_config` to one per node per 5 s. Version bumps are saved before the message is sent.
+
+**Consequences:** Nodes lag edits by up to ~60 s unless synced. A node that fetches for another reason (boot, reconnect) gets the latest saved content, published or not.
+
+---
+
+## 2026-10-06: One firmware build per board for ESP32-S3
+
+**Context:** #20 adds ESP32-S3 support for two Waveshare boards: ESP32-S3-Touch-LCD-1.69 (S3R8, 8 MB octal PSRAM, native USB) and ESP32-S3-LCD-1.28 (S3R2, 2 MB quad PSRAM, CH343P USB-UART). PSRAM type and USB serial mode are fixed at build time, and colour panels want a PSRAM frame buffer, so one generic S3 image can't serve both.
+
+**Decision:** One PlatformIO env per board (`esp32s3-ws-lcd169`, `esp32s3-ws-lcd128`) on a shared `esp32s3_base` (16 MB flash, `default_16MB.csv`), with board pins and quirks in `src/config/Board.h`. Release binaries are named `klippyface-firmware-<version>-<env>[-full].bin`, including the classic `esp32dev`. CI builds every env; production releases publish every board, the rolling `dev` pre-release only `esp32dev`.
+
+**Consequences:** The classic firmware's release file names gain an `-esp32dev` suffix. Adding a board means a new env, a `Board.h` block and a `FIRMWARE_TARGETS` entry in `release.yml`.
+
+---
+
+## 2026-10-06: One Arduino_GFX driver for colour TFTs
+
+**Context:** The two Waveshare S3 boards need ST7789 (#21) and GC9A01 (#29) drivers. The existing `Hx8347Driver` already wrapped Arduino_GFX, which supports both panels on SPI. Drawing straight to an SPI panel shows clear-then-draw flicker.
+
+**Decision:** Replace `Hx8347Driver` with one `GfxDriver` for `hx8347`, `st7789` and `gc9a01`, picking the bus (`Arduino_ESP32PAR8` / `Arduino_ESP32SPI`) and panel class from the driver type. SPI panels render into an `Arduino_Canvas` flushed in `show()`, in PSRAM when present, otherwise in internal RAM only if 48 KB stays free, else direct. Panel quirks (IPS, row/column offsets, SPI frequency) come from the bus config. The Web UI gains a `gc9a01` type, SPI offset/IPS fields, and a round preview mask.
+
+**Consequences:** Adding another Arduino_GFX panel is a new `Panel` value plus one constructor line. The HX8347D path is unchanged apart from clearing the screen and switching on the backlight at init; re-verified on hardware after the change.
+
+---
+
+## 2026-10-06: Element size and generated starter packs per display
+
+**Context:** The starter faces were drawn for a 128×64 OLED and text was always GFX size 1, so on 240–320px colour panels faces sat small in a corner and text was unreadable (#32).
+
+**Decision:** Frame elements get a `size` (1–8): GFX text size for text/data values, pixel scale for 1-bit sprites, rendered identically by the firmware and the Web UI. `scripts/starter_pack.py` generates a copy of each base group per display profile (`tft320x240`, `tft240x320`, `tft240x280`, `round240`) using scaled faces in state colours and large centred labels, written into `starter-pack.json` with a `profiles` trigger map. Groups record the `profile` they're drawn for, used for previews. The server picks a profile from a display's driver and size (orientation-strict) and imports that pack on demand when a display is added or "Use starter faces" is clicked.
+
+**Consequences:** No duplicated sprite art: the same sprites serve every size. The base groups stay the hand-edited source of truth; sized packs are regenerated, not edited. Libraries only get sized groups for displays they have.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations

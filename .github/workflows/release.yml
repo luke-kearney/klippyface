@@ -6,6 +6,9 @@ name: Release
 #   develop - development. Every push replaces the rolling "dev" pre-release
 #             with artifacts built from that commit.
 # Running it manually builds the artifacts without publishing.
+#
+# Firmware is built per board (see FIRMWARE_TARGETS). Dev pre-releases only
+# carry the classic ESP32 build; production releases and manual runs build all.
 
 on:
   push:
@@ -26,6 +29,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       channel: ${{ steps.version.outputs.channel }}
+      targets: ${{ steps.targets.outputs.targets }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -53,12 +57,35 @@ jobs:
           echo "channel=$channel" >> "$GITHUB_OUTPUT"
           echo "Building $version ($channel)"
 
+      # env = PlatformIO env and artifact suffix; bootloader offset differs per chip
+      - id: targets
+        env:
+          CHANNEL: ${{ steps.version.outputs.channel }}
+          FIRMWARE_TARGETS: >-
+            [
+              {"env": "esp32dev", "chip": "esp32", "bootloader": "0x1000", "dev": true},
+              {"env": "esp32s3-ws-lcd169", "chip": "esp32s3", "bootloader": "0x0", "dev": false},
+              {"env": "esp32s3-ws-lcd128", "chip": "esp32s3", "bootloader": "0x0", "dev": false}
+            ]
+        run: |
+          if [ "$CHANNEL" = "dev" ]; then
+            targets=$(jq -c '[.[] | select(.dev)]' <<< "$FIRMWARE_TARGETS")
+          else
+            targets=$(jq -c '.' <<< "$FIRMWARE_TARGETS")
+          fi
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+          echo "Firmware targets: $(jq -r 'map(.env) | join(", ")' <<< "$targets")"
+
   firmware:
-    name: Firmware
+    name: Firmware (${{ matrix.env }})
     needs: version
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.version.outputs.targets) }}
     env:
       VERSION: ${{ needs.version.outputs.version }}
+      TARGET: ${{ matrix.env }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -78,31 +105,32 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.platformio
-          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          key: pio-${{ runner.os }}-${{ matrix.env }}-${{ hashFiles('platformio.ini') }}
 
       - run: pip install platformio esptool
 
-      - run: pio run -e esp32dev
+      - run: pio run -e "$TARGET"
 
       - name: Package firmware
         run: |
-          build=.pio/build/esp32dev
+          build=".pio/build/$TARGET"
           boot_app0=~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin
+          name="klippyface-firmware-$VERSION-$TARGET"
           mkdir -p dist
 
-          cp "$build/firmware.bin" "dist/klippyface-firmware-$VERSION.bin"
+          cp "$build/firmware.bin" "dist/$name.bin"
 
           # Single image for a blank board: esptool write-flash 0x0 <file>
-          python -m esptool --chip esp32 merge-bin \
-            -o "dist/klippyface-firmware-$VERSION-full.bin" \
-            0x1000 "$build/bootloader.bin" \
+          python -m esptool --chip ${{ matrix.chip }} merge-bin \
+            -o "dist/$name-full.bin" \
+            ${{ matrix.bootloader }} "$build/bootloader.bin" \
             0x8000 "$build/partitions.bin" \
             0xe000 "$boot_app0" \
             0x10000 "$build/firmware.bin"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: firmware
+          name: firmware-${{ matrix.env }}
           path: dist/*
 
   server:
@@ -162,17 +190,30 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
+      # Only for docs/releases/<version>.md, the hand-written notes
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: docs/releases
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
 
+      # docs/releases/<version>.md, if present, goes above the generated notes
       - name: Publish production release
         if: env.CHANNEL == 'prod'
         run: |
+          notes=()
+          if [ -f "docs/releases/$VERSION.md" ]; then
+            notes=(--notes-file "docs/releases/$VERSION.md")
+          else
+            echo "::warning::No docs/releases/$VERSION.md - publishing generated notes only"
+          fi
           gh release create "v$VERSION" dist/* \
             --target "$GITHUB_SHA" \
             --title "v$VERSION" \
+            "${notes[@]}" \
             --generate-notes
 
       - name: Publish dev pre-release

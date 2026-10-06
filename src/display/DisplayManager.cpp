@@ -3,6 +3,7 @@
 #include "display/Sprite.h"
 #include "display/DisplayFactory.h"
 #include "comms/MoonrakerClient.h"
+#include "config/Board.h"
 #include <ArduinoJson.h>
 #include <Wire.h>
 #include <SPI.h>
@@ -40,18 +41,111 @@ bool DisplayManager::begin() {
     return !_slots.empty();
 }
 
-bool DisplayManager::applyConfig(const NodeConfig& config) {
-    Serial.printf("[%s] Applying config version %u...\n", TAG, config.config_version);
+// Arduino_GFX panels set up their own SPI host and pins; a shared SPI.begin()
+// would only fight them for the same peripheral.
+static bool driverOwnsBus(const String& driverType) {
+    return driverType == "st7789" || driverType == "gc9a01";
+}
 
-    cleanup();
+// Everything that decides how a driver is built; content (groups, sprites) is not part of it.
+static String hardwareKey(const DisplaySlotConfig& d) {
+    return d.driver_type + "|" + String(d.width) + "x" + String(d.height) + "@" + String(d.rotation)
+         + "|" + d.bus.type + "|" + d.bus.address + "|" + String(d.bus.cs) + "," + String(d.bus.dc)
+         + "," + String(d.bus.rst) + "|" + d.rawBusJson;
+}
 
-    // Decode sprites
+bool DisplayManager::sameHardware(const NodeConfig& config) const {
+    if (_slots.empty() || _slots.size() != config.displays.size()) return false;
+    for (size_t i = 0; i < _slots.size(); i++) {
+        if (!_slots[i].driver || _slots[i].id != config.displays[i].id
+            || _slots[i].hardwareKey != hardwareKey(config.displays[i]))
+            return false;
+    }
+    return true;
+}
+
+void DisplayManager::decodeSprites(const NodeConfig& config) {
+    _sprites.clear();
     for (const auto& kv : config.sprites) {
         _sprites[kv.first] = decodeSpriteFromInfo(kv.second);
     }
     if (!config.sprites.empty()) {
         Serial.printf("[%s] Decoded %u sprites\n", TAG, (unsigned)config.sprites.size());
     }
+}
+
+void DisplayManager::logHeap() const {
+    Serial.printf("[%s] Heap free %u, largest block %u\n",
+                  TAG, (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getMaxAllocHeap());
+}
+
+// Same displays, new groups/sprites: keep the drivers (no bus or panel re-init,
+// no flicker) and keep each display on the group it was showing if it still exists.
+void DisplayManager::applyContent(const NodeConfig& config) {
+    decodeSprites(config);
+    for (size_t i = 0; i < _slots.size(); i++) {
+        DisplaySlot& slot = _slots[i];
+        String current = slot.engine.currentGroupId();
+        configureEngine(slot, config.displays[i], config);
+        if (!_screenSaverActive && !current.isEmpty() && current != slot.engine.currentGroupId()
+            && config.library_groups.count(current))
+            slot.engine.switchToGroup(current);
+        slot.lastRenderedFrame = nullptr;
+        if (_screenSaverActive) slot.driver->powerSave(false);
+    }
+}
+
+void DisplayManager::configureEngine(DisplaySlot& slot, const DisplaySlotConfig& dispConfig,
+                                     const NodeConfig& config) {
+    std::set<String> refGroupIds;
+    if (!dispConfig.default_group.isEmpty()) {
+        refGroupIds.insert(dispConfig.default_group);
+    }
+    for (const auto& trig : dispConfig.triggers) {
+        if (!trig.second.isEmpty()) {
+            refGroupIds.insert(trig.second);
+        }
+    }
+
+    std::map<String, Group> usedGroups;
+    for (const auto& gid : refGroupIds) {
+        auto it = config.library_groups.find(gid);
+        if (it != config.library_groups.end()) {
+            usedGroups[gid] = it->second;
+        } else {
+            Serial.printf("[%s] Group '%s' referenced but not found\n", TAG, gid.c_str());
+        }
+    }
+
+    String defaultGroup = dispConfig.default_group;
+    if (defaultGroup.isEmpty() && !usedGroups.empty()) {
+        defaultGroup = usedGroups.begin()->first;
+    }
+
+    slot.engine.configure(usedGroups, defaultGroup, dispConfig.triggers);
+
+    Serial.printf("[%s] Display '%s': %s %dx%d, %u groups\n",
+                  TAG, slot.id.c_str(),
+                  dispConfig.driver_type.c_str(),
+                  dispConfig.width, dispConfig.height,
+                  (unsigned)usedGroups.size());
+}
+
+bool DisplayManager::applyConfig(const NodeConfig& config) {
+    Serial.printf("[%s] Applying config version %u...\n", TAG, config.config_version);
+
+    if (sameHardware(config)) {
+        Serial.printf("[%s] Displays unchanged — updating content only\n", TAG);
+        applyContent(config);
+        _configVersion = config.config_version;
+        _lastActivity = millis();
+        _screenSaverActive = false;
+        logHeap();
+        return true;
+    }
+
+    cleanup();
+    decodeSprites(config);
 
     // Initialize display buses from config before creating drivers
     int8_t i2cSda = -1, i2cScl = -1;
@@ -64,7 +158,7 @@ bool DisplayManager::applyConfig(const NodeConfig& config) {
         JsonObject busObj = busDoc.as<JsonObject>();
 
         if (dispConfig.bus.type == "i2c") {
-            int8_t sda = 21, scl = 22;
+            int8_t sda = DEFAULT_I2C_SDA, scl = DEFAULT_I2C_SCL;
             if (busObj["sda"].is<int>()) sda = busObj["sda"].as<int>();
             if (busObj["scl"].is<int>()) scl = busObj["scl"].as<int>();
             if (i2cSda < 0) {
@@ -74,8 +168,8 @@ bool DisplayManager::applyConfig(const NodeConfig& config) {
                 Serial.printf("[%s] Warning: I2C display '%s' uses different pins (%d/%d) than first (%d/%d)\n",
                               TAG, dispConfig.id.c_str(), sda, scl, i2cSda, i2cScl);
             }
-        } else if (dispConfig.bus.type == "spi") {
-            int8_t mosi = 23, miso = 19, sclk = 18;
+        } else if (dispConfig.bus.type == "spi" && !driverOwnsBus(dispConfig.driver_type)) {
+            int8_t mosi = DEFAULT_SPI_MOSI, miso = DEFAULT_SPI_MISO, sclk = DEFAULT_SPI_SCLK;
             if (busObj["mosi"].is<int>()) mosi = busObj["mosi"].as<int>();
             if (busObj["miso"].is<int>()) miso = busObj["miso"].as<int>();
             if (busObj["sclk"].is<int>()) sclk = busObj["sclk"].as<int>();
@@ -142,41 +236,9 @@ bool DisplayManager::applyConfig(const NodeConfig& config) {
             continue;
         }
 
-        // Collect groups referenced by this display
-        std::set<String> refGroupIds;
-        if (!dispConfig.default_group.isEmpty()) {
-            refGroupIds.insert(dispConfig.default_group);
-        }
-        for (const auto& trig : dispConfig.triggers) {
-            if (!trig.second.isEmpty()) {
-                refGroupIds.insert(trig.second);
-            }
-        }
-
-        std::map<String, Group> usedGroups;
-        for (const auto& gid : refGroupIds) {
-            auto it = config.library_groups.find(gid);
-            if (it != config.library_groups.end()) {
-                usedGroups[gid] = it->second;
-            } else {
-                Serial.printf("[%s] Group '%s' referenced but not found\n", TAG, gid.c_str());
-            }
-        }
-
-        // Determine default group
-        String defaultGroup = dispConfig.default_group;
-        if (defaultGroup.isEmpty() && !usedGroups.empty()) {
-            defaultGroup = usedGroups.begin()->first;
-        }
-
-        slot.engine.configure(usedGroups, defaultGroup, dispConfig.triggers);
+        slot.hardwareKey = hardwareKey(dispConfig);
+        configureEngine(slot, dispConfig, config);
         _slots.push_back(slot);
-
-        Serial.printf("[%s] Display '%s': %s %dx%d, %u groups\n",
-                      TAG, slot.id.c_str(),
-                      dispConfig.driver_type.c_str(),
-                      dispConfig.width, dispConfig.height,
-                      (unsigned)usedGroups.size());
     }
 
     _configVersion = config.config_version;
@@ -187,6 +249,7 @@ bool DisplayManager::applyConfig(const NodeConfig& config) {
     Serial.printf("[%s] Config applied: %u displays, %u sprites (%s)\n",
                   TAG, (unsigned)_slots.size(), (unsigned)_sprites.size(),
                   ok ? "OK" : "NO DISPLAYS");
+    logHeap();
     return ok;
 }
 
@@ -248,8 +311,11 @@ void DisplayManager::tickAll(uint32_t now) {
 
         const Frame* frame = slot.engine.tick(now);
         if (frame && frame != slot.lastRenderedFrame) {
-            renderFrame(*frame, *slot.driver, &_sprites, &_printerState);
-            slot.driver->show();
+            for (uint8_t band = 0; band < slot.driver->bandCount(); band++) {
+                slot.driver->beginBand(band);
+                renderFrame(*frame, *slot.driver, &_sprites, &_printerState);
+                slot.driver->show();
+            }
             slot.lastRenderedFrame = frame;
         }
     }

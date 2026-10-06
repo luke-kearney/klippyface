@@ -11,7 +11,10 @@ builder.Services.AddDbContext<KlippyfaceDbContext>(options =>
     options.UseSqlite("Data Source=klippyface.db"));
 
 builder.Services.AddScoped<ConfigExportService>();
+builder.Services.AddScoped<StarterPackService>();
+builder.Services.AddScoped<NodePublisher>();
 builder.Services.AddSingleton<NodeStatusService>();
+builder.Services.AddHostedService<PendingPublishSweeper>();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -57,6 +60,15 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<KlippyfaceDbContext>();
     db.Database.Migrate();
+
+    // First run: give an empty library the built-in faces
+    var starterPack = scope.ServiceProvider.GetRequiredService<StarterPackService>();
+    if (await starterPack.IsLibraryEmptyAsync())
+    {
+        var imported = await starterPack.ImportAsync();
+        app.Logger.LogInformation("Imported starter pack: {Groups} groups, {Sprites} sprites",
+            imported.GroupsAdded, imported.SpritesAdded);
+    }
 }
 
 app.MapNodesApi();

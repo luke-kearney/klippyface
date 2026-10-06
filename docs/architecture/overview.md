@@ -9,7 +9,7 @@ stable: true
 > Multi-node ESP32 display system driven by Moonraker/Klipper printer data.
 > Firmware: PlatformIO + Arduino core + FreeRTOS (C++)
 > Server: .NET 10 + SQLite (minimal API)
-> Web UI: Vanilla JS + Vite
+> Web UI: React + TypeScript + Vite
 
 ## System Diagram
 
@@ -69,7 +69,7 @@ stable: true
  12. Each engine selects the right group/set/frame based on its triggers
  13. Renderer draws frames to each display's driver
  14. Klipper macros can send: RESPOND MSG="display:node=printer_face group=celebration set=win"
- 15. Admin edits in Web UI bump `LastConfigVersion` and push `refresh_config` via WS → node fetches and re-applies in seconds
+ 15. Admin edits in the Web UI are saved immediately but published in batches (Sync now, 30 s after the last edit, or by the server after 60 s idle). A publish bumps `LastConfigVersion` and pushes `refresh_config` via WS (at most one per node per 5 s) → node fetches and re-applies in seconds
 ```
 
 ## Core Concepts
@@ -111,7 +111,7 @@ klippyface/
 │   ├── Models/                       # Entity models
 │   ├── Api/                          # Endpoint groups
 │   └── Services/                     # Business logic
-├── ui/                               # Vite vanilla JS Web UI
+├── ui/                               # React + TypeScript Web UI (Vite)
 │   ├── css/
 │   ├── js/
 │   │   ├── app.js, store.js, api.js, utils.js

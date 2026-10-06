@@ -2,7 +2,7 @@
 
 static const char* TAG = "CONFIG";
 
-bool ConfigDeserializer::deserialize(const String& json, NodeConfig& outConfig) {
+bool ConfigDeserializer::deserialize(char* json, NodeConfig& outConfig) {
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, json);
 
@@ -189,7 +189,7 @@ void ConfigDeserializer::parseSet(JsonObject& setJson, Set& outSet) {
 }
 
 void ConfigDeserializer::parseFrame(JsonObject& frameJson, Frame& outFrame) {
-    outFrame.duration_ms = frameJson["duration_ms"] | 1000;
+    outFrame.duration_ms = frameJson["duration_ms"] | 0;  // 0 = fall back to set frame_time
 
     String bgColorStr = frameJson["bg_color"] | "";
     if (bgColorStr.length() > 0) {
@@ -224,6 +224,7 @@ void ConfigDeserializer::parseElement(JsonObject& elJson, FrameElement& outEl) {
     outEl.value = elJson["value"] | "";
     outEl.label = elJson["label"] | "";
     outEl.x = elJson["x"] | 0;
+    outEl.size = constrain((int)(elJson["size"] | 1), 1, 8);
     outEl.y = elJson["y"] | 0;
 
     String colorStr = elJson["color"] | "";

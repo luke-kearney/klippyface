@@ -48,6 +48,7 @@ private:
 
     struct DisplaySlot {
         String              id;
+        String              hardwareKey;   // see hardwareKey(); equal keys reuse the driver
         DisplayDriver*      driver = nullptr;
         AnimationEngine     engine;
         const Frame*        lastRenderedFrame = nullptr;
@@ -65,6 +66,12 @@ private:
 
     void buildBootDisplay();
     void cleanup();
+    bool sameHardware(const struct NodeConfig& config) const;
+    void applyContent(const struct NodeConfig& config);
+    void decodeSprites(const struct NodeConfig& config);
+    void configureEngine(DisplaySlot& slot, const struct DisplaySlotConfig& dispConfig,
+                         const struct NodeConfig& config);
+    void logHeap() const;
 };
 
 #endif

@@ -6,15 +6,17 @@ static void renderTextElement(const FrameElement& element, DisplayDriver& displa
     const char* text = element.value.c_str();
     size_t len = strlen(text);
 
-    // Default Adafruit 5x7 font at size 1: ~6px wide, ~8px tall per char
-    int16_t textW = (int16_t)(len * 6);
-    int16_t textH = 8;
+    // GFX 5x7 font: 6x8 cells, scaled by the element size
+    int16_t textW = (int16_t)(len * 6 * element.size);
+    int16_t textH = 8 * element.size;
 
     int16_t cx = element.x - textW / 2;
     int16_t cy = element.y - textH / 2;
+    // Text wider than the panel wraps onto more lines: keep it in every band
+    if (textW <= display.width() && !display.rowsVisible(cy, textH)) return;
 
     display.setTextColor(element.color);
-    display.setTextSize(1);
+    display.setTextSize(element.size);
     display.setCursor(cx, cy);
     display.print(text);
 }
@@ -31,14 +33,16 @@ static void renderDataValueElement(const FrameElement& element, DisplayDriver& d
     const char* text = resolved.c_str();
     size_t len = strlen(text);
 
-    int16_t textW = (int16_t)(len * 6);
-    int16_t textH = 8;
+    int16_t textW = (int16_t)(len * 6 * element.size);
+    int16_t textH = 8 * element.size;
 
     int16_t cx = element.x - textW / 2;
     int16_t cy = element.y - textH / 2;
+    // Text wider than the panel wraps onto more lines: keep it in every band
+    if (textW <= display.width() && !display.rowsVisible(cy, textH)) return;
 
     display.setTextColor(element.color);
-    display.setTextSize(1);
+    display.setTextSize(element.size);
     display.setCursor(cx, cy);
     display.print(text);
 }
@@ -59,6 +63,21 @@ static void renderSpriteElement(const FrameElement& element, DisplayDriver& disp
     }
 
     const Sprite& sprite = it->second;
+    if (!display.rowsVisible(element.y, sprite.height * element.size)) return;
+    size_t stride = (sprite.width + 7) / 8;
+    bool oneBit = sprite.byteSize() == stride * sprite.height;
+    if (element.size > 1 && oneBit) {
+        // 1-bit rows, MSB = leftmost pixel; each lit pixel becomes a size x size block
+        const uint8_t* data = sprite.rawData();
+        int16_t s = element.size;
+        for (int16_t py = 0; py < sprite.height; py++) {
+            for (int16_t px = 0; px < sprite.width; px++) {
+                if (data[py * stride + px / 8] & (0x80 >> (px % 8)))
+                    display.fillRect(element.x + px * s, element.y + py * s, s, s, element.color);
+            }
+        }
+        return;
+    }
     display.drawBitmap(element.x, element.y,
                        sprite.rawData(), sprite.byteSize(),
                        sprite.width, sprite.height,
