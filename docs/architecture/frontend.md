@@ -44,7 +44,7 @@ ui/
     │   ├── common.tsx           # PageHeader, EmptyState, ConfirmDelete, badges…
     │   ├── DisplayPreview.tsx   # FrameCanvas, SetPlayer, display profiles
     │   ├── DisplayDialog.tsx    # Display wiring editor (I²C / SPI / parallel pins)
-    │   ├── PixelEditor.tsx      # Sprite drawing canvas (pencil/eraser/fill/line/rect, mirror)
+    │   ├── PixelEditor.tsx      # Sprite drawing canvas (pencil/eraser/fill/line/rect/text, placeable mirror lines, reference overlay)
     │   ├── SpriteThumb.tsx
     │   └── editor/              # Set editor: EditorCanvas, Inspector, Filmstrip
     └── pages/                   # One component per route
@@ -75,7 +75,7 @@ Edits are applied locally first and saved in the background (`useSetDocument`, 3
 | `#/groups/{id}` | Sets in a group |
 | `#/groups/{gid}/sets/{sid}` | Set editor |
 | `#/sprites` | Sprite library: folder sections (drag cards between them), search |
-| `#/sprites/{id}` | Pixel editor; folder, description and ID rename in the header/side panel |
+| `#/sprites/{id}` | Pixel editor; folder, description and ID rename; mirror lines and a reference sprite overlay in the side panel |
 | `#/presets` | Presets |
 
 ## Dev Workflow
