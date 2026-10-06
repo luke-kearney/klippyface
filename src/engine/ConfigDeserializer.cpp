@@ -2,7 +2,7 @@
 
 static const char* TAG = "CONFIG";
 
-bool ConfigDeserializer::deserialize(const String& json, NodeConfig& outConfig) {
+bool ConfigDeserializer::deserialize(char* json, NodeConfig& outConfig) {
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, json);
 

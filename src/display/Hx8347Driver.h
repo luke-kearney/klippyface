@@ -39,6 +39,8 @@ public:
 
 private:
     Arduino_GFX* _gfx;
+    // Arduino_GFX doesn't own its bus, so the driver frees it.
+    Arduino_DataBus* _bus;
     int16_t  _width;
     int16_t  _height;
     uint8_t  _rotation;

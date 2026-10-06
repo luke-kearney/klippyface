@@ -105,7 +105,7 @@ DisplayDriver* createDriver(const char* type, const JsonObject& busConfig,
 
 Adding a new display type = one class implementing `DisplayDriver` + one line in the factory.
 
-**Bus config passthrough:** Drivers that need pin-level bus config (parallel, SPI) receive the raw `bus_config` JSON from the server database. The `DisplaySlotConfig::rawBusJson` field carries the full JSON blob, and `DisplayManager::applyConfig()` passes it directly to the factory, preserving all pins. I2C drivers fall back to the struct-based `DisplayBusConfig` fields.
+**Bus config passthrough:** Drivers that need pin-level bus config (parallel, SPI) receive the raw `bus_config` JSON from the server database. The `DisplaySlotConfig::rawBusJson` field carries the full JSON blob, and `DisplayManager::applyConfig()` passes it directly to the factory, preserving all pins. If every display's driver type, size, rotation and bus config are unchanged from the running config, `applyConfig()` keeps the drivers and only swaps sprites and animation engines (no bus/panel re-init or flicker), keeping each display on the group it was showing. I2C drivers fall back to the struct-based `DisplayBusConfig` fields.
 
 ### Drivers
 
@@ -207,7 +207,7 @@ to the companion server, replacing the old 5-minute HTTP polling:
 - **Connect:** `ws://{host}:{port}/api/ws/node/{mac}`
 - **On connect:** sends `hello` with identity and `config_version`
 - **Heartbeat:** every 30s, carries `heap_free`, `uptime_s`, `rssi`, `display_count`
-- **Commands:** handles `refresh_config` (fetches config on-demand), `config_status` (version check)
+- **Commands:** handles `refresh_config` (fetches config on-demand), `config_status` (version check). Both only set a pending flag; `tick()` runs one fetch for any number of requests, outside the WS callback. The fetched JSON is queued for `displayTask` as a heap `char*` (newest wins: an older queued config is evicted and freed) and parsed in place (ArduinoJson zero-copy).
 - **Reconnect:** auto-reconnect at 5s interval (WebSockets library manages this)
 ```
 

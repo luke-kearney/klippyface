@@ -1,6 +1,7 @@
 #include "ConfigFetcher.h"
-#include <WiFi.h>
+
 #include <HTTPClient.h>
+#include <WiFi.h>
 #include <WiFiClientSecure.h>
 
 static const char* TAG = "CONFIG";
@@ -20,41 +21,29 @@ String ConfigFetcher::fetchConfig(const String& host, uint16_t port,
     Serial.printf("[%s] Fetching config from %s://%s:%u ...\n",
                   TAG, scheme.c_str(), host.c_str(), port);
 
+    // Declared before `http` so they outlive it: HTTPClient reads the body
+    // through the client and stops it in end()/its destructor.
+    WiFiClient plain;
+    WiFiClientSecure tls;
     HTTPClient http;
     http.setTimeout(HTTP_TIMEOUT_MS);
 
+    bool begun;
     if (useTls) {
-        WiFiClientSecure* client = new WiFiClientSecure();
         if (!tlsVerify) {
-            client->setInsecure();
+            tls.setInsecure();
             Serial.printf("[%s] HTTPS without cert verification\n", TAG);
         } else {
             Serial.printf("[%s] HTTPS with cert verification (built-in CA bundle)\n", TAG);
         }
-        http.begin(*client, url);
-
-        int httpCode = http.GET();
-        delete client;
-
-        if (httpCode <= 0) {
-            Serial.printf("[%s] HTTP GET failed: %s\n", TAG, http.errorToString(httpCode).c_str());
-            http.end();
-            return "";
-        }
-
-        if (httpCode != 200) {
-            Serial.printf("[%s] HTTP %d — unexpected status\n", TAG, httpCode);
-            http.end();
-            return "";
-        }
-
-        String body = http.getString();
-        Serial.printf("[%s] HTTP 200 (%u bytes)\n", TAG, (unsigned)body.length());
-        http.end();
-        return body;
+        begun = http.begin(tls, url);
+    } else {
+        begun = http.begin(plain, url);
     }
-
-    http.begin(url);
+    if (!begun) {
+        Serial.printf("[%s] Bad config URL\n", TAG);
+        return "";
+    }
 
     int httpCode = http.GET();
     if (httpCode <= 0) {

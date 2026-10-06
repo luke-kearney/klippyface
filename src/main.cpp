@@ -221,11 +221,10 @@ void displayTask(void *pvParameters) {
         char* jsonBuf = nullptr;
         if (configQueue && xQueueReceive(configQueue, &jsonBuf, 0) == pdTRUE) {
             if (jsonBuf) {
-                String json(jsonBuf);
-                delete[] jsonBuf;
-
                 NodeConfig nodeCfg;
-                if (ConfigDeserializer::deserialize(json, nodeCfg)) {
+                bool parsed = ConfigDeserializer::deserialize(jsonBuf, nodeCfg);
+                delete[] jsonBuf;
+                if (parsed) {
                     Serial.println("[DISPLAY] Applying server config");
                     displayManager.applyConfig(nodeCfg);
                     serverClient.setConfigVersion(nodeCfg.config_version);
