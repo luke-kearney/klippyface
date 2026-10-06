@@ -13,6 +13,8 @@ server/bin/
 server/obj/
 tools/*/bin/
 tools/*/obj/
+tests/*/bin/
+tests/*/obj/
 *.user
 *.suo
 *.DotSettings

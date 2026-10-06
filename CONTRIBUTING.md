@@ -56,6 +56,23 @@ npm run build
 # → outputs to server/wwwroot/
 ```
 
+### Without a Printer
+
+```bash
+# Fake Moonraker on :7125 — point a node's Moonraker host at this machine
+dotnet run --project tools/FakeMoonraker -- --profile quad --scenario print-loop
+```
+
+Profiles, scenarios and the `/_sim/*` control endpoints are in [tools/FakeMoonraker/README.md](tools/FakeMoonraker/README.md).
+
+### Tests
+
+```bash
+dotnet test --solution klippyface.slnx
+```
+
+Tests live in `tests/Klippyface.Server.Tests` (xUnit v3, Microsoft.Testing.Platform via `global.json`). `FakeMoonrakerHost` starts the fake on a random port with a controllable clock, for anything that needs a Moonraker to talk to.
+
 ---
 
 ## How to Contribute
@@ -281,7 +298,7 @@ Firmware builds from the matching `v<VERSION>` tag report the plain version (`0.
 
 **Dev builds:** every push to `develop` replaces the rolling `dev` pre-release with the same artifacts, named `X.Y.Z-dev.<sha>`, except that only the classic `esp32dev` firmware is built. The firmware reports `X.Y.Z+g<sha>`.
 
-**CI:** the `CI` workflow builds the firmware (`esp32dev`, `esp32s3-ws-lcd169`, `esp32s3-ws-lcd128`), Web UI and server on every PR into `develop`/`master` and every push to `develop`. Run the `Release` workflow manually (Actions → Release → Run workflow) to build the release artifacts (all boards) from any branch without publishing. Board targets for the release live in `FIRMWARE_TARGETS` in `release.yml`.
+**CI:** the `CI` workflow builds the firmware (`esp32dev`, `esp32s3-ws-lcd169`, `esp32s3-ws-lcd128`), Web UI and server, and runs the .NET tests, on every PR into `develop`/`master` and every push to `develop`. Run the `Release` workflow manually (Actions → Release → Run workflow) to build the release artifacts (all boards) from any branch without publishing. Board targets for the release live in `FIRMWARE_TARGETS` in `release.yml`.
 
 ---
 

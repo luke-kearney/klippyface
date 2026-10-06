@@ -67,6 +67,9 @@ jobs:
         working-directory: server
         run: dotnet build -c Release
 
+      - name: Test
+        run: dotnet test --solution klippyface.slnx -c Release
+
   release-check:
     name: Release check
     if: github.event_name == 'pull_request' && github.base_ref == 'master'
