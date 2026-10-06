@@ -42,7 +42,7 @@ CREATE TABLE node_displays (
     id              TEXT PRIMARY KEY,
     node_id         TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
     label           TEXT NOT NULL DEFAULT '',
-    driver_type     TEXT NOT NULL,               -- "sh1106", "ssd1306", "st7789", "ili9341"
+    driver_type     TEXT NOT NULL,               -- "sh1106", "hx8347", "st7789", "gc9a01" (+ "ssd1306", "ili9341": no firmware driver yet)
     bus_type        TEXT NOT NULL DEFAULT 'i2c',
     bus_config      TEXT NOT NULL DEFAULT '{}',
     width           INTEGER NOT NULL DEFAULT 128,

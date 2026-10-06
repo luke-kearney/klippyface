@@ -173,7 +173,7 @@ xTaskCreatePinnedToCore(
 | `[DISPLAY]` | `DisplayManager` |
 | `[RENDER]` | `Renderer` |
 | `[SH1106]` | `Sh1106Driver` |
-| `[HX8347]` | `Hx8347Driver` |
+| `[GFX]` | `GfxDriver` (HX8347D, ST7789, GC9A01) |
 | `[CONFIG]` | `ConfigFetcher`, `ConfigDeserializer` |
 | `[SRVCLIENT]` | `ServerClient` |
 | `[MOONRAKER]` | `MoonrakerClient` |

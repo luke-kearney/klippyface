@@ -41,6 +41,12 @@ bool DisplayManager::begin() {
     return !_slots.empty();
 }
 
+// Arduino_GFX panels set up their own SPI host and pins; a shared SPI.begin()
+// would only fight them for the same peripheral.
+static bool driverOwnsBus(const String& driverType) {
+    return driverType == "st7789" || driverType == "gc9a01";
+}
+
 // Everything that decides how a driver is built; content (groups, sprites) is not part of it.
 static String hardwareKey(const DisplaySlotConfig& d) {
     return d.driver_type + "|" + String(d.width) + "x" + String(d.height) + "@" + String(d.rotation)
@@ -162,7 +168,7 @@ bool DisplayManager::applyConfig(const NodeConfig& config) {
                 Serial.printf("[%s] Warning: I2C display '%s' uses different pins (%d/%d) than first (%d/%d)\n",
                               TAG, dispConfig.id.c_str(), sda, scl, i2cSda, i2cScl);
             }
-        } else if (dispConfig.bus.type == "spi") {
+        } else if (dispConfig.bus.type == "spi" && !driverOwnsBus(dispConfig.driver_type)) {
             int8_t mosi = DEFAULT_SPI_MOSI, miso = DEFAULT_SPI_MISO, sclk = DEFAULT_SPI_SCLK;
             if (busObj["mosi"].is<int>()) mosi = busObj["mosi"].as<int>();
             if (busObj["miso"].is<int>()) miso = busObj["miso"].as<int>();

@@ -339,6 +339,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-06: One Arduino_GFX driver for colour TFTs
+
+**Context:** The two Waveshare S3 boards need ST7789 (#21) and GC9A01 (#29) drivers. The existing `Hx8347Driver` already wrapped Arduino_GFX, which supports both panels on SPI. Drawing straight to an SPI panel shows clear-then-draw flicker.
+
+**Decision:** Replace `Hx8347Driver` with one `GfxDriver` for `hx8347`, `st7789` and `gc9a01`, picking the bus (`Arduino_ESP32PAR8` / `Arduino_ESP32SPI`) and panel class from the driver type. SPI panels render into an `Arduino_Canvas` flushed in `show()`, in PSRAM when present, otherwise in internal RAM only if 48 KB stays free, else direct. Panel quirks (IPS, row/column offsets, SPI frequency) come from the bus config. The Web UI gains a `gc9a01` type, SPI offset/IPS fields, and a round preview mask.
+
+**Consequences:** Adding another Arduino_GFX panel is a new `Panel` value plus one constructor line. The HX8347D path is unchanged apart from clearing the screen and switching on the backlight at init; re-verified on hardware after the change.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations

@@ -109,20 +109,23 @@ Adding a new display type = one class implementing `DisplayDriver` + one line in
 
 ### Drivers
 
-| Driver | Display | Bus | Color | Framebuffer |
-|--------|---------|-----|-------|-------------|
-| `Sh1106Driver` | SH1106 128×64 | I2C | 1-bit mono | 1 KB (internal) |
-| `Ssd1306Driver` | SSD1306 128×64 | I2C | 1-bit mono | 1 KB (internal) |
-| `Hx8347Driver` | HX8347D 320×240 | 8-bit parallel8 | 16-bit RGB565 | Internal GRAM |
-| `St7789Driver` | ST7789 240×240 (future) | SPI | 16-bit RGB565 | 115 KB (PSRAM) |
-| `Ili9341Driver` | ILI9341 320×240 (future) | SPI | 16-bit RGB565 | 150 KB (PSRAM) |
+| Driver type | Class | Display | Bus | Color | Framebuffer |
+|-------------|-------|---------|-----|-------|-------------|
+| `sh1106` | `Sh1106Driver` | SH1106 128×64 | I2C | 1-bit mono | 1 KB (internal) |
+| `hx8347` | `GfxDriver` | HX8347D 320×240 | 8-bit parallel | 16-bit RGB565 | None, draws to panel GRAM |
+| `st7789` | `GfxDriver` | ST7789 / ST7789V2, any size (e.g. 240×240, 240×280) | SPI | 16-bit RGB565 | Canvas, w×h×2 (PSRAM if present) |
+| `gc9a01` | `GfxDriver` | GC9A01 240×240 round | SPI | 16-bit RGB565 | Canvas, 115 KB (PSRAM if present) |
 
-**HX8347D notes:**
-- Uses `moononournation/GFX Library for Arduino@1.3.5` (Arduino_GFX) via `Arduino_HX8347D` + `Arduino_ESP32PAR8`
-- `show()` is a no-op — writes go directly to display GRAM
+`ssd1306` and `ili9341` appear in the Web UI but have no firmware driver yet.
+
+**`GfxDriver` (Arduino_GFX) notes:**
+- Uses `moononournation/GFX Library for Arduino@1.3.5`: `Arduino_ESP32PAR8` + `Arduino_HX8347D`, or `Arduino_ESP32SPI` + `Arduino_ST7789` / `Arduino_GC9A01`. The driver owns and frees the bus, panel and canvas (the library frees none of them)
+- SPI panels draw into an `Arduino_Canvas` and `show()` pushes the whole frame, so there's no clear-then-draw flicker. The canvas goes in PSRAM when the board has it, else in internal RAM only if 48 KB stays free afterwards; otherwise the driver draws straight to the panel. HX8347D always draws direct
+- Bus config: SPI needs `sclk`, `mosi`, `dc`; `cs`, `rst`, `miso`, `bl` optional. `ips` (default on for SPI panels, off for HX8347D), `col_offset` / `row_offset` (e.g. `row_offset: 20` for 240×280 ST7789V2; `col_offset2` / `row_offset2` for the flipped rotations, default the same), `freq` (SPI Hz)
+- Width/height for SPI panels are the panel's native size at rotation 0; HX8347D uses the controller's native 240×320 and `rotation` picks the orientation
+- `DisplayManager` skips its shared `SPI.begin()` for these panels: Arduino_GFX sets up its own SPI host and pins
 - Color conversion: `rgb888to565()` static helper (`0xRRGGBB` → `uint16_t RGB565`)
-- Backlight control via optional `bl` pin in bus config
-- `ips` flag configures IPS vs non-IPS panel mode
+- Backlight: optional `bl` pin, switched on at init and toggled by `powerSave()`
 
 ## Animation Engine
 

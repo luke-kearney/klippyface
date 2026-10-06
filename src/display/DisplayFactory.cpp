@@ -1,6 +1,6 @@
 #include "DisplayFactory.h"
 #include "Sh1106Driver.h"
-#include "Hx8347Driver.h"
+#include "GfxDriver.h"
 
 static const char* TAG = "FACTORY";
 
@@ -18,10 +18,17 @@ DisplayDriver* createDriver(const char* type, const JsonObject& busConfig,
         return new Sh1106Driver(width, height, addr, rotation);
     }
 
-    if (strcmp(type, "hx8347") == 0) {
-        Serial.printf("[%s] Creating hx8347 (%dx%d, rot %d)\n",
-                      TAG, width, height, rotation);
-        return new Hx8347Driver(width, height, busConfig, rotation);
+    GfxDriver::Panel panel;
+    bool isGfx = true;
+    if (strcmp(type, "hx8347") == 0)      panel = GfxDriver::Panel::Hx8347;
+    else if (strcmp(type, "st7789") == 0) panel = GfxDriver::Panel::St7789;
+    else if (strcmp(type, "gc9a01") == 0) panel = GfxDriver::Panel::Gc9a01;
+    else isGfx = false;
+
+    if (isGfx) {
+        Serial.printf("[%s] Creating %s (%dx%d, rot %d)\n",
+                      TAG, type, width, height, rotation);
+        return new GfxDriver(panel, width, height, busConfig, rotation);
     }
 
     Serial.printf("[%s] Unknown driver type: %s\n", TAG, type);
