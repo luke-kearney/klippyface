@@ -40,9 +40,15 @@ public class NodeStatusService : IDisposable
         }
     }
 
-    public void Unregister(string nodeId)
+    /// <summary>
+    /// Removes the node's entry only if it still belongs to <paramref name="ws"/>. A
+    /// rebooted node reconnects before the server notices its old socket is dead;
+    /// when that old socket finally errors, it must not unregister the new one.
+    /// </summary>
+    public void Unregister(string nodeId, WebSocket ws)
     {
-        _connections.TryRemove(nodeId, out _);
+        if (_connections.TryGetValue(nodeId, out var conn) && ReferenceEquals(conn.Socket, ws))
+            _connections.TryRemove(new KeyValuePair<string, NodeConnection>(nodeId, conn));
     }
 
     public bool Heartbeat(string nodeId)
@@ -81,13 +87,18 @@ public class NodeStatusService : IDisposable
     public async Task SendToNodeAsync(string nodeId, JsonObject message)
     {
         if (!_connections.TryGetValue(nodeId, out var conn) || conn.Socket.State != WebSocketState.Open)
+        {
+            _logger.LogDebug("Not sending {Type} to {Node}: {State}", message["type"], nodeId,
+                conn is null ? "not connected" : conn.Socket.State);
             return;
+        }
 
         // WebSocket allows only one outstanding SendAsync; saves and the hello reply can overlap.
         await conn.SendLock.WaitAsync();
         try
         {
             await SendToSocketAsync(conn.Socket, message);
+            _logger.LogDebug("Sent {Type} to {Node}", message["type"], nodeId);
         }
         finally
         {
@@ -106,7 +117,11 @@ public class NodeStatusService : IDisposable
         TimeSpan delay;
         lock (state)
         {
-            if (state.Scheduled) return;
+            if (state.Scheduled)
+            {
+                _logger.LogDebug("Refresh for {Node} already scheduled", nodeId);
+                return;
+            }
             state.Scheduled = true;
             var since = DateTime.UtcNow - state.LastSent;
             delay = since >= MinRefreshInterval ? TimeSpan.Zero : MinRefreshInterval - since;

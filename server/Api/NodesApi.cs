@@ -201,7 +201,7 @@ public static class NodesApi
                 var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    statusService.Unregister(macAddress);
+                    statusService.Unregister(macAddress, ws);
                     await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                     return;
                 }
@@ -254,7 +254,7 @@ public static class NodesApi
         }
         finally
         {
-            statusService.Unregister(macAddress);
+            statusService.Unregister(macAddress, ws);
         }
     }
 
