@@ -43,7 +43,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 # Build with mock mode (no printer needed)
 pio run -e esp32dev-mock
 
-# Flash to device
+# Flash to device (classic ESP32; see docs/hardware/mcu.md for S3 board envs)
 pio run -e esp32dev -t upload
 
 # View serial console
@@ -81,7 +81,7 @@ npm run build
 |---------|--------|
 | ESP32 firmware with FreeRTOS multitasking | ✅ Done |
 | Display drivers — SH1106 (I²C OLED), HX8347D (8-bit parallel TFT) | ✅ Done — hardware-verified, see [`docs/hardware/`](docs/hardware/). ST7789 planned ([#21](https://github.com/luke-kearney/klippyface/issues/21)) |
-| ESP32-S3 support | ⬜ Planned ([#20](https://github.com/luke-kearney/klippyface/issues/20)) |
+| ESP32-S3 support | 🟨 Build targets and release binaries for two Waveshare S3 boards ([#20](https://github.com/luke-kearney/klippyface/issues/20)); panel drivers planned ([#21](https://github.com/luke-kearney/klippyface/issues/21), [#29](https://github.com/luke-kearney/klippyface/issues/29)) |
 | Real-time Moonraker WebSocket integration | ⚠️ Partial — print state triggers, live progress/nozzle/bed values, connection monitoring, screen sleep. First extruder only ([#22](https://github.com/luke-kearney/klippyface/issues/22)) |
 | Configurable animations (Groups → Sets → Frames → Elements) | ✅ Done — sprite, text and live data elements, per-frame durations, looping. Richer progress/temperature rendering planned ([#3](https://github.com/luke-kearney/klippyface/issues/3), [#4](https://github.com/luke-kearney/klippyface/issues/4)) |
 | Starter faces for every printer state | ✅ Done — imported on first run, or from the Groups page |
@@ -201,7 +201,7 @@ known issues for every display driver and MCU that has been tested with Klippyfa
 | Category | Index | Verified |
 |----------|-------|----------|
 | Display drivers | [`docs/hardware/display.md`](docs/hardware/display.md) | SH1106 (I2C OLED), HX8347D (Parallel 8 TFT) |
-| MCU / dev boards | [`docs/hardware/mcu.md`](docs/hardware/mcu.md) | ESP-WROOM-32 (ESP32 DevKit V1) |
+| MCU / dev boards | [`docs/hardware/mcu.md`](docs/hardware/mcu.md) | ESP-WROOM-32 (ESP32 DevKit V1); Waveshare ESP32-S3 LCD 1.69 / 1.28 (build only) |
 
 If you've tested a display or board not listed here, open a PR or issue with
 your wiring details and we'll add it.

@@ -3,6 +3,7 @@
 #include "display/Sprite.h"
 #include "display/DisplayFactory.h"
 #include "comms/MoonrakerClient.h"
+#include "config/Board.h"
 #include <ArduinoJson.h>
 #include <Wire.h>
 #include <SPI.h>
@@ -151,7 +152,7 @@ bool DisplayManager::applyConfig(const NodeConfig& config) {
         JsonObject busObj = busDoc.as<JsonObject>();
 
         if (dispConfig.bus.type == "i2c") {
-            int8_t sda = 21, scl = 22;
+            int8_t sda = DEFAULT_I2C_SDA, scl = DEFAULT_I2C_SCL;
             if (busObj["sda"].is<int>()) sda = busObj["sda"].as<int>();
             if (busObj["scl"].is<int>()) scl = busObj["scl"].as<int>();
             if (i2cSda < 0) {
@@ -162,7 +163,7 @@ bool DisplayManager::applyConfig(const NodeConfig& config) {
                               TAG, dispConfig.id.c_str(), sda, scl, i2cSda, i2cScl);
             }
         } else if (dispConfig.bus.type == "spi") {
-            int8_t mosi = 23, miso = 19, sclk = 18;
+            int8_t mosi = DEFAULT_SPI_MOSI, miso = DEFAULT_SPI_MISO, sclk = DEFAULT_SPI_SCLK;
             if (busObj["mosi"].is<int>()) mosi = busObj["mosi"].as<int>();
             if (busObj["miso"].is<int>()) miso = busObj["miso"].as<int>();
             if (busObj["sclk"].is<int>()) sclk = busObj["sclk"].as<int>();

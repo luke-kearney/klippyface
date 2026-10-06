@@ -31,7 +31,7 @@ Thanks for your interest! This is a multi-node ESP32 display system driven by Mo
 # Build the mock variant (no printer needed)
 pio run -e esp32dev-mock
 
-# Flash to device
+# Flash to device (classic ESP32; S3 boards: esp32s3-ws-lcd169, esp32s3-ws-lcd128)
 pio run -e esp32dev -t upload
 
 # View serial console
@@ -203,7 +203,7 @@ All `uint32_t` color parameters are **RGB888** (8-8-8): `0xRRGGBB`.
 ```
 src/
 ├── main.cpp              # setup() + xTaskCreatePinnedToCore()
-├── config/               # Persistent settings (NVS)
+├── config/               # Persistent settings (NVS), per-board pins (Board.h)
 ├── wifi/                 # WiFi management
 ├── display/              # DisplayDriver abstraction + implementations
 ├── engine/               # Animation engine, config structs, data binding
@@ -278,13 +278,13 @@ Firmware builds from the matching `v<VERSION>` tag report the plain version (`0.
 1. Bump `VERSION` and `ui/package.json` in a PR into `develop` (`Bump version to X.Y.Z`)
 2. Open a PR from `develop` into `master` — the `Release check` job fails if `VERSION` and `ui/package.json` differ or `vX.Y.Z` is already tagged
 3. Merge it. The `Release` workflow tags the merge commit `vX.Y.Z` and publishes a GitHub Release with:
-   - `klippyface-firmware-X.Y.Z.bin` — app image for updating a flashed board
-   - `klippyface-firmware-X.Y.Z-full.bin` — full image for a blank board (`esptool write-flash 0x0 <file>`)
+   - `klippyface-firmware-X.Y.Z-<env>.bin` — app image for updating a flashed board, one per board env (`esp32dev`, `esp32s3-ws-lcd169`, `esp32s3-ws-lcd128`)
+   - `klippyface-firmware-X.Y.Z-<env>-full.bin` — full image for a blank board (`esptool write-flash 0x0 <file>`)
    - `klippyface-server-X.Y.Z-linux-{arm64,x64}.tar.gz` — self-contained server with the Web UI in `wwwroot`
 
-**Dev builds:** every push to `develop` replaces the rolling `dev` pre-release with the same artifacts, named `X.Y.Z-dev.<sha>`. The firmware reports `X.Y.Z+g<sha>`.
+**Dev builds:** every push to `develop` replaces the rolling `dev` pre-release with the same artifacts, named `X.Y.Z-dev.<sha>`, except that only the classic `esp32dev` firmware is built. The firmware reports `X.Y.Z+g<sha>`.
 
-**CI:** the `CI` workflow builds the firmware (`esp32dev`, `esp32dev-mock`), Web UI and server on every PR into `develop`/`master` and every push to `develop`. Run the `Release` workflow manually (Actions → Release → Run workflow) to build the release artifacts from any branch without publishing.
+**CI:** the `CI` workflow builds the firmware (`esp32dev`, `esp32dev-mock`, `esp32s3-ws-lcd169`, `esp32s3-ws-lcd128`), Web UI and server on every PR into `develop`/`master` and every push to `develop`. Run the `Release` workflow manually (Actions → Release → Run workflow) to build the release artifacts (all boards) from any branch without publishing. Board targets for the release live in `FIRMWARE_TARGETS` in `release.yml`.
 
 ---
 
