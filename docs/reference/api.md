@@ -27,6 +27,7 @@ stable: true
 | POST | `/api/nodes/{id}/displays` | Add display to node (gets a default assignment mapping each printer state to its starter group, where those groups exist) |
 | PUT | `/api/nodes/{id}/displays/{did}` | Update display config |
 | DELETE | `/api/nodes/{id}/displays/{did}` | Remove display |
+| GET | `/api/nodes/{id}/displays/{did}/assignment` | Get a display's assignment |
 | PUT | `/api/nodes/{id}/displays/{did}/assignment` | Set assignment (triggers + default group) |
 
 ## Library Endpoints
@@ -63,12 +64,11 @@ Writes to groups, sets, frames and elements are saved immediately but **do not**
 | Method | Route | Description |
 |--------|-------|-------------|
 | GET | `/api/sprites` | List all sprites |
-| POST | `/api/sprites` | Create (JSON + base64, or multipart PNG upload) |
+| POST | `/api/sprites` | Create (JSON: `id`, `label`, `folder`, `description`, `width`, `height`, `data_base64`). Image import and 1-bit thresholding happen in the Web UI |
 | GET | `/api/sprites/{id}` | Get sprite with base64 data |
-| PUT | `/api/sprites/{id}` | Update sprite |
+| PUT | `/api/sprites/{id}` | Update sprite (label, folder, description, size, pixels). Marks groups that draw it pending |
 | POST | `/api/sprites/{id}/rename` | Change the sprite id (`{ id }`). Repoints `sprite` frame elements. Returns `{ sprite, elements_updated }`. `400` bad id, `409` taken |
 | DELETE | `/api/sprites/{id}` | Delete sprite |
-| GET | `/api/sprites/{id}/preview` | Render as PNG for browser preview |
 
 ## Preset Endpoints
 

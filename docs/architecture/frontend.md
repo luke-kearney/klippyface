@@ -33,15 +33,18 @@ ui/
     │   ├── api.ts               # Typed REST client; snake_case ↔ camelCase key conversion
     │   ├── types.ts             # Mirrors server/Models
     │   ├── render.ts            # Software renderer mirroring firmware Renderer.cpp
+    │   ├── utils.ts             # cn() class merging
     │   ├── font5x7.ts           # Adafruit GFX classic font (same glyphs as the device)
-    │   └── sprite.ts            # 1bpp encode/decode (row stride ceil(w/8), MSB-left)
+    │   └── sprite.ts            # 1bpp encode/decode (row stride ceil(w/8), MSB-left), image import, groupByFolder
     ├── hooks/
     │   ├── queries.ts           # Query hooks + useApiMutation (toast on error)
-    │   └── useSetDocument.ts    # Optimistic, debounced-save model for the set editor
+    │   └── useSetDocument.ts    # Optimistic, debounced-save model for the set editor + node sync (publish)
     ├── components/
     │   ├── ui/                  # shadcn/ui primitives (generated)
     │   ├── AppLayout.tsx        # Sidebar nav + device list
-    │   ├── common.tsx           # PageHeader, EmptyState, ConfirmDelete, badges…
+    │   ├── common.tsx           # PageHeader, EmptyState, ConfirmDelete, InlineDescription, badges…
+    │   ├── Logo.tsx             # Logo mark and pixel wordmark
+    │   ├── RenameIdDialog.tsx   # Change a sprite or group id
     │   ├── DisplayPreview.tsx   # FrameCanvas, SetPlayer, display profiles
     │   ├── DisplayDialog.tsx    # Display wiring editor (I²C / SPI / parallel pins)
     │   ├── PixelEditor.tsx      # Sprite drawing canvas (pencil/eraser/fill/line/rect/text, placeable mirror lines, reference overlay)
