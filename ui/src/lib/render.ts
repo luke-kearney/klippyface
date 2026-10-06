@@ -35,6 +35,7 @@ export const DATA_KEYS: { key: string; label: string; sample: string }[] = [
   { key: 'extruder.target', label: 'Nozzle target', sample: '215°C' },
   { key: 'heater_bed.temperature', label: 'Bed temp', sample: '60°C' },
   { key: 'heater_bed.target', label: 'Bed target', sample: '60°C' },
+  { key: 'klippyface.state', label: 'Printer state', sample: 'printing' },
   { key: 'moonraker.connected', label: 'Moonraker status', sample: 'Online' },
 ]
 const SAMPLES = new Map(DATA_KEYS.map((d) => [d.key, d.sample]))

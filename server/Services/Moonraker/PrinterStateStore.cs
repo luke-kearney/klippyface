@@ -9,6 +9,9 @@ namespace Klippyface.Server.Services.Moonraker;
 /// </summary>
 public sealed class PrinterStateStore
 {
+    /// <summary>What nodes fire state:* triggers from; see <see cref="DisplayState"/>.</summary>
+    public const string DisplayStateKey = "klippyface.state";
+
     /// <summary>
     /// Keys the server works out itself. print_stats has no progress field in
     /// Klipper, but faces have always bound to "print_stats.progress"; it follows
@@ -18,7 +21,41 @@ public sealed class PrinterStateStore
     [
         ("print_stats.progress", v =>
             v.GetValueOrDefault("display_status.progress") ?? v.GetValueOrDefault("virtual_sdcard.progress")),
+        (DisplayStateKey, v => DisplayState(v)),
     ];
+
+    /// <summary>
+    /// One state for faces, from several Klipper objects (first match wins):
+    /// error (Klipper shut down, or the print failed), heating (printing, nothing
+    /// extruded yet), printing, paused, complete/cancelled (until idle_timeout
+    /// goes Idle), busy (no print, but running G-code), idle.
+    /// Null until Klipper has reported a print state.
+    /// </summary>
+    public static string? DisplayState(IReadOnlyDictionary<string, JsonNode?> v)
+    {
+        var klippy = Text(v, "webhooks.state");
+        var print = Text(v, "print_stats.state");
+        var idle = Text(v, "idle_timeout.state");
+
+        if (klippy is "shutdown" or "error" || print == "error") return "error";
+        if (print is null) return null;
+
+        return print switch
+        {
+            "printing" when Number(v, "print_stats.filament_used") <= 0 => "heating",
+            "printing" => "printing",
+            "paused" => "paused",
+            "complete" or "cancelled" when idle != "Idle" => print,
+            _ when idle == "Printing" => "busy",
+            _ => "idle",
+        };
+    }
+
+    private static string? Text(IReadOnlyDictionary<string, JsonNode?> v, string key) =>
+        v.GetValueOrDefault(key) is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
+
+    private static double Number(IReadOnlyDictionary<string, JsonNode?> v, string key) =>
+        v.GetValueOrDefault(key) is JsonValue value && value.TryGetValue<double>(out var n) ? n : 0;
 
     private readonly Lock _lock = new();
     private readonly Dictionary<string, JsonNode?> _values = new();

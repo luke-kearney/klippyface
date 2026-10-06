@@ -2155,6 +2155,7 @@
   "triggers": {
     "state:idle": "idle",
     "state:printing": "printing",
+    "state:heating": "printing",
     "state:paused": "paused",
     "state:error": "error",
     "state:complete": "complete"
@@ -2166,6 +2167,7 @@
       "triggers": {
         "state:idle": "idle_tft320x240",
         "state:printing": "printing_tft320x240",
+        "state:heating": "printing_tft320x240",
         "state:paused": "paused_tft320x240",
         "state:error": "error_tft320x240",
         "state:complete": "complete_tft320x240"
@@ -2177,6 +2179,7 @@
       "triggers": {
         "state:idle": "idle_tft240x320",
         "state:printing": "printing_tft240x320",
+        "state:heating": "printing_tft240x320",
         "state:paused": "paused_tft240x320",
         "state:error": "error_tft240x320",
         "state:complete": "complete_tft240x320"
@@ -2188,6 +2191,7 @@
       "triggers": {
         "state:idle": "idle_tft240x280",
         "state:printing": "printing_tft240x280",
+        "state:heating": "printing_tft240x280",
         "state:paused": "paused_tft240x280",
         "state:error": "error_tft240x280",
         "state:complete": "complete_tft240x280"
@@ -2199,6 +2203,7 @@
       "triggers": {
         "state:idle": "idle_round240",
         "state:printing": "printing_round240",
+        "state:heating": "printing_round240",
         "state:paused": "paused_round240",
         "state:error": "error_round240",
         "state:complete": "complete_round240"

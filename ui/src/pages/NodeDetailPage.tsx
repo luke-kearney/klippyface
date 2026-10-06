@@ -150,12 +150,16 @@ function NodeDetailsCard({ node }: { node: Node }) {
   )
 }
 
+/** Printer states the server works out (klippyface.state), in the order a print goes through them. */
 const TRIGGERS: { key: string; label: string; dot: string }[] = [
+  { key: 'state:idle', label: 'Idle', dot: 'bg-state-idle' },
+  { key: 'state:busy', label: 'Busy (homing, macros)', dot: 'bg-state-busy' },
+  { key: 'state:heating', label: 'Heating up', dot: 'bg-state-heating' },
   { key: 'state:printing', label: 'Printing', dot: 'bg-state-printing' },
   { key: 'state:paused', label: 'Paused', dot: 'bg-state-paused' },
   { key: 'state:complete', label: 'Complete', dot: 'bg-state-complete' },
+  { key: 'state:cancelled', label: 'Cancelled', dot: 'bg-state-cancelled' },
   { key: 'state:error', label: 'Error', dot: 'bg-state-error' },
-  { key: 'state:idle', label: 'Idle', dot: 'bg-state-idle' },
 ]
 const NONE = '__none__'
 
@@ -270,7 +274,7 @@ function DisplayCard({ node, display, assignment }: { node: Node; display: NodeD
       </CardHeader>
       <CardContent className="grid gap-6 md:grid-cols-[1fr_260px]">
         <div className="grid gap-4">
-          <Field label="Default animation" hint="Shown when no trigger below matches the printer state.">
+          <Field label="Default animation" hint="Shown at start-up, and for any printer state below without a group of its own.">
             {groupSelect(defaultGroup, setDefaultGroup, 'None')}
           </Field>
           <div className="grid gap-2">

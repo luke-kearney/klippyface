@@ -75,5 +75,42 @@ public class PrinterStateStoreTests
         Assert.Equal(0.2, changes["print_stats.progress"]!.GetValue<double>());
     }
 
+    [Theory]
+    [InlineData("standby", 0, "Idle", "ready", "idle")]
+    [InlineData("standby", 0, "Ready", "ready", "idle")]
+    [InlineData("standby", 0, "Printing", "ready", "busy")]
+    [InlineData("printing", 0, "Printing", "ready", "heating")]
+    [InlineData("printing", 12.5, "Printing", "ready", "printing")]
+    [InlineData("paused", 12.5, "Ready", "ready", "paused")]
+    [InlineData("complete", 900, "Ready", "ready", "complete")]
+    [InlineData("complete", 900, "Printing", "ready", "complete")]
+    [InlineData("complete", 900, "Idle", "ready", "idle")]
+    [InlineData("cancelled", 40, "Ready", "ready", "cancelled")]
+    [InlineData("cancelled", 40, "Idle", "ready", "idle")]
+    [InlineData("error", 40, "Ready", "ready", "error")]
+    [InlineData("printing", 40, "Printing", "shutdown", "error")]
+    [InlineData("standby", 0, "Idle", "error", "error")]
+    public void Display_state_follows_klipper(string print, double filament, string idle, string klippy, string expected)
+    {
+        var status = new JsonObject
+        {
+            ["print_stats"] = new JsonObject { ["state"] = print, ["filament_used"] = filament },
+            ["idle_timeout"] = new JsonObject { ["state"] = idle },
+            ["webhooks"] = new JsonObject { ["state"] = klippy },
+        };
+
+        var changes = _store.Replace(status);
+
+        Assert.Equal(expected, changes[PrinterStateStore.DisplayStateKey]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void Display_state_waits_for_a_print_state()
+    {
+        var changes = _store.Replace(Json("""{"idle_timeout": {"state": "Idle"}}"""));
+
+        Assert.False(changes.ContainsKey(PrinterStateStore.DisplayStateKey));
+    }
+
     private static JsonObject Json(string text) => JsonNode.Parse(text)!.AsObject();
 }

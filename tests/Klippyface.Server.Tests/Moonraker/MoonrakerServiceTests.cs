@@ -48,8 +48,8 @@ public class MoonrakerServiceTests : IAsyncLifetime
         var status = await _listener.WaitForStatusAsync(MoonrakerState.Ready);
 
         Assert.Equal(
-            ["print_stats", "virtual_sdcard", "display_status", "toolhead", "heater_bed",
-             "extruder", "extruder1", "extruder2", "extruder3"],
+            ["print_stats", "virtual_sdcard", "display_status", "toolhead", "idle_timeout", "webhooks",
+             "heater_bed", "extruder", "extruder1", "extruder2", "extruder3"],
             status.Objects);
         Assert.Equal("standby", _store.Snapshot(["print_stats.state"])["print_stats.state"]!.GetValue<string>());
         Assert.True(_store.Snapshot(["extruder3.temperature"]).ContainsKey("extruder3.temperature"));
@@ -97,6 +97,26 @@ public class MoonrakerServiceTests : IAsyncLifetime
         await _fake.PostAsync("/_sim/state", new JsonObject { ["heater_bed"] = new JsonObject { ["target"] = 70 } });
         _fake.Tick();
         Assert.NotNull(await _listener.WaitForChangeAsync("heater_bed.target", v => v?.GetValue<double>() == 70));
+    }
+
+    [Fact]
+    public async Task Klipper_shutdown_is_an_error_not_offline()
+    {
+        await StartAsync();
+        await _listener.WaitForStatusAsync(MoonrakerState.Ready);
+
+        await _fake.PostAsync("/_sim/klippy/shutdown?message=Heater%20extruder%20not%20heating");
+        _fake.Tick();
+
+        var status = await _listener.WaitForStatusAsync(MoonrakerState.KlippyShutdown);
+        Assert.True(status.Connected);
+        Assert.Equal("error", _store.Snapshot([PrinterStateStore.DisplayStateKey])[PrinterStateStore.DisplayStateKey]!.GetValue<string>());
+
+        // FIRMWARE_RESTART brings it back
+        await _fake.PostAsync("/_sim/klippy/restart?seconds=1");
+        _fake.Time.Advance(TimeSpan.FromSeconds(1));
+        await _listener.WaitForStatusAsync(MoonrakerState.Ready);
+        Assert.Equal("idle", _store.Snapshot([PrinterStateStore.DisplayStateKey])[PrinterStateStore.DisplayStateKey]!.GetValue<string>());
     }
 
     [Fact]
