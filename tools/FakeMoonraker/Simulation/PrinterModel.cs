@@ -20,6 +20,12 @@ public sealed class PrinterModel
 
     public PrinterProfile Profile { get; }
 
+    /// <summary>
+    /// Objects to start from instead of the built-in defaults (a replayed capture).
+    /// Reset() goes back to these.
+    /// </summary>
+    public JsonObject? Baseline { get; set; }
+
     public IReadOnlyList<string> ObjectNames
     {
         get { lock (_lock) return _objects.Select(o => o.Key).ToList(); }
@@ -31,6 +37,13 @@ public sealed class PrinterModel
         lock (_lock)
         {
             _objects.Clear();
+
+            if (Baseline is not null)
+            {
+                foreach (var (name, fields) in Baseline)
+                    _objects[name] = fields?.DeepClone();
+                return;
+            }
 
             _objects["print_stats"] = new JsonObject
             {

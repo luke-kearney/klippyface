@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FakeMoonraker.Control;
 using FakeMoonraker.Protocol;
+using FakeMoonraker.Replay;
 using FakeMoonraker.Simulation;
 
 namespace FakeMoonraker;
@@ -13,15 +14,23 @@ public static class FakeMoonrakerApp
 {
     public const int DefaultPort = 7125;
 
-    /// <param name="args">--profile single|quad|path.json, --scenario name, --port n, --host addr</param>
+    /// <param name="args">
+    /// --profile single|quad|path.json, --scenario name, --port n, --host addr,
+    /// or --replay capture.jsonl [--speed 1] [--loop true] instead of a profile and scenario
+    /// </param>
     /// <param name="configure">Extra service setup, e.g. a fake TimeProvider in tests.</param>
     public static WebApplication Build(string[] args, Action<IServiceCollection>? configure = null)
     {
         var builder = WebApplication.CreateBuilder(args);
         var config = builder.Configuration;
 
-        var profile = PrinterProfile.Load(config["profile"] ?? "single");
-        var scenario = Scenario.Find(config["scenario"] ?? "idle");
+        var capture = config["replay"] is { } replayPath ? Capture.Load(replayPath) : null;
+        var profile = capture is null
+            ? PrinterProfile.Load(config["profile"] ?? "single")
+            : new PrinterProfile { Name = $"replay of {Path.GetFileName(config["replay"])}", Extruders = capture.ExtruderCount };
+        var scenario = capture is null
+            ? Scenario.Find(config["scenario"] ?? "idle")
+            : new ReplayScenario(capture, config.GetValue("speed", 1.0), config.GetValue("loop", true));
         var host = config["host"] ?? "0.0.0.0";
         var port = config.GetValue("port", DefaultPort);
 
@@ -32,7 +41,12 @@ public static class FakeMoonrakerApp
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton(profile);
         builder.Services.AddSingleton(scenario);
-        builder.Services.AddSingleton<PrinterModel>();
+        builder.Services.AddSingleton(_ =>
+        {
+            var model = new PrinterModel(profile) { Baseline = capture?.Initial };
+            model.Reset();
+            return model;
+        });
         builder.Services.AddSingleton<PrinterSimulation>();
         builder.Services.AddSingleton<MoonrakerHub>();
         builder.Services.AddHostedService<SimulationTicker>();
@@ -40,6 +54,9 @@ public static class FakeMoonrakerApp
         configure?.Invoke(builder.Services);
 
         var app = builder.Build();
+
+        if (capture is not null)
+            app.Services.GetRequiredService<PrinterSimulation>().Physics = false;
 
         app.UseWebSockets();
 

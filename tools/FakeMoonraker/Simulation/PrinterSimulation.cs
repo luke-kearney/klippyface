@@ -27,6 +27,9 @@ public sealed class PrinterSimulation(PrinterModel model)
     /// <summary>Random wobble on heater readings, in °C. Tests set it to 0.</summary>
     public double Noise { get; set; } = 0.08;
 
+    /// <summary>Off while replaying a capture, so only recorded values change.</summary>
+    public bool Physics { get; set; } = true;
+
     public bool IsPrinting
     {
         get { lock (_lock) return _job is not null; }
@@ -34,6 +37,8 @@ public sealed class PrinterSimulation(PrinterModel model)
 
     public void Advance(TimeSpan elapsed)
     {
+        if (!Physics) return;
+
         var dt = elapsed.TotalSeconds;
         lock (_lock)
         {

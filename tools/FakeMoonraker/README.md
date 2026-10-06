@@ -15,6 +15,9 @@ dotnet run --project tools/FakeMoonraker -- --profile quad --scenario toolchange
 | `--scenario` | `idle` | see below |
 | `--port` | `7125` | Moonraker's default port |
 | `--host` | `0.0.0.0` | listens on the LAN so a node can reach it — allow the port through your firewall |
+| `--replay` | | play back a capture instead of a profile and scenario (see below) |
+| `--speed` | `1` | replay speed multiplier |
+| `--loop` | `true` | start the replay again when it ends |
 
 To point a node at it, set the node's Moonraker host to your machine's LAN IP and port `7125`.
 
@@ -36,6 +39,17 @@ Every profile has `print_stats`, `virtual_sdcard`, `display_status`, `toolhead` 
 | `print-loop` | Idle 10 s, heat up, 90 s print, repeat |
 | `toolchange-cycle` | 3 min prints that switch tool every 15 s |
 | `flaky` | `print-loop` plus random dropped connections and Klipper restarts |
+
+## Replaying a real printer
+
+`scripts/capture-moonraker.sh` records a real Moonraker session (needs only [websocat](https://github.com/vi/websocat)):
+
+```bash
+scripts/capture-moonraker.sh 192.168.1.50 900 quad-toolchanger.jsonl
+dotnet run --project tools/FakeMoonraker -- --replay quad-toolchanger.jsonl --speed 4
+```
+
+The printer's objects come from the capture's subscribe reply (missing ones, answered `{}`, are left out), and each `notify_status_update` is applied at its recorded `eventtime`. The simulation is off during a replay, so only recorded values change; `/_sim/*` still works on top. Console output and host stats are not recorded, but file names are — check a capture before sharing it. Captures can be committed under `captures/`.
 
 ## Control endpoints
 

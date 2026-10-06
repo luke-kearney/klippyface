@@ -33,11 +33,18 @@ public sealed class FakeMoonrakerHost : IAsyncDisposable
     public PrinterSimulation Sim => _app.Services.GetRequiredService<PrinterSimulation>();
     public MoonrakerHub Hub => _app.Services.GetRequiredService<MoonrakerHub>();
 
-    public static async Task<FakeMoonrakerHost> StartAsync(string profile = "single", string scenario = "idle")
+    public static Task<FakeMoonrakerHost> StartAsync(string profile = "single", string scenario = "idle") =>
+        StartWithArgsAsync(["--profile", profile, "--scenario", scenario]);
+
+    /// <summary>Replay a capture once (no looping), driven by the fake clock.</summary>
+    public static Task<FakeMoonrakerHost> StartReplayAsync(string capturePath) =>
+        StartWithArgsAsync(["--replay", capturePath, "--loop", "false"]);
+
+    private static async Task<FakeMoonrakerHost> StartWithArgsAsync(string[] args)
     {
         var time = new FakeTimeProvider();
         var app = FakeMoonrakerApp.Build(
-            ["--profile", profile, "--scenario", scenario, "--host", "127.0.0.1", "--port", "0"],
+            [.. args, "--host", "127.0.0.1", "--port", "0"],
             services => services.AddSingleton<TimeProvider>(time));
 
         app.Services.GetRequiredService<PrinterSimulation>().Noise = 0;
