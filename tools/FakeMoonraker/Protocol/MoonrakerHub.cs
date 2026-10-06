@@ -253,9 +253,10 @@ public sealed class MoonrakerHub(PrinterSimulation sim, TimeProvider time, ILogg
 
     /// <summary>
     /// Klipper restart: clients get notify_klippy_disconnected, lose their
-    /// subscriptions, and get notify_klippy_ready once it is back.
+    /// subscriptions, and get notify_klippy_ready once it is back. With a
+    /// profile, it comes back as that printer (like editing printer.cfg).
     /// </summary>
-    public async Task RestartKlippyAsync(TimeSpan downtime, CancellationToken ct = default)
+    public async Task RestartKlippyAsync(TimeSpan downtime, PrinterProfile? profile = null, CancellationToken ct = default)
     {
         lock (_gate)
         {
@@ -267,8 +268,9 @@ public sealed class MoonrakerHub(PrinterSimulation sim, TimeProvider time, ILogg
                 session.Send(Notification("notify_klippy_disconnected"));
             }
         }
-        sim.Reset();
-        log.LogInformation("Klippy restarting ({Seconds}s)", downtime.TotalSeconds);
+        sim.Reset(profile);
+        log.LogInformation("Klippy restarting ({Seconds}s) as '{Profile}' ({Extruders} extruder(s))",
+            downtime.TotalSeconds, Model.Profile.Name, Model.Profile.Extruders);
 
         await Task.Delay(downtime, time, ct);
 

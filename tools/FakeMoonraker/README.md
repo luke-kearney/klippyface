@@ -12,6 +12,8 @@ dotnet run --project tools/FakeMoonraker -- --profile quad --scenario toolchange
 | Option | Default | |
 |--------|---------|-|
 | `--profile` | `single` | `single`, `quad`, or a path to a profile `.json` |
+| `--extruders` | | override the profile's extruder count, e.g. `--extruders 3` |
+| `--console` | on in a terminal | read typed commands (see below) |
 | `--scenario` | `idle` | see below |
 | `--port` | `7125` | Moonraker's default port |
 | `--host` | `0.0.0.0` | listens on the LAN so a server on another machine can reach it — allow the port through your firewall |
@@ -35,7 +37,7 @@ Every profile has `print_stats`, `virtual_sdcard`, `display_status`, `toolhead` 
 
 | Name | What happens |
 |------|--------------|
-| `idle` | Nothing; drive it with `/_sim/*` |
+| `idle` | Nothing; type commands or use `/_sim/*` |
 | `print-loop` | Idle 10 s, heat up, 90 s print, repeat |
 | `toolchange-cycle` | 3 min prints that switch tool every 15 s |
 | `flaky` | `print-loop` plus random dropped connections and Klipper restarts |
@@ -50,6 +52,26 @@ dotnet run --project tools/FakeMoonraker -- --replay quad-toolchanger.jsonl --sp
 ```
 
 The printer's objects come from the capture's subscribe reply (missing ones, answered `{}`, are left out), and each `notify_status_update` is applied at its recorded `eventtime`. The simulation is off during a replay, so only recorded values change; `/_sim/*` still works on top. Console output and host stats are not recorded, but file names are — check a capture before sharing it. Captures can be committed under `captures/`.
+
+## Typed commands
+
+While it runs, type into its terminal:
+
+```
+status                    printer, tools and clients at a glance
+extruders <n>             become an n-extruder printer (Klipper restarts)
+profile <name|file.json>  become a profile from profiles/ (Klipper restarts)
+print [seconds] [file]    start a print (default 120 s); heats up first
+pause | resume | cancel | complete
+tool <n>                  switch to tool n (T0 = extruder)
+temp <heater> <°C>        set a target: bed, extruder, extruder1, t2, ...
+set <object.field> <value>  set any field, e.g. set print_stats.message hello
+respond <text>            console line, e.g. respond display:group=win
+restart [seconds]         restart Klipper
+disconnect                drop every client
+```
+
+`extruders` and `profile` restart Klipper the way editing `printer.cfg` would: clients get `notify_klippy_disconnected`, then `notify_klippy_ready`, and must subscribe again — the Klippyface server does this and picks up the new extruders.
 
 ## Control endpoints
 

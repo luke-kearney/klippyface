@@ -230,13 +230,23 @@ public sealed class PrinterSimulation(PrinterModel model)
         }
     }
 
-    /// <summary>What a Klipper restart does: every object back to its start-up state.</summary>
-    public void Reset()
+    /// <summary>What a Klipper restart does: every object back to its start-up state, optionally as a different printer.</summary>
+    public void Reset(PrinterProfile? profile = null)
     {
         lock (_lock)
         {
             _job = null;
-            model.Reset();
+            model.Reset(profile);
+        }
+    }
+
+    /// <summary>The active tool's index: 0 for "extruder", 1 for "extruder1", ...</summary>
+    public int ActiveTool
+    {
+        get
+        {
+            var name = ActiveExtruder;
+            return name == "extruder" ? 0 : int.TryParse(name["extruder".Length..], out var n) ? n : 0;
         }
     }
 

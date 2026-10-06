@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using FakeMoonraker;
+using FakeMoonraker.Control;
 using FakeMoonraker.Protocol;
 using FakeMoonraker.Simulation;
 using Microsoft.AspNetCore.Builder;
@@ -32,6 +33,7 @@ public sealed class FakeMoonrakerHost : IAsyncDisposable
 
     public PrinterSimulation Sim => _app.Services.GetRequiredService<PrinterSimulation>();
     public MoonrakerHub Hub => _app.Services.GetRequiredService<MoonrakerHub>();
+    public ConsoleCommands Console => _app.Services.GetRequiredService<ConsoleCommands>();
 
     public static Task<FakeMoonrakerHost> StartAsync(string profile = "single", string scenario = "idle") =>
         StartWithArgsAsync(["--profile", profile, "--scenario", scenario]);
@@ -44,7 +46,7 @@ public sealed class FakeMoonrakerHost : IAsyncDisposable
     {
         var time = new FakeTimeProvider();
         var app = FakeMoonrakerApp.Build(
-            [.. args, "--host", "127.0.0.1", "--port", "0"],
+            [.. args, "--host", "127.0.0.1", "--port", "0", "--console", "false"],
             services => services.AddSingleton<TimeProvider>(time));
 
         app.Services.GetRequiredService<PrinterSimulation>().Noise = 0;

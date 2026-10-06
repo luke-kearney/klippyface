@@ -37,7 +37,7 @@ public sealed record ScenarioContext(PrinterSimulation Sim, MoonrakerHub Hub, Ti
 public sealed class IdleScenario : Scenario
 {
     public override string Name => "idle";
-    public override string Description => "Printer sits idle; drive it with /_sim/*";
+    public override string Description => "Printer sits idle; type commands or use /_sim/*";
 
     public override Task RunAsync(ScenarioContext ctx, CancellationToken ct) => Task.CompletedTask;
 }
@@ -99,7 +99,7 @@ public sealed class FlakyScenario : Scenario
             if (Random.Shared.NextDouble() < 0.8)
                 ctx.Hub.DisconnectAll();
             else
-                await ctx.Hub.RestartKlippyAsync(TimeSpan.FromSeconds(5), ct);
+                await ctx.Hub.RestartKlippyAsync(TimeSpan.FromSeconds(5), ct: ct);
         }
 
         await printing;

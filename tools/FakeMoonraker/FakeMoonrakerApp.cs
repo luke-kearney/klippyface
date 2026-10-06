@@ -15,7 +15,8 @@ public static class FakeMoonrakerApp
     public const int DefaultPort = 7125;
 
     /// <param name="args">
-    /// --profile single|quad|path.json, --scenario name, --port n, --host addr,
+    /// --profile single|quad|path.json, --extruders n, --scenario name, --port n, --host addr,
+    /// --console true|false (typed commands; on when stdin is a terminal),
     /// or --replay capture.jsonl [--speed 1] [--loop true] instead of a profile and scenario
     /// </param>
     /// <param name="configure">Extra service setup, e.g. a fake TimeProvider in tests.</param>
@@ -28,6 +29,8 @@ public static class FakeMoonrakerApp
         var profile = capture is null
             ? PrinterProfile.Load(config["profile"] ?? "single")
             : new PrinterProfile { Name = $"replay of {Path.GetFileName(config["replay"])}", Extruders = capture.ExtruderCount };
+        if (capture is null && config.GetValue<int?>("extruders") is { } extruders)
+            profile = profile with { Name = $"{extruders} extruders", Extruders = Math.Clamp(extruders, 1, 16) };
         var scenario = capture is null
             ? Scenario.Find(config["scenario"] ?? "idle")
             : new ReplayScenario(capture, config.GetValue("speed", 1.0), config.GetValue("loop", true));
@@ -51,6 +54,9 @@ public static class FakeMoonrakerApp
         builder.Services.AddSingleton<MoonrakerHub>();
         builder.Services.AddHostedService<SimulationTicker>();
         builder.Services.AddHostedService<ScenarioRunner>();
+        builder.Services.AddSingleton<ConsoleCommands>();
+        if (config.GetValue("console", !Console.IsInputRedirected))
+            builder.Services.AddHostedService(sp => sp.GetRequiredService<ConsoleCommands>());
         configure?.Invoke(builder.Services);
 
         var app = builder.Build();

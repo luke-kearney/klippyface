@@ -18,7 +18,8 @@ public sealed class PrinterModel
         Reset();
     }
 
-    public PrinterProfile Profile { get; }
+    /// <summary>Changed only through <see cref="Reset"/>, so objects always match it.</summary>
+    public PrinterProfile Profile { get; private set; }
 
     /// <summary>
     /// Objects to start from instead of the built-in defaults (a replayed capture).
@@ -31,11 +32,15 @@ public sealed class PrinterModel
         get { lock (_lock) return _objects.Select(o => o.Key).ToList(); }
     }
 
-    /// <summary>Put every object back to how Klipper reports it right after start-up.</summary>
-    public void Reset()
+    /// <summary>
+    /// Put every object back to how Klipper reports it right after start-up,
+    /// optionally as a different printer.
+    /// </summary>
+    public void Reset(PrinterProfile? profile = null)
     {
         lock (_lock)
         {
+            if (profile is not null) Profile = profile;
             _objects.Clear();
 
             if (Baseline is not null)
