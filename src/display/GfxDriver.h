@@ -9,9 +9,10 @@
 class Arduino_Canvas;
 
 // Colour TFTs driven through Arduino_GFX: HX8347D on an 8-bit parallel bus,
-// ST7789 and GC9A01 on SPI. SPI panels draw into a full-frame canvas (PSRAM
-// when present) that show() pushes in one go; panels without room for one,
-// and the HX8347D, draw straight to the panel.
+// ST7789 and GC9A01 on SPI. Frames are drawn off-screen and pushed whole, so
+// the panel never shows a cleared or half-drawn frame: into a full-frame
+// canvas when there's PSRAM (or plenty of RAM), otherwise one small band at a
+// time (see DisplayDriver::bandCount()).
 class GfxDriver : public DisplayDriver {
 public:
     enum class Panel : uint8_t { Hx8347, St7789, Gc9a01 };
@@ -44,6 +45,10 @@ public:
 
     void show() override;
 
+    uint8_t bandCount() const override { return _bandCount; }
+    void beginBand(uint8_t index) override;
+    bool rowsVisible(int16_t y, int16_t h) const override;
+
     static uint16_t rgb888to565(uint32_t rgb);
 
 private:
@@ -51,8 +56,12 @@ private:
     // Arduino_GFX objects don't own each other, so the driver frees all three.
     Arduino_DataBus* _bus;
     Arduino_GFX*     _tft;     // the panel itself
-    Arduino_Canvas*  _canvas;  // off-screen frame, or nullptr when drawing direct
-    Arduino_GFX*     _gfx;     // where drawing goes: _canvas if present, else _tft
+    Arduino_Canvas*  _canvas;  // full frame, or one band of _bandH rows
+    Arduino_GFX*     _gfx;     // where drawing goes: _canvas, or _tft if allocation failed
+
+    uint8_t  _bandCount;       // 1 = full-frame canvas (or direct)
+    int16_t  _bandH;
+    int16_t  _bandY;           // panel row of the current band's top
 
     int16_t  _width;
     int16_t  _height;
@@ -70,6 +79,8 @@ private:
     Arduino_DataBus* createBus();
     Arduino_GFX* createPanel();
     void setupCanvas();
+    bool allocCanvas(int16_t w, int16_t h);
+    int16_t by(int16_t y) const { return y - _bandY; }  // panel row -> canvas row
 };
 
 #endif

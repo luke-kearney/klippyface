@@ -12,6 +12,8 @@ static void renderTextElement(const FrameElement& element, DisplayDriver& displa
 
     int16_t cx = element.x - textW / 2;
     int16_t cy = element.y - textH / 2;
+    // Text wider than the panel wraps onto more lines: keep it in every band
+    if (textW <= display.width() && !display.rowsVisible(cy, textH)) return;
 
     display.setTextColor(element.color);
     display.setTextSize(element.size);
@@ -36,6 +38,8 @@ static void renderDataValueElement(const FrameElement& element, DisplayDriver& d
 
     int16_t cx = element.x - textW / 2;
     int16_t cy = element.y - textH / 2;
+    // Text wider than the panel wraps onto more lines: keep it in every band
+    if (textW <= display.width() && !display.rowsVisible(cy, textH)) return;
 
     display.setTextColor(element.color);
     display.setTextSize(element.size);
@@ -59,6 +63,7 @@ static void renderSpriteElement(const FrameElement& element, DisplayDriver& disp
     }
 
     const Sprite& sprite = it->second;
+    if (!display.rowsVisible(element.y, sprite.height * element.size)) return;
     size_t stride = (sprite.width + 7) / 8;
     bool oneBit = sprite.byteSize() == stride * sprite.height;
     if (element.size > 1 && oneBit) {

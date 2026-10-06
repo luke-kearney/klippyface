@@ -9,8 +9,10 @@
 
 static const char* TAG = "GFX";
 
-// Heap left free after a canvas when it has to come from internal RAM
+// Heap left free after a full-frame canvas when it has to come from internal RAM
 static const size_t CANVAS_HEAP_MARGIN = 48 * 1024;
+// Target size of one band when a full frame doesn't fit
+static const size_t BAND_BYTES = 16 * 1024;
 
 static const char* panelName(GfxDriver::Panel panel) {
     switch (panel) {
@@ -43,6 +45,9 @@ GfxDriver::GfxDriver(Panel panel, int16_t width, int16_t height, const JsonObjec
     , _tft(nullptr)
     , _canvas(nullptr)
     , _gfx(nullptr)
+    , _bandCount(1)
+    , _bandH(0)
+    , _bandY(0)
     , _width(width)
     , _height(height)
     , _rotation(rotation)
@@ -131,27 +136,43 @@ Arduino_GFX* GfxDriver::createPanel() {
     return nullptr;
 }
 
-// One full frame of RGB565. PSRAM if the board has it; otherwise only if
-// internal RAM can spare it, else keep drawing straight to the panel.
-void GfxDriver::setupCanvas() {
-    if (_panel == Panel::Hx8347) return;
+bool GfxDriver::allocCanvas(int16_t w, int16_t h) {
+    _canvas = new Arduino_Canvas(w, h, _tft);
+    if (_canvas->begin(GFX_SKIP_OUTPUT_BEGIN)) return true;
+    delete _canvas;
+    _canvas = nullptr;
+    return false;
+}
 
+// A full RGB565 frame in PSRAM, or in internal RAM if it can spare it.
+// Otherwise split the frame into equal bands of about BAND_BYTES and reuse
+// one band-sized canvas for each.
+void GfxDriver::setupCanvas() {
     int16_t w = _tft->width();
     int16_t h = _tft->height();
-    size_t bytes = (size_t)w * h * 2;
-    if (!psramFound() && heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) < bytes + CANVAS_HEAP_MARGIN) {
-        Serial.printf("[%s] No room for a %u byte canvas — drawing direct\n", TAG, (unsigned)bytes);
+    size_t frameBytes = (size_t)w * h * 2;
+
+    bool fullFits = psramFound()
+        || heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) >= frameBytes + CANVAS_HEAP_MARGIN;
+    if (fullFits && allocCanvas(w, h)) {
+        Serial.printf("[%s] Canvas %dx%d in %s\n", TAG, w, h, psramFound() ? "PSRAM" : "internal RAM");
         return;
     }
 
-    _canvas = new Arduino_Canvas(w, h, _tft);
-    if (!_canvas->begin(GFX_SKIP_OUTPUT_BEGIN)) {
-        Serial.printf("[%s] Canvas allocation failed — drawing direct\n", TAG);
-        delete _canvas;
-        _canvas = nullptr;
+    // Smallest band count that divides the height evenly, so every band is full
+    int bands = (frameBytes + BAND_BYTES - 1) / BAND_BYTES;
+    while (bands < h && h % bands != 0) bands++;
+    _bandCount = (uint8_t)min(bands, 255);
+    _bandH = h / _bandCount;
+    if (allocCanvas(w, _bandH)) {
+        Serial.printf("[%s] Rendering in %u bands of %dx%d (%u bytes)\n",
+                      TAG, _bandCount, w, _bandH, (unsigned)(w * _bandH * 2));
         return;
     }
-    Serial.printf("[%s] Canvas %dx%d in %s\n", TAG, w, h, psramFound() ? "PSRAM" : "internal RAM");
+
+    Serial.printf("[%s] No room for a band canvas — drawing direct\n", TAG);
+    _bandCount = 1;
+    _bandH = 0;
 }
 
 bool GfxDriver::init() {
@@ -170,8 +191,7 @@ bool GfxDriver::init() {
 
     setupCanvas();
     _gfx = _canvas ? static_cast<Arduino_GFX*>(_canvas) : _tft;
-    _gfx->fillScreen(0);
-    show();
+    _tft->fillScreen(0);
 
     if (_blPin >= 0) {
         pinMode(_blPin, OUTPUT);
@@ -179,7 +199,7 @@ bool GfxDriver::init() {
     }
 
     Serial.printf("[%s] %s initialized, %dx%d, rotation %d, bus %s%s\n",
-                  TAG, panelName(_panel), _gfx->width(), _gfx->height(), _rotation,
+                  TAG, panelName(_panel), _tft->width(), _tft->height(), _rotation,
                   _busType.c_str(), _ips ? ", ips" : "");
     return true;
 }
@@ -201,11 +221,11 @@ void GfxDriver::powerSave(bool enable) {
 }
 
 int16_t GfxDriver::width() const {
-    return _gfx ? _gfx->width() : _width;
+    return _tft ? _tft->width() : _width;
 }
 
 int16_t GfxDriver::height() const {
-    return _gfx ? _gfx->height() : _height;
+    return _tft ? _tft->height() : _height;
 }
 
 bool GfxDriver::isColor() const {
@@ -223,7 +243,7 @@ void GfxDriver::clear(uint32_t color) {
 
 void GfxDriver::drawPixel(int16_t x, int16_t y, uint32_t color) {
     if (!_gfx) return;
-    _gfx->drawPixel(x, y, rgb888to565(color));
+    _gfx->drawPixel(x, by(y), rgb888to565(color));
 }
 
 void GfxDriver::drawBitmap(int16_t x, int16_t y,
@@ -233,10 +253,10 @@ void GfxDriver::drawBitmap(int16_t x, int16_t y,
     if (!_gfx) return;
 
     if (dataSize == (size_t)(w * h * 2)) {
-        _gfx->draw16bitRGBBitmap(x, y, (const uint16_t*)data, w, h);
+        _gfx->draw16bitRGBBitmap(x, by(y), (const uint16_t*)data, w, h);
     } else {
         uint16_t c = rgb888to565(color);
-        _gfx->drawBitmap(x, y, data, w, h, c);
+        _gfx->drawBitmap(x, by(y), data, w, h, c);
     }
 }
 
@@ -244,12 +264,12 @@ void GfxDriver::fillRect(int16_t x, int16_t y,
                          int16_t w, int16_t h,
                          uint32_t color) {
     if (!_gfx) return;
-    _gfx->fillRect(x, y, w, h, rgb888to565(color));
+    _gfx->fillRect(x, by(y), w, h, rgb888to565(color));
 }
 
 void GfxDriver::setCursor(int16_t x, int16_t y) {
     if (!_gfx) return;
-    _gfx->setCursor(x, y);
+    _gfx->setCursor(x, by(y));
 }
 
 void GfxDriver::setTextSize(uint8_t size) {
@@ -267,6 +287,20 @@ void GfxDriver::print(const char* text) {
     _gfx->print(text);
 }
 
+void GfxDriver::beginBand(uint8_t index) {
+    _bandY = (int16_t)index * _bandH;
+}
+
+bool GfxDriver::rowsVisible(int16_t y, int16_t h) const {
+    if (_bandCount == 1) return true;
+    return y < _bandY + _bandH && y + h > _bandY;
+}
+
 void GfxDriver::show() {
-    if (_canvas) _canvas->flush();
+    if (!_canvas) return;
+    if (_bandCount == 1) {
+        _canvas->flush();
+    } else {
+        _tft->draw16bitRGBBitmap(0, _bandY, _canvas->getFramebuffer(), _tft->width(), _bandH);
+    }
 }

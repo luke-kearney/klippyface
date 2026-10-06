@@ -311,8 +311,11 @@ void DisplayManager::tickAll(uint32_t now) {
 
         const Frame* frame = slot.engine.tick(now);
         if (frame && frame != slot.lastRenderedFrame) {
-            renderFrame(*frame, *slot.driver, &_sprites, &_printerState);
-            slot.driver->show();
+            for (uint8_t band = 0; band < slot.driver->bandCount(); band++) {
+                slot.driver->beginBand(band);
+                renderFrame(*frame, *slot.driver, &_sprites, &_printerState);
+                slot.driver->show();
+            }
             slot.lastRenderedFrame = frame;
         }
     }

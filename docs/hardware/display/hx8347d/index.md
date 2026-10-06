@@ -65,9 +65,9 @@ For a 320×240 landscape display, set rotation to 90° or 270°.
 
 | Metric | Value |
 |--------|-------|
-| Framebuffer | None (writes go directly to display GRAM) |
+| Framebuffer | Banded: 10 × 240×32 bands through one 15 KB buffer (full canvas if the board has PSRAM) |
 | Max ~fps | ~25 fps (bus-limited) |
-| Write mode | Direct GRAM (`show()` is a no-op) |
+| Write mode | Each band pushed in one write; ~51 ms per frame on a classic ESP32, no blank-then-redraw flash |
 | PSRAM required | No |
 | Power draw | ~80 mA (backlight dependent) |
 
