@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { blit, createCanvas, elementBox, isMono, renderFrame } from '@/lib/render'
+import { blit, createCanvas, elementBox, isMono, isRound, renderFrame } from '@/lib/render'
 import type { Bitmap } from '@/lib/sprite'
 import type { Frame, FrameElement } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -183,6 +183,13 @@ export function EditorCanvas({
           className="pixelated pointer-events-none absolute inset-0 size-full opacity-30 mix-blend-screen"
           style={{ filter: 'sepia(1) hue-rotate(160deg) saturate(4)' }}
         />
+        {isRound(profile.driverType) && (
+          // Corners exist in the frame buffer but the round panel doesn't show them
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{ background: 'radial-gradient(circle closest-side, transparent 99.5%, rgb(0 0 0 / 0.65) 100%)' }}
+          />
+        )}
         {showGrid && zoom >= 4 && (
           <div
             className="pointer-events-none absolute inset-0"

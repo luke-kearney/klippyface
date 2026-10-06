@@ -21,6 +21,7 @@ const DRIVERS = [
   { value: 'sh1106', label: 'SH1106 OLED', bus: 'i2c', w: 128, h: 64 },
   { value: 'ssd1306', label: 'SSD1306 OLED', bus: 'i2c', w: 128, h: 64 },
   { value: 'st7789', label: 'ST7789 TFT', bus: 'spi', w: 240, h: 240 },
+  { value: 'gc9a01', label: 'GC9A01 round TFT', bus: 'spi', w: 240, h: 240 },
   { value: 'ili9341', label: 'ILI9341 TFT', bus: 'spi', w: 320, h: 240 },
   { value: 'hx8347', label: 'HX8347D TFT', bus: 'parallel8', w: 320, h: 240 },
 ]
@@ -34,25 +35,27 @@ const BUSES = [
 type Pins = Record<string, number | string | boolean | undefined>
 
 // Field order and defaults match what the firmware's DisplayFactory reads.
-const PIN_FIELDS: Record<string, { key: string; label: string; def: number | ''; optional?: boolean }[]> = {
+// `hint` is the label commonly printed on the module (e.g. Uno-style TFT shields).
+const PIN_FIELDS: Record<string, { key: string; label: string; def: number | ''; optional?: boolean; hint?: string }[]> = {
   i2c: [
     { key: 'sda', label: 'SDA', def: 21 },
     { key: 'scl', label: 'SCL', def: 22 },
   ],
   spi: [
-    { key: 'cs', label: 'CS', def: 5 },
+    { key: 'sclk', label: 'SCLK', def: 18 },
+    { key: 'mosi', label: 'MOSI', def: 23 },
     { key: 'dc', label: 'DC', def: 2 },
+    { key: 'cs', label: 'CS', def: 5 },
     { key: 'rst', label: 'RST', def: 4 },
-    { key: 'mosi', label: 'MOSI', def: '', optional: true },
+    { key: 'bl', label: 'Backlight', def: '', optional: true },
     { key: 'miso', label: 'MISO', def: '', optional: true },
-    { key: 'sclk', label: 'SCLK', def: '', optional: true },
   ],
   parallel8: [
-    { key: 'dc', label: 'DC', def: 32 },
-    { key: 'cs', label: 'CS', def: 5 },
-    { key: 'wr', label: 'WR', def: 26 },
-    { key: 'rd', label: 'RD', def: -1 },
-    { key: 'rst', label: 'RST', def: 33 },
+    { key: 'dc', label: 'DC', def: 32, hint: 'LCD_RS' },
+    { key: 'cs', label: 'CS', def: 5, hint: 'LCD_CS' },
+    { key: 'wr', label: 'WR', def: 26, hint: 'LCD_WR' },
+    { key: 'rd', label: 'RD', def: -1, hint: '-1: tie LCD_RD to 3.3V' },
+    { key: 'rst', label: 'RST', def: 33, hint: 'LCD_RST' },
     { key: 'bl', label: 'Backlight', def: '', optional: true },
     { key: 'd0', label: 'D0', def: 4 },
     { key: 'd1', label: 'D1', def: 13 },
@@ -120,6 +123,14 @@ export function DisplayDialog({
         if (!isNaN(n)) bc[f.key] = n
       }
       if (busType === 'parallel8') bc.ips = !!pins.ips
+      if (busType === 'spi') {
+        // SPI panels (ST7789, GC9A01) are IPS unless switched off
+        bc.ips = pins.ips !== false
+        for (const k of ['col_offset', 'row_offset']) {
+          const n = parseInt(String(pins[k] ?? ''))
+          if (!isNaN(n) && n > 0) bc[k] = n
+        }
+      }
       const body = { label: label.trim(), driverType, busType, busConfig: JSON.stringify(bc), width, height, rotation, sortOrder }
       return display ? api.updateDisplay(nodeId, display.id, body) : api.createDisplay(nodeId, body)
     },
@@ -231,11 +242,11 @@ export function DisplayDialog({
             )}
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
               {(PIN_FIELDS[busType] ?? []).map((f) => (
-                <Field key={f.key} label={f.label}>
+                <Field key={f.key} label={f.label} hint={f.hint}>
                   <Input
                     type="number"
                     min={-1}
-                    max={39}
+                    max={48}
                     value={(pins[f.key] as number | undefined) ?? f.def}
                     placeholder={f.optional ? 'default' : undefined}
                     onChange={(e) =>
@@ -250,6 +261,33 @@ export function DisplayDialog({
                 <Switch checked={!!pins.ips} onCheckedChange={(v) => setPins((p) => ({ ...p, ips: v }))} />
                 IPS panel (inverted colours)
               </label>
+            )}
+            {busType === 'spi' && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { key: 'col_offset', label: 'Column offset' },
+                    { key: 'row_offset', label: 'Row offset' },
+                  ].map((f) => (
+                    <Field key={f.key} label={f.label} hint={f.key === 'row_offset' ? 'e.g. 20 for 240×280 ST7789' : undefined}>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={80}
+                        value={(pins[f.key] as number | undefined) ?? ''}
+                        placeholder="0"
+                        onChange={(e) =>
+                          setPins((p) => ({ ...p, [f.key]: e.target.value === '' ? '' : +e.target.value }))
+                        }
+                      />
+                    </Field>
+                  ))}
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <Switch checked={pins.ips !== false} onCheckedChange={(v) => setPins((p) => ({ ...p, ips: v }))} />
+                  IPS panel (inverted colours)
+                </label>
+              </>
             )}
           </fieldset>
 

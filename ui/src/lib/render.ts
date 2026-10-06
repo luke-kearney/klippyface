@@ -12,6 +12,9 @@ export const CHAR_H = 8
 const MONO_DRIVERS = new Set(['sh1106', 'ssd1306'])
 export const isMono = (driverType?: string) => !driverType || MONO_DRIVERS.has(driverType)
 
+/** Round panels only show the circle inscribed in their square; corners are invisible. */
+export const isRound = (driverType?: string) => driverType === 'gc9a01'
+
 /** Colour of a lit pixel in the monochrome preview (white OLED). */
 const MONO_ON: RGB = [235, 240, 255]
 const MONO_OFF: RGB = [0, 0, 0]

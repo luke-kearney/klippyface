@@ -16,7 +16,7 @@ export interface Node {
   assignments?: Assignment[]
 }
 
-export type DriverType = 'sh1106' | 'ssd1306' | 'st7789' | 'ili9341' | 'hx8347'
+export type DriverType = 'sh1106' | 'ssd1306' | 'st7789' | 'gc9a01' | 'ili9341' | 'hx8347'
 export type BusType = 'i2c' | 'spi' | 'parallel8'
 
 export interface NodeDisplay {

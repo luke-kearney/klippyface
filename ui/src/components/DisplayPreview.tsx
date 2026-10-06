@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { blit, createCanvas, isMono, renderFrame } from '@/lib/render'
+import { blit, createCanvas, isMono, isRound, renderFrame } from '@/lib/render'
 import type { Bitmap } from '@/lib/sprite'
 import type { Frame } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -16,6 +16,8 @@ export const DISPLAY_PROFILES: DisplayProfile[] = [
   { id: 'oled128x64', label: 'OLED 128×64', width: 128, height: 64, driverType: 'sh1106' },
   { id: 'oled128x32', label: 'OLED 128×32', width: 128, height: 32, driverType: 'ssd1306' },
   { id: 'tft240x240', label: 'TFT 240×240 colour', width: 240, height: 240, driverType: 'st7789' },
+  { id: 'tft240x280', label: 'TFT 240×280 colour', width: 240, height: 280, driverType: 'st7789' },
+  { id: 'round240', label: 'Round 240×240 colour', width: 240, height: 240, driverType: 'gc9a01' },
   { id: 'tft320x240', label: 'TFT 320×240 colour', width: 320, height: 240, driverType: 'hx8347' },
 ]
 
@@ -47,7 +49,12 @@ export function FrameCanvas({
       ref={ref}
       width={profile.width}
       height={profile.height}
-      className={cn('pixelated block w-full rounded-sm bg-black', isMono(profile.driverType) && 'oled-glow', className)}
+      className={cn(
+        'pixelated block w-full rounded-sm bg-black',
+        isMono(profile.driverType) && 'oled-glow',
+        isRound(profile.driverType) && 'rounded-full',
+        className,
+      )}
       style={{ aspectRatio: `${profile.width} / ${profile.height}` }}
     />
   )
