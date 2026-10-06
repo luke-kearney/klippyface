@@ -4,21 +4,13 @@
 static const char* TAG = "SETUP";
 
 bool SetupServer::saveConfig(const String& ssid, const String& password,
-                              const String& mkHost, uint16_t mkPort, bool mkUseTls,
                               const String& svHost, uint16_t svPort, bool svUseTls,
-                              bool svTlsVerify, bool mkTlsVerify,
-                              const String& friendlyName) {
-    Serial.printf("[%s] Saving config: SSID=\"%s\" MK=%s://%s:%u\n",
-                  TAG, ssid.c_str(), mkUseTls ? "wss" : "ws", mkHost.c_str(), mkPort);
+                              bool svTlsVerify, const String& friendlyName) {
+    Serial.printf("[%s] Saving config: SSID=\"%s\" server=%s://%s:%u\n",
+                  TAG, ssid.c_str(), svUseTls ? "https" : "http", svHost.c_str(), svPort);
 
     Settings::setWifiCredentials(ssid, password);
-    Settings::setMoonrakerHost(mkHost, mkPort);
-    Settings::setMoonrakerUseTls(mkUseTls);
-    Settings::setMoonrakerTlsVerify(mkTlsVerify);
-
-    if (svHost.length() > 0) {
-        Settings::setServerHost(svHost, svPort);
-    }
+    Settings::setServerHost(svHost, svPort);
     Settings::setServerUseTls(svUseTls);
     Settings::setServerTlsVerify(svTlsVerify);
 

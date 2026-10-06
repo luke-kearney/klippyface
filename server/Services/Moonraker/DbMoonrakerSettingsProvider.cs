@@ -11,6 +11,6 @@ public sealed class DbMoonrakerSettingsProvider(IServiceScopeFactory scopes) : I
     {
         using var scope = scopes.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<KlippyfaceDbContext>();
-        return await db.MoonrakerSettings.AsNoTracking().FirstOrDefaultAsync(ct) ?? new MoonrakerSettings();
+        return await db.MoonrakerSettings.AsNoTracking().FirstOrDefaultAsync(s => s.Id == MoonrakerSettings.SingletonId, ct) ?? new MoonrakerSettings();
     }
 }

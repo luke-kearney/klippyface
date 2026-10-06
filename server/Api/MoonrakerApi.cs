@@ -16,7 +16,7 @@ public static class MoonrakerApi
 
         moonraker.MapGet("/", async (KlippyfaceDbContext db, MoonrakerService service) =>
         {
-            var settings = await db.MoonrakerSettings.AsNoTracking().FirstOrDefaultAsync() ?? new MoonrakerSettings();
+            var settings = await db.MoonrakerSettings.AsNoTracking().FirstOrDefaultAsync(s => s.Id == MoonrakerSettings.SingletonId) ?? new MoonrakerSettings();
             return Results.Ok(Describe(settings, service.Status));
         });
 
@@ -28,7 +28,7 @@ public static class MoonrakerApi
             if (input.Port is < 1 or > 65535)
                 return Results.BadRequest("Port must be 1–65535");
 
-            var settings = await db.MoonrakerSettings.FirstOrDefaultAsync();
+            var settings = await db.MoonrakerSettings.FirstOrDefaultAsync(s => s.Id == MoonrakerSettings.SingletonId);
             if (settings is null)
             {
                 settings = new MoonrakerSettings();

@@ -5,6 +5,9 @@
 #include <stdint.h>
 #include <map>
 #include <vector>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <ArduinoJson.h>
 
 // -------------------------------------------------------------------
 // FrameElement — a single positioned element within a Frame
@@ -35,17 +38,35 @@ struct Frame {
 };
 
 // -------------------------------------------------------------------
-// PrinterState — live runtime values from Moonraker
+// PrinterState — live printer values relayed by the server, by data key
+// ("extruder.temperature"). Written from the server task (core 0), read
+// by the renderer (core 1), so every access takes the mutex.
 // -------------------------------------------------------------------
-struct PrinterState {
-    float progress      = 0.0f;
-    float nozzleTemp    = 0.0f;
-    float bedTemp       = 0.0f;
-    float nozzleTarget  = 0.0f;
-    float bedTarget     = 0.0f;
-    bool  moonrakerConnected = false;
+class PrinterState {
+public:
+    PrinterState();
+    ~PrinterState();
 
+    // Apply a "state" message's values; full replaces everything, null removes a key
+    void apply(JsonObjectConst values, bool full);
+    void setMoonrakerConnected(bool connected) { _moonrakerConnected = connected; }
+
+    // Display string for a binding key: "210°C", "42.0%", "--" when unknown
     String resolve(const String& key) const;
+
+private:
+    struct Value {
+        bool    isNumber = false;
+        float   number   = 0.0f;
+        String  text;
+    };
+
+    SemaphoreHandle_t       _mutex = nullptr;
+    std::map<String, Value> _values;
+    volatile bool           _moonrakerConnected = false;
+
+    PrinterState(const PrinterState&) = delete;
+    PrinterState& operator=(const PrinterState&) = delete;
 };
 
 // -------------------------------------------------------------------

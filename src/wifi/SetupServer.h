@@ -7,10 +7,8 @@
 class SetupServer {
 public:
     bool saveConfig(const String& ssid, const String& password,
-                    const String& mkHost, uint16_t mkPort, bool mkUseTls,
                     const String& svHost, uint16_t svPort, bool svUseTls,
-                    bool svTlsVerify, bool mkTlsVerify,
-                    const String& friendlyName);
+                    bool svTlsVerify, const String& friendlyName);
     String scanNetworks();
 };
 

@@ -5,6 +5,7 @@
 #include <new>
 
 #include "comms/ConfigFetcher.h"
+#include "display/DisplayManager.h"
 #include "config/Board.h"
 #include "config/Settings.h"
 #include "KlippyfaceVersion.h"
@@ -79,6 +80,7 @@ void ServerClient::handleWSEvent(WStype_t type, uint8_t* payload, size_t length)
     switch (type) {
         case WStype_DISCONNECTED:
             _connected = false;
+            _moonrakerConnected = false;
             if (payload && length > 0) {
                 Serial.printf("[%s] Disconnected: %s\n", TAG, (const char*)payload);
             } else {
@@ -166,6 +168,13 @@ void ServerClient::handleTextMessage(uint8_t* payload, size_t length) {
         _fetchPending = true;
     } else if (strcmp(type, "refresh_library") == 0) {
         Serial.printf("[%s] Server requested library refresh (not yet implemented)\n", TAG);
+    } else if (strcmp(type, "state") == 0) {
+        handleState(doc["values"].as<JsonObjectConst>(), doc["full"] | false);
+    } else if (strcmp(type, "moonraker_status") == 0) {
+        _moonrakerConnected = doc["connected"] | false;
+        Serial.printf("[%s] Moonraker %s\n", TAG, _moonrakerConnected ? "connected" : "disconnected");
+    } else if (strcmp(type, "display_cmd") == 0) {
+        handleDisplayCommand(doc);
     } else if (strcmp(type, "config_status") == 0) {
         bool upToDate = doc["up_to_date"].as<bool>();
         if (upToDate) {
@@ -175,6 +184,35 @@ void ServerClient::handleTextMessage(uint8_t* payload, size_t length) {
             _fetchPending = true;
         }
     }
+}
+
+void ServerClient::handleState(JsonObjectConst values, bool full) {
+    if (!_display) return;
+    _display->applyState(values, full);
+
+    // print_stats.state drives the state:* triggers. A full snapshot comes after
+    // every hello, including the one after a new config is applied, so it fires
+    // the trigger again for the freshly configured engines.
+    JsonVariantConst state = values["print_stats.state"];
+    if (state.is<const char*>()) {
+        String next = state.as<const char*>();
+        if (full || next != _printState) {
+            _printState = next;
+            Serial.printf("[%s] Print state: %s\n", TAG, next.c_str());
+            _display->onStateChange("state:" + next);
+        }
+    }
+}
+
+void ServerClient::handleDisplayCommand(const JsonDocument& doc) {
+    if (!_display) return;
+    const char* group = doc["group"] | "";
+    if (group[0] == '\0') return;
+
+    const char* set = doc["set"] | "";
+    int16_t loop = doc["loop"] | -1;
+    Serial.printf("[%s] Display command: group=%s set=%s loop=%d\n", TAG, group, set, loop);
+    _display->directCommand(group, set, loop);
 }
 
 void ServerClient::fetchAndQueueConfig() {
