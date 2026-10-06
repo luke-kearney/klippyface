@@ -11,6 +11,8 @@ build/
 # .NET
 server/bin/
 server/obj/
+tools/*/bin/
+tools/*/obj/
 *.user
 *.suo
 *.DotSettings
