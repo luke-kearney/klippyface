@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router'
 import { ChevronRight, Cloud, CloudUpload, Grid3x3, Layers2, Magnet, Pause, Play, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Toggle } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -56,18 +56,39 @@ export function SetEditorPage() {
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState('1')
   const [onion, setOnion] = useState(false)
+  /** 'prev' | 'next' follow the current frame; 'frame:<id>' pins any frame in the group. */
+  const [onionSource, setOnionSource] = useState('prev')
   const [grid, setGrid] = useState(true)
   const [snap, setSnap] = useStoredState<'on' | 'off'>(SNAP_KEY, 'on')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [current, setCurrent] = useFramePlayback(doc.frames, playing, parseFloat(speed), doc.set?.frameTime)
 
   const frame = doc.frames[current]
+
+  // This set's frames come from the live document (unsaved edits included); other
+  // sets in the group from the server copy.
+  const otherSets = (doc.group?.sets ?? []).filter((s) => s.id !== setId && s.frames?.length)
+  const onionFrame = (() => {
+    if (!onion || playing) return undefined
+    if (onionSource === 'prev') return doc.frames[current - 1]
+    if (onionSource === 'next') return doc.frames[current + 1]
+    const id = onionSource.slice('frame:'.length)
+    return doc.frames.find((f) => f.id === id) ?? otherSets.flatMap((s) => s.frames ?? []).find((f) => f.id === id)
+  })()
+  const onionPinMissing =
+    onionSource.startsWith('frame:') &&
+    !doc.frames.concat(otherSets.flatMap((s) => s.frames ?? [])).some((f) => `frame:${f.id}` === onionSource)
   const elements = useMemo(() => frame?.elements ?? [], [frame])
   const selected = elements.find((e) => e.id === selectedId) ?? null
 
   useEffect(() => {
     if (selectedId && !selected) setSelectedId(null)
   }, [selectedId, selected])
+
+  // A pinned frame that was deleted falls back to the previous frame.
+  useEffect(() => {
+    if (onionPinMissing && !doc.loading) setOnionSource('prev')
+  }, [onionPinMissing, doc.loading])
 
   const addElement = useCallback(
     async (el: Pick<FrameElement, 'type' | 'value'> & Partial<FrameElement>) => {
@@ -218,8 +239,37 @@ export function SetEditorPage() {
                 <Layers2 />
               </Toggle>
             </TooltipTrigger>
-            <TooltipContent>Onion skin: show previous frame</TooltipContent>
+            <TooltipContent>Onion skin: overlay another frame</TooltipContent>
           </Tooltip>
+          {onion && (
+            <Select value={onionSource} onValueChange={setOnionSource}>
+              <SelectTrigger size="sm" className="w-36" aria-label="Onion skin frame">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="prev">Previous frame</SelectItem>
+                <SelectItem value="next">Next frame</SelectItem>
+                <SelectGroup>
+                  <SelectLabel>This set</SelectLabel>
+                  {doc.frames.map((f, i) => (
+                    <SelectItem key={f.id} value={`frame:${f.id}`}>
+                      Frame {i + 1}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+                {otherSets.map((s) => (
+                  <SelectGroup key={s.id}>
+                    <SelectLabel>{s.label || 'Untitled set'}</SelectLabel>
+                    {s.frames!.map((f, i) => (
+                      <SelectItem key={f.id} value={`frame:${f.id}`}>
+                        {s.label || 'Untitled set'} · {i + 1}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <Toggle size="sm" pressed={snap === 'on'} onPressedChange={(p) => setSnap(p ? 'on' : 'off')} aria-label="Snap">
@@ -342,7 +392,7 @@ export function SetEditorPage() {
         <main className="min-w-0 flex-1 bg-[radial-gradient(circle_at_center,var(--color-muted)_0,transparent_70%)] p-4">
           <EditorCanvas
             frame={frame}
-            onionFrame={onion && !playing && current > 0 ? doc.frames[current - 1] : undefined}
+            onionFrame={onionFrame}
             sprites={sprites}
             profile={profile}
             selectedId={playing ? null : selectedId}
@@ -392,6 +442,7 @@ export function SetEditorPage() {
       <Filmstrip
         frames={doc.frames}
         current={current}
+        onionId={onionFrame?.id}
         playing={playing}
         sprites={sprites}
         profile={profile}
