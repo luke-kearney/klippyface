@@ -13,12 +13,14 @@ import {
   FlipHorizontal2,
   FlipVertical2,
   Grid3x3,
+  Folder,
   ImageUp,
   PaintBucket,
   Pencil,
   Redo2,
   Save,
   Slash,
+  SquarePen,
   Square,
   SquareSplitHorizontal,
   Trash2,
@@ -49,12 +51,14 @@ import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
 import { Toggle } from '@/components/ui/toggle'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ConfirmDelete, ErrorState, Field, Loading } from '@/components/common'
 import { FrameCanvas } from '@/components/DisplayPreview'
 import { PixelEditor, type Tool } from '@/components/PixelEditor'
+import { RenameIdDialog } from '@/components/RenameIdDialog'
 import { SpriteThumb } from '@/components/SpriteThumb'
 import { keys, useApiMutation, useDuplicateSprite, useSprites } from '@/hooks/queries'
 import { api } from '@/lib/api'
@@ -96,10 +100,10 @@ export function SpriteEditorPage() {
         <ErrorState error={error ?? new Error('Sprite not found')} />
       </div>
     )
-  return <SpriteEditor key={sprite.id} sprite={sprite} />
+  return <SpriteEditor key={sprite.id} sprite={sprite} sprites={sprites!} />
 }
 
-function SpriteEditor({ sprite }: { sprite: Sprite }) {
+function SpriteEditor({ sprite, sprites }: { sprite: Sprite; sprites: Sprite[] }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const initial = useMemo(() => decodeSprite(sprite.dataBase64, sprite.width, sprite.height), [sprite])
@@ -107,6 +111,9 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
   const bitmap = history.stack[history.i]
   const [savedB64, setSavedB64] = useState(() => encodeSprite(initial))
   const [label, setLabel] = useState(sprite.label)
+  const [folder, setFolder] = useState(sprite.folder)
+  const [description, setDescription] = useState(sprite.description)
+  const folders = useMemo(() => [...new Set(sprites.map((s) => s.folder).filter(Boolean))].sort(), [sprites])
   const [tool, setTool] = useState<Tool>('pencil')
   const [brushSize, setBrushSize] = useState(1)
   const [textScale, setTextScale] = useState(1)
@@ -117,6 +124,8 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
 
   const dirty =
     label !== sprite.label ||
+    folder.trim() !== sprite.folder ||
+    description.trim() !== sprite.description ||
     bitmap.width !== sprite.width ||
     bitmap.height !== sprite.height ||
     encodeSprite(bitmap) !== savedB64
@@ -134,7 +143,14 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
   const save = useApiMutation(
     async () => {
       const dataBase64 = encodeSprite(bitmap)
-      await api.updateSprite(sprite.id, { label: label.trim() || sprite.id, width: bitmap.width, height: bitmap.height, dataBase64 })
+      await api.updateSprite(sprite.id, {
+        label: label.trim() || sprite.id,
+        folder: folder.trim(),
+        description: description.trim(),
+        width: bitmap.width,
+        height: bitmap.height,
+        dataBase64,
+      })
       return dataBase64
     },
     {
@@ -158,6 +174,28 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
     navigate(`/sprites/${copy.id}`)
   })
 
+  const rename = useApiMutation(
+    async (newId: string) => {
+      // Save first so pending edits move to the new id instead of being dropped.
+      if (dirty) await save.mutateAsync(undefined)
+      return api.renameSprite(sprite.id, newId)
+    },
+    {
+      // Frame elements that used the old id were repointed.
+      invalidate: [keys.sprites, keys.groups],
+      onSuccess: ({ sprite: renamed, elementsUpdated }) => {
+        qc.setQueryData<Sprite[]>(keys.sprites, (old) => old?.map((s) => (s.id === sprite.id ? renamed : s)))
+        toast.success(
+          elementsUpdated
+            ? `Sprite ID changed; ${elementsUpdated} frame element${elementsUpdated === 1 ? '' : 's'} updated`
+            : 'Sprite ID changed',
+        )
+        skipBlock.current = true
+        navigate(`/sprites/${renamed.id}`, { replace: true })
+      },
+    },
+  )
+
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
       dirty && !skipBlock.current && currentLocation.pathname !== nextLocation.pathname,
@@ -165,7 +203,7 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       const mod = e.ctrlKey || e.metaKey
       const k = e.key.toLowerCase()
       if (mod && k === 'z') {
@@ -246,7 +284,26 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
             className="min-w-0 rounded bg-transparent px-1 font-medium outline-none hover:bg-accent/50 focus:bg-accent/50"
             aria-label="Sprite label"
           />
-          <code className="text-xs text-muted-foreground">{sprite.id}</code>
+          <RenameIdDialog
+            title="Change sprite ID"
+            currentId={sprite.id}
+            taken={sprites.map((s) => s.id)}
+            description={
+              dirty
+                ? 'Frame elements that use this sprite are updated to the new ID. Your unsaved edits are saved first.'
+                : 'Frame elements that use this sprite are updated to the new ID.'
+            }
+            onRename={(id) => rename.mutateAsync(id)}
+          >
+            <button
+              type="button"
+              className="group/id flex items-center gap-1 rounded px-1 font-mono text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+              title="Change ID"
+            >
+              {sprite.id}
+              <SquarePen className="size-3 opacity-0 transition-opacity group-hover/id:opacity-100" />
+            </button>
+          </RenameIdDialog>
         </div>
         <div className="ml-auto flex items-center gap-1">
           <Tooltip>
@@ -259,6 +316,8 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
                   duplicate.mutate({
                     id: sprite.id,
                     label: label.trim() || sprite.label,
+                    folder: folder.trim(),
+                    description: description.trim(),
                     width: bitmap.width,
                     height: bitmap.height,
                     dataBase64: encodeSprite(bitmap),
@@ -406,6 +465,34 @@ function SpriteEditor({ sprite }: { sprite: Sprite }) {
 
         {/* Side panel */}
         <aside className="hidden w-72 shrink-0 flex-col gap-5 overflow-y-auto border-l p-4 md:flex">
+          <div className="grid gap-2">
+            <span className="text-xs font-medium text-muted-foreground uppercase">Details</span>
+            <Field label="Folder">
+              <div className="relative">
+                <Folder className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={folder}
+                  onChange={(e) => setFolder(e.target.value)}
+                  placeholder="Unfiled"
+                  list="sprite-folders"
+                  className="pl-8"
+                />
+              </div>
+              <datalist id="sprite-folders">
+                {folders.map((f) => (
+                  <option key={f} value={f} />
+                ))}
+              </datalist>
+            </Field>
+            <Field label="Description">
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Where it's used, how it animates…"
+              />
+            </Field>
+          </div>
+
           <div className="grid gap-2">
             <span className="text-xs font-medium text-muted-foreground uppercase">Preview</span>
             <div className="flex items-end gap-3 rounded-lg border bg-black p-3">

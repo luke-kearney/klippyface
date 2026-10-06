@@ -202,7 +202,7 @@ export function useSetDocument(groupId: string, setId: string) {
       setSet((s) => (s ? { ...s, ...patch } : s))
       schedule('set', async () => {
         const s = setRef.current
-        if (s) await api.updateSet(s.id, { label: s.label, loopCount: s.loopCount, frameTime: s.frameTime, sortOrder: s.sortOrder })
+        if (s) await api.updateSet(s.id, { label: s.label, description: s.description, loopCount: s.loopCount, frameTime: s.frameTime, sortOrder: s.sortOrder })
       })
     },
     [schedule],

@@ -2,11 +2,13 @@ import { ArrowDown, ArrowUp, Copy, Gauge, Image, Trash2, Type } from 'lucide-rea
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Slider } from '@/components/ui/slider'
+import { Textarea } from '@/components/ui/textarea'
 import { Field } from '@/components/common'
 import { DATA_KEYS, isMono } from '@/lib/render'
+import { groupByFolder } from '@/lib/sprite'
 import type { Frame, FrameElement, Set, Sprite } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -107,10 +109,15 @@ export function ElementInspector({
               <SelectValue placeholder="Choose sprite" />
             </SelectTrigger>
             <SelectContent>
-              {spriteList.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.label || s.id} <span className="text-muted-foreground">{s.width}×{s.height}</span>
-                </SelectItem>
+              {groupByFolder(spriteList).map(([folder, list]) => (
+                <SelectGroup key={folder}>
+                  <SelectLabel>{folder || 'Unfiled'}</SelectLabel>
+                  {list.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.label || s.id} <span className="text-muted-foreground">{s.width}×{s.height}</span>
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>
@@ -162,7 +169,7 @@ export function FrameInspector({
   set: Set
   driverType: string
   onFrameChange: (patch: Partial<Pick<Frame, 'durationMs' | 'bgColor'>>) => void
-  onSetChange: (patch: Partial<Pick<Set, 'label' | 'loopCount' | 'frameTime'>>) => void
+  onSetChange: (patch: Partial<Pick<Set, 'label' | 'description' | 'loopCount' | 'frameTime'>>) => void
 }) {
   return (
     <div className="grid gap-4">
@@ -195,6 +202,13 @@ export function FrameInspector({
       <h3 className="text-sm font-semibold">Set</h3>
       <Field label="Label">
         <Input value={set.label} onChange={(e) => onSetChange({ label: e.target.value })} />
+      </Field>
+      <Field label="Description">
+        <Textarea
+          value={set.description}
+          onChange={(e) => onSetChange({ description: e.target.value })}
+          placeholder="What this animation is for"
+        />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Loops" hint="0 = forever">

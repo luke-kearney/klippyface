@@ -44,6 +44,7 @@ export interface Assignment {
 export interface Group {
   id: string
   label: string
+  description: string
   sortOrder: number
   createdAt: string
   updatedAt: string
@@ -54,6 +55,7 @@ export interface Set {
   id: string
   groupId: string
   label: string
+  description: string
   sortOrder: number
   loopCount: number
   frameTime: number
@@ -86,6 +88,9 @@ export interface FrameElement {
 export interface Sprite {
   id: string
   label: string
+  /** Free-text folder name; '' means unfiled. */
+  folder: string
+  description: string
   width: number
   height: number
   dataBase64: string

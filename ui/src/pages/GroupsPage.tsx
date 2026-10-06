@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { EmptyState, ErrorState, Field, Loading, Page, PageHeader } from '@/components/common'
 import { SetPlayer } from '@/components/DisplayPreview'
 import { keys, useApiMutation, useGroup, useGroups, useSpriteBitmaps } from '@/hooks/queries'
@@ -32,7 +33,7 @@ export function GroupsPage() {
         actions={
           <>
             <StarterPackButton />
-            <AddGroupDialog nextOrder={groups?.length ?? 0} />
+            <AddGroupDialog nextOrder={groups?.length ?? 0} existing={new Set(groups?.map((g) => g.id))} />
           </>
         }
       />
@@ -59,10 +60,15 @@ function GroupCard({ group, sprites }: { group: Group; sprites: ReturnType<typeo
         <div className="bg-black p-3">
           <SetPlayer frames={sets[0]?.frames} frameTime={sets[0]?.frameTime} sprites={sprites} />
         </div>
-        <div className="flex items-center justify-between gap-2 px-4 py-3">
+        <div className="flex items-start justify-between gap-2 px-4 py-3">
           <div className="min-w-0">
             <div className="truncate font-medium">{group.label || group.id}</div>
             <code className="text-xs text-muted-foreground">{group.id}</code>
+            {group.description && (
+              <p className="mt-1 line-clamp-2 text-sm text-muted-foreground" title={group.description}>
+                {group.description}
+              </p>
+            )}
           </div>
           <span className="shrink-0 text-xs text-muted-foreground">
             {data ? `${sets.length} set${sets.length === 1 ? '' : 's'}` : ''}
@@ -88,13 +94,15 @@ function StarterPackButton() {
   )
 }
 
-function AddGroupDialog({ nextOrder }: { nextOrder: number }) {
+function AddGroupDialog({ nextOrder, existing }: { nextOrder: number; existing: globalThis.Set<string> }) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [label, setLabel] = useState('')
+  const [description, setDescription] = useState('')
   const [id, setId] = useState('')
   const [idTouched, setIdTouched] = useState(false)
   const effectiveId = idTouched ? id : slugify(label)
+  const taken = existing.has(effectiveId)
 
   const create = useApiMutation(api.createGroup, {
     invalidate: [keys.groups],
@@ -112,6 +120,7 @@ function AddGroupDialog({ nextOrder }: { nextOrder: number }) {
         setOpen(o)
         if (o) {
           setLabel('')
+          setDescription('')
           setId('')
           setIdTouched(false)
         }
@@ -127,7 +136,7 @@ function AddGroupDialog({ nextOrder }: { nextOrder: number }) {
           className="grid gap-4"
           onSubmit={(e) => {
             e.preventDefault()
-            create.mutate({ id: effectiveId, label: label.trim(), sortOrder: nextOrder })
+            create.mutate({ id: effectiveId, label: label.trim(), description: description.trim(), sortOrder: nextOrder })
           }}
         >
           <DialogHeader>
@@ -137,7 +146,7 @@ function AddGroupDialog({ nextOrder }: { nextOrder: number }) {
           <Field label="Label">
             <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Idle faces" autoFocus />
           </Field>
-          <Field label="ID">
+          <Field label="ID" hint={taken ? 'A group with this ID already exists.' : undefined}>
             <Input
               value={effectiveId}
               onChange={(e) => {
@@ -148,8 +157,15 @@ function AddGroupDialog({ nextOrder }: { nextOrder: number }) {
               className="font-mono"
             />
           </Field>
+          <Field label="Description" hint="Optional.">
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Calm faces shown while the printer is idle"
+            />
+          </Field>
           <DialogFooter>
-            <Button type="submit" disabled={!effectiveId || !label.trim() || create.isPending}>
+            <Button type="submit" disabled={!effectiveId || !label.trim() || taken || create.isPending}>
               Create group
             </Button>
           </DialogFooter>

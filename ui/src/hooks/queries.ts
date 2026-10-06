@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { api, uniqueId } from '@/lib/api'
+import { api, uniqueId, type SpriteInput } from '@/lib/api'
 import { decodeSprite, type Bitmap } from '@/lib/sprite'
 import type { Sprite } from '@/lib/types'
 
@@ -58,7 +58,7 @@ export function useApiMutation<TArgs, TResult>(
 export function useDuplicateSprite(onDone?: (s: Sprite) => void) {
   const qc = useQueryClient()
   return useApiMutation(
-    async (src: Pick<Sprite, 'id' | 'label' | 'width' | 'height' | 'dataBase64'>) => {
+    async (src: SpriteInput) => {
       const existing = (qc.getQueryData<Sprite[]>(keys.sprites) ?? (await api.getSprites())).map((s) => s.id)
       // Copying a copy numbers it ("x copy 2") instead of stacking "copy copy".
       const idBase = `${src.id.replace(/_copy(_\d+)?$/, '')}_copy`
@@ -68,6 +68,8 @@ export function useDuplicateSprite(onDone?: (s: Sprite) => void) {
       return api.createSprite({
         id,
         label: `${labelBase} copy${n ? ` ${n}` : ''}`,
+        folder: src.folder,
+        description: src.description,
         width: src.width,
         height: src.height,
         dataBase64: src.dataBase64,

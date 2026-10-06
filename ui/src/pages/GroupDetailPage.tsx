@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ArrowRight, Check, Film, Plus, Repeat, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Film, Pencil, Plus, Repeat, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -15,9 +15,11 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { ConfirmDelete, EmptyState, ErrorState, Field, Loading, Page, PageHeader } from '@/components/common'
+import { Textarea } from '@/components/ui/textarea'
+import { ConfirmDelete, EmptyState, ErrorState, Field, InlineDescription, Loading, Page, PageHeader } from '@/components/common'
+import { RenameIdDialog } from '@/components/RenameIdDialog'
 import { SetPlayer } from '@/components/DisplayPreview'
-import { keys, useApiMutation, useGroup, useSpriteBitmaps } from '@/hooks/queries'
+import { keys, useApiMutation, useGroup, useGroups, useSpriteBitmaps } from '@/hooks/queries'
 import { api } from '@/lib/api'
 import type { Group, Set } from '@/lib/types'
 
@@ -26,7 +28,26 @@ export function GroupDetailPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { data: group, isLoading, error } = useGroup(groupId)
+  const { data: groups } = useGroups()
   const sprites = useSpriteBitmaps()
+
+  const save = useApiMutation(
+    (patch: { label?: string; description?: string }) =>
+      api.updateGroup(groupId, {
+        label: patch.label ?? group!.label,
+        description: patch.description ?? group!.description,
+        sortOrder: group!.sortOrder,
+      }),
+    { invalidate: [keys.groups, keys.group(groupId)] },
+  )
+  const rename = useApiMutation((newId: string) => api.renameGroup(groupId, newId), {
+    // Assignments and presets were repointed too.
+    invalidate: [keys.groups, keys.nodes, keys.presets],
+    onSuccess: (g) => {
+      toast.success(`Group ID changed to ${g.id}`)
+      navigate(`/groups/${g.id}`, { replace: true })
+    },
+  })
 
   const remove = useApiMutation(() => api.deleteGroup(groupId), {
     invalidate: [keys.groups],
@@ -44,7 +65,7 @@ export function GroupDetailPage() {
         next.map((s, i) =>
           s.sortOrder === i
             ? null
-            : api.updateSet(s.id, { label: s.label, loopCount: s.loopCount, frameTime: s.frameTime, sortOrder: i }),
+            : api.updateSet(s.id, { label: s.label, description: s.description, loopCount: s.loopCount, frameTime: s.frameTime, sortOrder: i }),
         ),
       )
     } catch (e) {
@@ -67,11 +88,29 @@ export function GroupDetailPage() {
     <Page>
       <PageHeader
         crumbs={[{ label: 'Groups', to: '/groups' }]}
-        title={<GroupTitle group={group} />}
+        title={<GroupTitle label={group.label} onSave={(label) => save.mutate({ label })} />}
         description={
-          <>
-            ID <code>{group.id}</code> · {sets.length} set{sets.length === 1 ? '' : 's'}
-          </>
+          <span className="flex items-center gap-1">
+            ID <code>{group.id}</code>
+            <RenameIdDialog
+              title="Change group ID"
+              currentId={group.id}
+              taken={(groups ?? []).map((g) => g.id)}
+              description="Node assignments, triggers and preset swaps that use this group are updated to the new ID."
+              warning={
+                <>
+                  GCODE macros on your printer that use <code>GROUP={group.id}</code> are not updated. Change them
+                  by hand, or they'll stop switching to this group.
+                </>
+              }
+              onRename={(id) => rename.mutateAsync(id)}
+            >
+              <Button variant="ghost" size="icon" className="size-6" aria-label="Change group ID">
+                <Pencil className="size-3.5" />
+              </Button>
+            </RenameIdDialog>
+            · {sets.length} set{sets.length === 1 ? '' : 's'}
+          </span>
         }
         actions={
           <>
@@ -87,6 +126,13 @@ export function GroupDetailPage() {
             <AddSetDialog groupId={group.id} nextOrder={sets.length} />
           </>
         }
+      />
+
+      <InlineDescription
+        value={group.description}
+        onSave={(description) => save.mutate({ description })}
+        placeholder="Add a description for this group…"
+        className="-mt-4 mb-6 max-w-2xl"
       />
 
       {sets.length === 0 && (
@@ -113,6 +159,11 @@ export function GroupDetailPage() {
                     {s.loopCount === 0 ? '∞' : `×${s.loopCount}`}
                   </span>
                 </div>
+                {s.description && (
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground" title={s.description}>
+                    {s.description}
+                  </p>
+                )}
               </Link>
               <div className="flex opacity-60 transition-opacity group-hover/card:opacity-100">
                 <Button variant="ghost" size="icon" disabled={i === 0} onClick={() => move(sets, i, -1)} aria-label="Move left">
@@ -137,25 +188,22 @@ export function GroupDetailPage() {
   )
 }
 
-function GroupTitle({ group }: { group: Group }) {
-  const [label, setLabel] = useState(group.label)
-  useEffect(() => setLabel(group.label), [group.label])
-  const save = useApiMutation(() => api.updateGroup(group.id, { label: label.trim(), sortOrder: group.sortOrder }), {
-    invalidate: [keys.groups, keys.group(group.id)],
-  })
-  const dirty = label.trim() !== group.label && label.trim() !== ''
+function GroupTitle({ label: saved, onSave }: { label: string; onSave: (label: string) => void }) {
+  const [label, setLabel] = useState(saved)
+  useEffect(() => setLabel(saved), [saved])
+  const dirty = label.trim() !== saved && label.trim() !== ''
   return (
     <form
       className="flex items-center gap-2"
       onSubmit={(e) => {
         e.preventDefault()
-        if (dirty) save.mutate(undefined)
+        if (dirty) onSave(label.trim())
       }}
     >
       <input
         value={label}
         onChange={(e) => setLabel(e.target.value)}
-        onBlur={() => dirty && save.mutate(undefined)}
+        onBlur={() => dirty && onSave(label.trim())}
         className="-mx-1 min-w-0 rounded-md bg-transparent px-1 outline-none hover:bg-accent/50 focus:bg-accent/50"
         aria-label="Group label"
       />
@@ -190,11 +238,12 @@ function AddSetDialog({ groupId, nextOrder }: { groupId: string; nextOrder: numb
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [label, setLabel] = useState('')
+  const [description, setDescription] = useState('')
   const [loopCount, setLoopCount] = useState(0)
 
   const create = useApiMutation(
     async () => {
-      const set = await api.createSet(groupId, { label: label.trim(), loopCount, frameTime: 1000, sortOrder: nextOrder })
+      const set = await api.createSet(groupId, { label: label.trim(), description: description.trim(), loopCount, frameTime: 1000, sortOrder: nextOrder })
       await api.createFrame(set.id, { durationMs: 1000, bgColor: '#000000', sortOrder: 0 })
       return set
     },
@@ -214,6 +263,7 @@ function AddSetDialog({ groupId, nextOrder }: { groupId: string; nextOrder: numb
         setOpen(o)
         if (o) {
           setLabel('')
+          setDescription('')
           setLoopCount(0)
         }
       }}
@@ -237,6 +287,9 @@ function AddSetDialog({ groupId, nextOrder }: { groupId: string; nextOrder: numb
           </DialogHeader>
           <Field label="Label">
             <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Happy blink" autoFocus />
+          </Field>
+          <Field label="Description" hint="Optional.">
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
           </Field>
           <Field label="Loop count" hint="0 loops forever.">
             <Input type="number" min={0} max={999} value={loopCount} onChange={(e) => setLoopCount(+e.target.value)} />

@@ -78,3 +78,16 @@ export function bitmapFromImage(img: CanvasImageSource, width: number, height: n
   }
   return bmp
 }
+
+/** Sprites bucketed by folder: named folders A–Z, then unfiled (''), each sorted by label. */
+export function groupByFolder<T extends { id: string; label: string; folder: string }>(sprites: T[]): [string, T[]][] {
+  const folders = new Map<string, T[]>()
+  for (const s of sprites) {
+    const f = s.folder.trim()
+    folders.set(f, [...(folders.get(f) ?? []), s])
+  }
+  const name = (s: T) => s.label || s.id
+  return [...folders.entries()]
+    .sort(([a], [b]) => (!a ? 1 : !b ? -1 : a.localeCompare(b)))
+    .map(([f, list]) => [f, list.sort((a, b) => name(a).localeCompare(name(b)))])
+}

@@ -56,10 +56,10 @@ const del = (p: string) => request<null>('DELETE', p)
 export type NodeInput = Pick<Node, 'macAddress' | 'friendlyName' | 'description'>
 export type DisplayInput = Omit<NodeDisplay, 'id' | 'nodeId'>
 export type AssignmentInput = Pick<Assignment, 'defaultGroup' | 'triggersJson'> & { activePreset?: string | null }
-export type SetInput = Pick<Set, 'label' | 'loopCount' | 'frameTime' | 'sortOrder'>
+export type SetInput = Pick<Set, 'label' | 'description' | 'loopCount' | 'frameTime' | 'sortOrder'>
 export type FrameInput = Pick<Frame, 'durationMs' | 'bgColor' | 'sortOrder'>
 export type ElementInput = Omit<FrameElement, 'id' | 'frameId'>
-export type SpriteInput = Pick<Sprite, 'id' | 'label' | 'width' | 'height' | 'dataBase64'>
+export type SpriteInput = Pick<Sprite, 'id' | 'label' | 'folder' | 'description' | 'width' | 'height' | 'dataBase64'>
 export type PresetInput = Pick<Preset, 'id' | 'label' | 'conditionsJson' | 'overridesJson'>
 
 export const api = {
@@ -83,10 +83,12 @@ export const api = {
   // Groups
   getGroups: () => get<Group[]>('/api/groups'),
   getGroup: (id: string) => get<Group>(`/api/groups/${id}`),
-  createGroup: (d: Pick<Group, 'id' | 'label' | 'sortOrder'>) => post<Group>('/api/groups', d),
+  createGroup: (d: Pick<Group, 'id' | 'label' | 'description' | 'sortOrder'>) => post<Group>('/api/groups', d),
   /** Adds the built-in faces; existing sprite/group ids are left alone. */
   importStarterPack: () => post<{ spritesAdded: number; groupsAdded: number }>('/api/starter-pack', {}),
-  updateGroup: (id: string, d: Pick<Group, 'label' | 'sortOrder'>) => put<Group>(`/api/groups/${id}`, d),
+  updateGroup: (id: string, d: Pick<Group, 'label' | 'description' | 'sortOrder'>) => put<Group>(`/api/groups/${id}`, d),
+  /** Repoints sets, assignments and preset swaps; GCODE macros must be updated by hand. */
+  renameGroup: (id: string, newId: string) => post<Group>(`/api/groups/${id}/rename`, { id: newId }),
   deleteGroup: (id: string) => del(`/api/groups/${id}`),
 
   // Sets
@@ -112,6 +114,9 @@ export const api = {
   createSprite: (d: SpriteInput) => post<Sprite>('/api/sprites', d),
   updateSprite: (id: string, d: Omit<SpriteInput, 'id'>) => put<Sprite>(`/api/sprites/${id}`, d),
   deleteSprite: (id: string) => del(`/api/sprites/${id}`),
+  /** Changes the id and repoints frame elements that use it. */
+  renameSprite: (id: string, newId: string) =>
+    post<{ sprite: Sprite; elementsUpdated: number }>(`/api/sprites/${id}/rename`, { id: newId }),
 
   // Presets
   getPresets: () => get<Preset[]>('/api/presets'),

@@ -16,6 +16,7 @@ import { SpriteThumb } from '@/components/SpriteThumb'
 import { useSpriteBitmaps, useSprites } from '@/hooks/queries'
 import { useSetDocument } from '@/hooks/useSetDocument'
 import { DATA_KEYS } from '@/lib/render'
+import { groupByFolder } from '@/lib/sprite'
 import type { FrameElement } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
@@ -270,28 +271,37 @@ export function SetEditorPage() {
                     Draw a sprite first
                   </Link>
                 )}
-                <div className="grid grid-cols-3 gap-1.5">
-                  {spriteList.map((s) => (
-                    <Tooltip key={s.id}>
-                      <TooltipTrigger asChild>
-                        <button
-                          draggable={!playing}
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData(SPRITE_MIME, s.id)
-                            e.dataTransfer.effectAllowed = 'copy'
-                          }}
-                          onClick={() => !playing && addSprite(s.id)}
-                          className="grid aspect-square cursor-grab place-items-center rounded-md border bg-black p-1 hover:border-primary active:cursor-grabbing"
-                        >
-                          <SpriteThumb bitmap={sprites.get(s.id)} emptyLabel={s.label || s.id} />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {s.label || s.id} · {s.width}×{s.height} — drag onto the canvas
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
-                </div>
+                {groupByFolder(spriteList).map(([folder, list], _, all) => (
+                  <div key={folder} className="grid gap-1">
+                    {(all.length > 1 || folder) && (
+                      <span className={cn('truncate text-[11px] text-muted-foreground', !folder && 'italic')}>
+                        {folder || 'Unfiled'}
+                      </span>
+                    )}
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {list.map((s) => (
+                        <Tooltip key={s.id}>
+                          <TooltipTrigger asChild>
+                            <button
+                              draggable={!playing}
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData(SPRITE_MIME, s.id)
+                                e.dataTransfer.effectAllowed = 'copy'
+                              }}
+                              onClick={() => !playing && addSprite(s.id)}
+                              className="grid aspect-square cursor-grab place-items-center rounded-md border bg-black p-1 hover:border-primary active:cursor-grabbing"
+                            >
+                              <SpriteThumb bitmap={sprites.get(s.id)} emptyLabel={s.label || s.id} />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {s.label || s.id} · {s.width}×{s.height} — drag onto the canvas
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div className="grid gap-1.5">
