@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { ChevronRight, Cloud, CloudUpload, Grid3x3, Layers2, Pause, Play, Plus } from 'lucide-react'
+import { ChevronRight, Cloud, CloudUpload, Grid3x3, Layers2, Magnet, Pause, Play, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -21,6 +21,7 @@ import type { FrameElement } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 const PROFILE_KEY = 'klippyface.editor.profile'
+const SNAP_KEY = 'klippyface.editor.snap'
 
 function useStoredState<T extends string>(key: string, initial: T) {
   const [v, setV] = useState<T>(() => {
@@ -56,6 +57,7 @@ export function SetEditorPage() {
   const [speed, setSpeed] = useState('1')
   const [onion, setOnion] = useState(false)
   const [grid, setGrid] = useState(true)
+  const [snap, setSnap] = useStoredState<'on' | 'off'>(SNAP_KEY, 'on')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [current, setCurrent] = useFramePlayback(doc.frames, playing, parseFloat(speed), doc.set?.frameTime)
 
@@ -218,6 +220,14 @@ export function SetEditorPage() {
             </TooltipTrigger>
             <TooltipContent>Onion skin: show previous frame</TooltipContent>
           </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Toggle size="sm" pressed={snap === 'on'} onPressedChange={(p) => setSnap(p ? 'on' : 'off')} aria-label="Snap">
+                <Magnet />
+              </Toggle>
+            </TooltipTrigger>
+            <TooltipContent>Snap to centre and other elements (hold Alt to bypass)</TooltipContent>
+          </Tooltip>
           <Separator orientation="vertical" className="mx-1 !h-6" />
           <Select value={speed} onValueChange={setSpeed}>
             <SelectTrigger size="sm" className="w-20">
@@ -338,6 +348,7 @@ export function SetEditorPage() {
             selectedId={playing ? null : selectedId}
             interactive={!playing}
             showGrid={grid && !playing}
+            snap={snap === 'on'}
             onSelect={setSelectedId}
             onMove={(el, x, y, done) => frame && doc.updateElement(frame.id, el.id, { x, y }, done)}
             onDropSprite={(id, x, y) => addSprite(id, x, y)}

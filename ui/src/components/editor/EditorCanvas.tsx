@@ -7,6 +7,42 @@ import type { DisplayProfile } from '@/components/DisplayPreview'
 
 export const SPRITE_MIME = 'application/x-klippyface-sprite'
 
+type Box = ReturnType<typeof elementBox>
+
+/** How close (in screen pixels) an edge must come to a target before it snaps. */
+const SNAP_SCREEN_PX = 10
+
+/**
+ * Snap a box's left/centre/right (and top/middle/bottom) to the panel's edges and
+ * centre lines and to the same lines of other elements. Returns the whole-pixel
+ * shift to apply and the guide line positions (panel pixels, may be fractional).
+ */
+function snapBox(box: Box, others: Box[], W: number, H: number, threshold: number) {
+  const axis = (start: number, size: number, panel: number, pick: (b: Box) => [number, number]) => {
+    const targets = [
+      0,
+      panel / 2,
+      panel,
+      ...others.flatMap((b) => {
+        const [s, z] = pick(b)
+        return [s, s + z / 2, s + z]
+      }),
+    ]
+    let best: { d: number; at: number } | null = null
+    for (const t of targets)
+      for (const edge of [start, start + size / 2, start + size]) {
+        const d = t - edge
+        if (Math.abs(d) <= threshold && (!best || Math.abs(d) < Math.abs(best.d))) best = { d, at: t }
+      }
+    return best ? { shift: Math.round(best.d), guide: best.at } : { shift: 0, guide: undefined }
+  }
+  const x = axis(box.x, box.w, W, (b) => [b.x, b.w])
+  const y = axis(box.y, box.h, H, (b) => [b.y, b.h])
+  return { dx: x.shift, dy: y.shift, guides: { x: x.guide, y: y.guide } }
+}
+
+type Guides = { x?: number; y?: number }
+
 interface Props {
   frame: Frame | undefined
   /** Faintly overlaid when onion skinning. */
@@ -16,6 +52,8 @@ interface Props {
   selectedId: string | null
   interactive: boolean
   showGrid: boolean
+  /** Snap dragged and dropped elements to the panel centre and other elements. Alt bypasses. */
+  snap: boolean
   onSelect: (id: string | null) => void
   onMove: (el: FrameElement, x: number, y: number, done: boolean) => void
   onDropSprite: (spriteId: string, x: number, y: number) => void
@@ -29,6 +67,7 @@ export function EditorCanvas({
   selectedId,
   interactive,
   showGrid,
+  snap,
   onSelect,
   onMove,
   onDropSprite,
@@ -39,6 +78,7 @@ export function EditorCanvas({
   const [zoom, setZoom] = useState(4)
   const [hoverId, setHoverId] = useState<string | null>(null)
   const [dropHint, setDropHint] = useState<{ x: number; y: number } | null>(null)
+  const [guides, setGuides] = useState<Guides | null>(null)
   const drag = useRef<{ el: FrameElement; startX: number; startY: number; px: number; py: number; moved: boolean } | null>(
     null,
   )
@@ -81,6 +121,34 @@ export function EditorCanvas({
   const W = profile.width * zoom
   const H = profile.height * zoom
 
+  /** Shift `box` onto nearby snap lines unless snapping is off or Alt is held. */
+  const snapped = (box: Box, skipId: string | null, e: { altKey: boolean }) => {
+    if (!snap || e.altKey) return { dx: 0, dy: 0, guides: null }
+    const others = elements.filter((o) => o.id !== skipId).map((o) => elementBox(o, sprites))
+    const r = snapBox(box, others, profile.width, profile.height, SNAP_SCREEN_PX / zoom)
+    return { ...r, guides: r.guides.x === undefined && r.guides.y === undefined ? null : r.guides }
+  }
+
+  /** Dragged element position for the pointer event, snapped. */
+  const dragTo = (d: NonNullable<typeof drag.current>, e: React.PointerEvent) => {
+    const x = d.px + Math.round((e.clientX - d.startX) / zoom)
+    const y = d.py + Math.round((e.clientY - d.startY) / zoom)
+    const s = snapped(elementBox({ ...d.el, x, y }, sprites), d.el.id, e)
+    return { x: x + s.dx, y: y + s.dy, guides: s.guides }
+  }
+
+  /** Top-left for a palette sprite dropped centred on the pointer, snapped. */
+  const dropAt = (e: React.DragEvent, spriteId: string) => {
+    const p = toPanel(e)
+    const s = sprites.get(spriteId)
+    const w = s?.width ?? 16
+    const h = s?.height ?? 16
+    const x = p.x - Math.floor(w / 2)
+    const y = p.y - Math.floor(h / 2)
+    const r = snapped({ x, y, w, h }, null, e)
+    return { x: x + r.dx, y: y + r.dy, w, h, guides: r.guides }
+  }
+
   return (
     <div ref={wrapRef} className="relative grid h-full w-full place-items-center overflow-hidden">
       <div
@@ -98,9 +166,8 @@ export function EditorCanvas({
           setDropHint(null)
           if (!id) return
           e.preventDefault()
-          const p = toPanel(e)
-          const s = sprites.get(id)
-          onDropSprite(id, p.x - Math.floor((s?.width ?? 0) / 2), p.y - Math.floor((s?.height ?? 0) / 2))
+          const p = dropAt(e, id)
+          onDropSprite(id, p.x, p.y)
         }}
       >
         <canvas
@@ -160,22 +227,22 @@ export function EditorCanvas({
                   onPointerMove={(e) => {
                     const d = drag.current
                     if (!d) return
-                    const dx = Math.round((e.clientX - d.startX) / zoom)
-                    const dy = Math.round((e.clientY - d.startY) / zoom)
-                    if (!d.moved && dx === 0 && dy === 0) return
+                    // A click without movement mustn't snap the element somewhere new.
+                    const still =
+                      Math.round((e.clientX - d.startX) / zoom) === 0 && Math.round((e.clientY - d.startY) / zoom) === 0
+                    if (!d.moved && still) return
                     d.moved = true
-                    onMove(d.el, d.px + dx, d.py + dy, false)
+                    const p = dragTo(d, e)
+                    setGuides(p.guides)
+                    onMove(d.el, p.x, p.y, false)
                   }}
                   onPointerUp={(e) => {
                     const d = drag.current
                     drag.current = null
+                    setGuides(null)
                     if (!d?.moved) return
-                    onMove(
-                      d.el,
-                      d.px + Math.round((e.clientX - d.startX) / zoom),
-                      d.py + Math.round((e.clientY - d.startY) / zoom),
-                      true,
-                    )
+                    const p = dragTo(d, e)
+                    onMove(d.el, p.x, p.y, true)
                   }}
                 >
                   {selected && (
@@ -187,6 +254,13 @@ export function EditorCanvas({
               )
             })}
           </div>
+        )}
+
+        {guides?.x !== undefined && (
+          <div className="pointer-events-none absolute inset-y-0 w-px bg-fuchsia-500" style={{ left: guides.x * zoom }} />
+        )}
+        {guides?.y !== undefined && (
+          <div className="pointer-events-none absolute inset-x-0 h-px bg-fuchsia-500" style={{ top: guides.y * zoom }} />
         )}
 
         {dropHint && (

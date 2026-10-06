@@ -61,7 +61,7 @@ ui/
 
 ## Set editor
 
-`#/groups/:groupId/sets/:setId` is a canvas editor: drag elements to move them, drop sprites from the palette, arrow keys nudge (Shift = 8px), Delete removes, Ctrl+D duplicates, Space plays, `[`/`]` step frames. The filmstrip reorders frames by drag. Onion skin overlays the previous frame.
+`#/groups/:groupId/sets/:setId` is a canvas editor: drag elements to move them (snapping to the panel centre/edges and other elements' edges and centres; toggle with the magnet, hold Alt to bypass), drop sprites from the palette, arrow keys nudge (Shift = 8px), Delete removes, Ctrl+D duplicates, Space plays, `[`/`]` step frames. The filmstrip reorders frames by drag. Onion skin overlays the previous frame.
 
 Edits are applied locally first and saved in the background (`useSetDocument`, 350 ms debounce per entity). Each save bumps the config version of nodes using the group, so assigned devices refresh live.
 
