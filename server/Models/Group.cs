@@ -11,5 +11,8 @@ public class Group
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>Edited since nodes were last told to refresh; see NodePublisher.</summary>
+    public bool PendingPublish { get; set; }
+
     public ICollection<Set> Sets { get; set; } = new List<Set>();
 }

@@ -31,6 +31,8 @@ stable: true
 
 ## Library Endpoints
 
+Writes to groups, sets, frames and elements are saved immediately but **do not** reach nodes: they set the group's `pending_publish` flag. Nodes showing the group are refreshed by `POST /api/groups/{id}/publish` (the Web UI's Sync, or its 30 s idle auto-sync), or by the server once the group has had no edits for 60 s. Saving or deleting a sprite marks every group that draws it. Group rename/delete and node display/assignment changes still refresh nodes immediately. `refresh_config` messages to one node are coalesced to at most one per 5 s.
+
 | Method | Route | Description |
 |--------|-------|-------------|
 | GET | `/api/groups` | List all groups |
@@ -38,6 +40,7 @@ stable: true
 | GET | `/api/groups/{id}` | Get group with sets |
 | PUT | `/api/groups/{id}` | Update group |
 | POST | `/api/groups/{id}/rename` | Change the group id (`{ id }`). Repoints sets, assignment `default_group`/triggers and preset `groupSwaps`, then bumps affected nodes. GCODE macros are not touched. `400` bad id, `409` taken |
+| POST | `/api/groups/{id}/publish` | Push pending edits: clear `pending_publish`, bump and refresh nodes showing the group. Returns `{ nodes }` |
 | DELETE | `/api/groups/{id}` | Delete group + cascade |
 | GET | `/api/groups/{gid}/sets` | List sets in group |
 | POST | `/api/groups/{gid}/sets` | Create set |

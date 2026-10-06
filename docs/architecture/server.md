@@ -40,7 +40,9 @@ server/
     ├── ConfigExportService.cs    # Assemble per-node config JSON
     ├── StarterPackService.cs     # Import starter faces, default display assignment
     ├── SpriteConversionService.cs # PNG → XBM / PNG → RGB565
-    └── NodeStatusService.cs      # Track online/offline, last seen
+    ├── NodePublisher.cs          # Mark groups pending; publish = bump + refresh affected nodes
+    ├── PendingPublishSweeper.cs  # Background: publish groups idle for 60 s
+    └── NodeStatusService.cs      # Track online/offline, last seen; per-socket send lock, coalesced refresh_config
 ```
 
 ## Key Config

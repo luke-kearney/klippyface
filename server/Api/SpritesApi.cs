@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Klippyface.Server.Data;
 using Klippyface.Server.Models;
+using Klippyface.Server.Services;
 
 namespace Klippyface.Server.Api;
 
@@ -32,7 +33,7 @@ public static class SpritesApi
             return sprite is null ? Results.NotFound() : Results.Ok(sprite);
         });
 
-        sprites.MapPut("/{id}", async (KlippyfaceDbContext db, string id, Sprite input) =>
+        sprites.MapPut("/{id}", async (KlippyfaceDbContext db, string id, Sprite input, NodePublisher publisher) =>
         {
             var sprite = await db.Sprites.FindAsync(id);
             if (sprite is null) return Results.NotFound();
@@ -44,6 +45,7 @@ public static class SpritesApi
             sprite.Height = input.Height;
             sprite.DataBase64 = input.DataBase64;
             await db.SaveChangesAsync();
+            await publisher.MarkGroupsUsingSpritePendingAsync(id);
             return Results.Ok(sprite);
         });
 
@@ -87,10 +89,13 @@ public static class SpritesApi
             return Results.Ok(new { sprite = renamed, ElementsUpdated = updated });
         });
 
-        sprites.MapDelete("/{id}", async (KlippyfaceDbContext db, string id) =>
+        sprites.MapDelete("/{id}", async (KlippyfaceDbContext db, string id, NodePublisher publisher) =>
         {
             var sprite = await db.Sprites.FindAsync(id);
             if (sprite is null) return Results.NotFound();
+
+            // Frames that drew it now draw nothing there.
+            await publisher.MarkGroupsUsingSpritePendingAsync(id);
 
             db.Sprites.Remove(sprite);
             await db.SaveChangesAsync();

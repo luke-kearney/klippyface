@@ -319,6 +319,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-06: Library edits publish to nodes in batches
+
+**Context:** Every library write bumped the config version of affected nodes and sent `refresh_config`. A few seconds of editing meant dozens of full config downloads and driver re-inits on the ESP32, and nodes wedged until power-cycled (#25).
+
+**Decision:** Split persisting from publishing. Group/set/frame/element writes (and sprite saves, for groups that draw the sprite) only set `groups.pending_publish`. `POST /api/groups/{id}/publish` bumps and refreshes nodes showing the group; the Web UI calls it from a Sync button and 30 s after the last edit, and `PendingPublishSweeper` publishes any group idle for 60 s so edits still land if the tab closes. Structural changes (group rename/delete, displays, assignments) still refresh immediately. `NodeStatusService` serialises sends per socket and coalesces `refresh_config` to one per node per 5 s. Version bumps are saved before the message is sent.
+
+**Consequences:** Nodes lag edits by up to ~60 s unless synced. A node that fetches for another reason (boot, reconnect) gets the latest saved content, published or not.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations
