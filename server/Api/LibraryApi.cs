@@ -46,11 +46,65 @@ public static class LibraryApi
             if (group is null) return Results.NotFound();
 
             group.Label = input.Label;
+            group.Description = input.Description;
             group.SortOrder = input.SortOrder;
             group.UpdatedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
             await BumpAffectedNodesAsync(db, statusService, id);
             return Results.Ok(group);
+        });
+
+        // Re-creates the group under the new id and repoints everything that refers
+        // to it by value: sets, assignment defaults and triggers, preset group swaps.
+        // GCODE macros on the printer can't be reached from here; the UI warns.
+        groups.MapPost("/{id}/rename", async (KlippyfaceDbContext db, string id, RenameRequest input, NodeStatusService statusService) =>
+        {
+            var newId = input.Id?.Trim() ?? string.Empty;
+            if (!RenameRequest.IsValidId(newId))
+                return Results.BadRequest("ID may only contain lowercase letters, digits and underscores");
+
+            var group = await db.Groups.FindAsync(id);
+            if (group is null) return Results.NotFound();
+            if (newId == id) return Results.Ok(group);
+            if (await db.Groups.AnyAsync(g => g.Id == newId))
+                return Results.Conflict($"A group with ID '{newId}' already exists");
+
+            await using var tx = await db.Database.BeginTransactionAsync();
+            var renamed = new Group
+            {
+                Id = newId,
+                Label = group.Label,
+                Description = group.Description,
+                SortOrder = group.SortOrder,
+                CreatedAt = group.CreatedAt,
+                UpdatedAt = DateTime.UtcNow,
+            };
+            db.Groups.Add(renamed);
+            await db.SaveChangesAsync();
+
+            await db.Sets
+                .Where(s => s.GroupId == id)
+                .ExecuteUpdateAsync(u => u.SetProperty(s => s.GroupId, newId));
+            await db.Assignments
+                .Where(a => a.DefaultGroup == id)
+                .ExecuteUpdateAsync(u => u.SetProperty(a => a.DefaultGroup, newId));
+
+            var quoted = $"\"{id}\"";
+            var assignments = await db.Assignments.Where(a => a.TriggersJson.Contains(quoted)).ToListAsync();
+            foreach (var a in assignments)
+                a.TriggersJson = RenameGroupInTriggers(a.TriggersJson, id, newId);
+            var presets = await db.Presets.Where(p => p.OverridesJson.Contains(quoted)).ToListAsync();
+            foreach (var p in presets)
+                p.OverridesJson = RenameGroupInOverrides(p.OverridesJson, id, newId);
+
+            // Sets were moved off it already, so the cascade deletes nothing.
+            db.Entry(group).State = EntityState.Detached;
+            await db.Groups.Where(g => g.Id == id).ExecuteDeleteAsync();
+            await db.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            await BumpAffectedNodesAsync(db, statusService, newId);
+            return Results.Ok(renamed);
         });
 
         groups.MapDelete("/{id}", async (KlippyfaceDbContext db, string id, NodeStatusService statusService) =>
@@ -100,6 +154,7 @@ public static class LibraryApi
             if (set is null) return Results.NotFound();
 
             set.Label = input.Label;
+            set.Description = input.Description;
             set.SortOrder = input.SortOrder;
             set.LoopCount = input.LoopCount;
             set.FrameTime = input.FrameTime;
@@ -285,6 +340,37 @@ public static class LibraryApi
         });
 
         return app;
+    }
+
+    // triggers_json: { "<trigger>": "<group id>" | null }
+    private static string RenameGroupInTriggers(string json, string oldId, string newId)
+    {
+        if (JsonNode.Parse(json) is not JsonObject triggers) return json;
+        foreach (var key in triggers.Select(kv => kv.Key).ToList())
+        {
+            if (triggers[key] is JsonValue v && v.TryGetValue<string>(out var groupId) && groupId == oldId)
+                triggers[key] = newId;
+        }
+        return triggers.ToJsonString();
+    }
+
+    // overrides_json: { "groupSwaps": { "<from group>": "<to group>" }, ... }
+    private static string RenameGroupInOverrides(string json, string oldId, string newId)
+    {
+        if (JsonNode.Parse(json) is not JsonObject overrides ||
+            overrides["groupSwaps"] is not JsonObject swaps)
+            return json;
+
+        var renamed = new JsonObject();
+        foreach (var (from, to) in swaps.ToList())
+        {
+            var target = to is JsonValue v && v.TryGetValue<string>(out var toId) && toId == oldId
+                ? JsonValue.Create(newId)
+                : to?.DeepClone();
+            renamed[from == oldId ? newId : from] = target;
+        }
+        overrides["groupSwaps"] = renamed;
+        return overrides.ToJsonString();
     }
 
     private static async Task BumpAffectedNodesAsync(KlippyfaceDbContext db, NodeStatusService statusService, string groupId)

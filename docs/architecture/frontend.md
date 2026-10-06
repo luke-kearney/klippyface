@@ -74,8 +74,8 @@ Edits are applied locally first and saved in the background (`useSetDocument`, 3
 | `#/groups` | Groups with animated thumbnails |
 | `#/groups/{id}` | Sets in a group |
 | `#/groups/{gid}/sets/{sid}` | Set editor |
-| `#/sprites` | Sprite library |
-| `#/sprites/{id}` | Pixel editor |
+| `#/sprites` | Sprite library: folder sections (drag cards between them), search |
+| `#/sprites/{id}` | Pixel editor; folder, description and ID rename in the header/side panel |
 | `#/presets` | Presets |
 
 ## Dev Workflow

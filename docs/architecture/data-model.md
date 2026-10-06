@@ -72,6 +72,7 @@ CREATE TABLE assignments (
 CREATE TABLE groups (
     id          TEXT PRIMARY KEY,
     label       TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
     sort_order  INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
@@ -85,6 +86,7 @@ CREATE TABLE sets (
     id          TEXT PRIMARY KEY,
     group_id    TEXT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
     label       TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
     sort_order  INTEGER NOT NULL DEFAULT 0,
     loop_count  INTEGER NOT NULL DEFAULT 1,      -- 0 = loop forever
     frame_time  INTEGER NOT NULL DEFAULT 1000    -- default ms for new frames; firmware fallback when a frame has no duration_ms
@@ -125,6 +127,8 @@ CREATE TABLE frame_elements (
 CREATE TABLE sprites (
     id          TEXT PRIMARY KEY,
     label       TEXT NOT NULL,
+    folder      TEXT NOT NULL DEFAULT '',          -- free-text; '' = unfiled
+    description TEXT NOT NULL DEFAULT '',
     width       INTEGER NOT NULL,
     height      INTEGER NOT NULL,
     data_base64 TEXT NOT NULL,

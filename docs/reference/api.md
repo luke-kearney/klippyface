@@ -37,6 +37,7 @@ stable: true
 | POST | `/api/groups` | Create group |
 | GET | `/api/groups/{id}` | Get group with sets |
 | PUT | `/api/groups/{id}` | Update group |
+| POST | `/api/groups/{id}/rename` | Change the group id (`{ id }`). Repoints sets, assignment `default_group`/triggers and preset `groupSwaps`, then bumps affected nodes. GCODE macros are not touched. `400` bad id, `409` taken |
 | DELETE | `/api/groups/{id}` | Delete group + cascade |
 | GET | `/api/groups/{gid}/sets` | List sets in group |
 | POST | `/api/groups/{gid}/sets` | Create set |
@@ -62,6 +63,7 @@ stable: true
 | POST | `/api/sprites` | Create (JSON + base64, or multipart PNG upload) |
 | GET | `/api/sprites/{id}` | Get sprite with base64 data |
 | PUT | `/api/sprites/{id}` | Update sprite |
+| POST | `/api/sprites/{id}/rename` | Change the sprite id (`{ id }`). Repoints `sprite` frame elements. Returns `{ sprite, elements_updated }`. `400` bad id, `409` taken |
 | DELETE | `/api/sprites/{id}` | Delete sprite |
 | GET | `/api/sprites/{id}/preview` | Render as PNG for browser preview |
 
