@@ -11,12 +11,15 @@ export interface Node {
   updatedAt: string
   lastSeen: string | null
   lastConfigVersion: number
+  /** Firmware build env from the node's last hello, e.g. 'esp32s3-ws-lcd169'; '' if unknown. */
+  board: string
+  firmwareVersion: string
   isOnline: boolean
   displays?: NodeDisplay[]
   assignments?: Assignment[]
 }
 
-export type DriverType = 'sh1106' | 'ssd1306' | 'st7789' | 'ili9341' | 'hx8347'
+export type DriverType = 'sh1106' | 'ssd1306' | 'st7789' | 'gc9a01' | 'ili9341' | 'hx8347'
 export type BusType = 'i2c' | 'spi' | 'parallel8'
 
 export interface NodeDisplay {
@@ -45,6 +48,8 @@ export interface Group {
   id: string
   label: string
   description: string
+  /** Display profile the faces are drawn for (DISPLAY_PROFILES id); '' = default OLED. */
+  profile: string
   sortOrder: number
   createdAt: string
   updatedAt: string
@@ -85,6 +90,8 @@ export interface FrameElement {
   color: string
   x: number
   y: number
+  /** Font scale for text/data values, pixel scale for sprites (1–8). */
+  size: number
 }
 
 export interface Sprite {

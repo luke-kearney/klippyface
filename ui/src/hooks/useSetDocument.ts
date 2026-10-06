@@ -18,6 +18,7 @@ const elementBody = (e: FrameElement): ElementInput => ({
   color: e.color,
   x: e.x,
   y: e.y,
+  size: e.size ?? 1,
   sortOrder: e.sortOrder,
 })
 

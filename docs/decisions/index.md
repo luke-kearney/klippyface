@@ -329,6 +329,36 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-06: One firmware build per board for ESP32-S3
+
+**Context:** #20 adds ESP32-S3 support for two Waveshare boards: ESP32-S3-Touch-LCD-1.69 (S3R8, 8 MB octal PSRAM, native USB) and ESP32-S3-LCD-1.28 (S3R2, 2 MB quad PSRAM, CH343P USB-UART). PSRAM type and USB serial mode are fixed at build time, and colour panels want a PSRAM frame buffer, so one generic S3 image can't serve both.
+
+**Decision:** One PlatformIO env per board (`esp32s3-ws-lcd169`, `esp32s3-ws-lcd128`) on a shared `esp32s3_base` (16 MB flash, `default_16MB.csv`), with board pins and quirks in `src/config/Board.h`. Release binaries are named `klippyface-firmware-<version>-<env>[-full].bin`, including the classic `esp32dev`. CI builds every env; production releases publish every board, the rolling `dev` pre-release only `esp32dev`.
+
+**Consequences:** The classic firmware's release file names gain an `-esp32dev` suffix. Adding a board means a new env, a `Board.h` block and a `FIRMWARE_TARGETS` entry in `release.yml`.
+
+---
+
+## 2026-10-06: One Arduino_GFX driver for colour TFTs
+
+**Context:** The two Waveshare S3 boards need ST7789 (#21) and GC9A01 (#29) drivers. The existing `Hx8347Driver` already wrapped Arduino_GFX, which supports both panels on SPI. Drawing straight to an SPI panel shows clear-then-draw flicker.
+
+**Decision:** Replace `Hx8347Driver` with one `GfxDriver` for `hx8347`, `st7789` and `gc9a01`, picking the bus (`Arduino_ESP32PAR8` / `Arduino_ESP32SPI`) and panel class from the driver type. SPI panels render into an `Arduino_Canvas` flushed in `show()`, in PSRAM when present, otherwise in internal RAM only if 48 KB stays free, else direct. Panel quirks (IPS, row/column offsets, SPI frequency) come from the bus config. The Web UI gains a `gc9a01` type, SPI offset/IPS fields, and a round preview mask.
+
+**Consequences:** Adding another Arduino_GFX panel is a new `Panel` value plus one constructor line. The HX8347D path is unchanged apart from clearing the screen and switching on the backlight at init; re-verified on hardware after the change.
+
+---
+
+## 2026-10-06: Element size and generated starter packs per display
+
+**Context:** The starter faces were drawn for a 128×64 OLED and text was always GFX size 1, so on 240–320px colour panels faces sat small in a corner and text was unreadable (#32).
+
+**Decision:** Frame elements get a `size` (1–8): GFX text size for text/data values, pixel scale for 1-bit sprites, rendered identically by the firmware and the Web UI. `scripts/starter_pack.py` generates a copy of each base group per display profile (`tft320x240`, `tft240x320`, `tft240x280`, `round240`) using scaled faces in state colours and large centred labels, written into `starter-pack.json` with a `profiles` trigger map. Groups record the `profile` they're drawn for, used for previews. The server picks a profile from a display's driver and size (orientation-strict) and imports that pack on demand when a display is added or "Use starter faces" is clicked.
+
+**Consequences:** No duplicated sprite art: the same sprites serve every size. The base groups stay the hand-edited source of truth; sized packs are regenerated, not edited. Libraries only get sized groups for displays they have.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations

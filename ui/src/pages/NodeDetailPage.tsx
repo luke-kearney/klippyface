@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
-import { Monitor, Pencil, Plus, Save, Trash2 } from 'lucide-react'
+import { Monitor, Pencil, Plus, Save, Sparkles, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -57,6 +57,12 @@ export function NodeDetailPage() {
         description={
           <>
             <code>{node.macAddress}</code> · seen {relativeTime(node.lastSeen)} · config v{node.lastConfigVersion}
+            {node.board && (
+              <>
+                {' '}· board <code>{node.board}</code>
+              </>
+            )}
+            {node.firmwareVersion && <> · fw {node.firmwareVersion}</>}
           </>
         }
         actions={
@@ -77,7 +83,7 @@ export function NodeDetailPage() {
         <div className="grid gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Displays</h2>
-            <DisplayDialog nodeId={node.id} sortOrder={node.displays?.length ?? 0}>
+            <DisplayDialog nodeId={node.id} board={node.board} sortOrder={node.displays?.length ?? 0}>
               <Button size="sm">
                 <Plus /> Add display
               </Button>
@@ -195,6 +201,10 @@ function DisplayCard({ node, display, assignment }: { node: Node; display: NodeD
       }),
     { invalidate: [keys.node(node.id)], success: 'Assignment saved — node will refresh' },
   )
+  const starterFaces = useApiMutation(() => api.useStarterFaces(node.id, display.id), {
+    invalidate: [keys.node(node.id), keys.groups],
+    success: 'Starter faces assigned — node will refresh',
+  })
   const remove = useApiMutation(() => api.deleteDisplay(node.id, display.id), {
     invalidate: [keys.node(node.id), keys.nodes],
     success: 'Display removed',
@@ -232,7 +242,17 @@ function DisplayCard({ node, display, assignment }: { node: Node; display: NodeD
           </CardDescription>
         </div>
         <div className="flex gap-1">
-          <DisplayDialog nodeId={node.id} display={display} sortOrder={display.sortOrder}>
+          <ConfirmDelete
+            title="Use starter faces?"
+            description={`Maps each printer state on "${display.label}" to the starter faces sized for ${display.width}×${display.height}, adding them to your library if needed. This replaces its current default and triggers.`}
+            action="Use starter faces"
+            onConfirm={() => starterFaces.mutateAsync(undefined)}
+          >
+            <Button variant="ghost" size="icon" aria-label="Use starter faces" title="Use starter faces for this display">
+              <Sparkles />
+            </Button>
+          </ConfirmDelete>
+          <DisplayDialog nodeId={node.id} board={node.board} display={display} sortOrder={display.sortOrder}>
             <Button variant="ghost" size="icon" aria-label="Edit display">
               <Pencil />
             </Button>

@@ -95,10 +95,35 @@ public static class NodesApi
             display.NodeId = nodeId;
             db.NodeDisplays.Add(display);
             // New displays start with each printer state mapped to its starter face
-            db.Assignments.Add(await starterPack.DefaultAssignmentAsync(nodeId, display.Id));
+            db.Assignments.Add(await starterPack.DefaultAssignmentAsync(nodeId, display));
             await db.SaveChangesAsync();
             await publisher.RefreshNodeAsync(nodeId);
             return Results.Created($"/api/nodes/{nodeId}/displays/{display.Id}", display);
+        });
+
+        // Re-point a display at the starter faces sized for it (importing them if
+        // needed). Replaces default group and triggers; keeps the active preset.
+        displays.MapPost("/{displayId}/starter-faces", async (KlippyfaceDbContext db, string nodeId, string displayId,
+            NodePublisher publisher, StarterPackService starterPack) =>
+        {
+            var display = await db.NodeDisplays.FirstOrDefaultAsync(d => d.Id == displayId && d.NodeId == nodeId);
+            if (display is null) return Results.NotFound();
+
+            var template = await starterPack.DefaultAssignmentAsync(nodeId, display);
+            var assignment = await db.Assignments.FirstOrDefaultAsync(a => a.NodeId == nodeId && a.DisplayId == displayId);
+            if (assignment is null)
+            {
+                db.Assignments.Add(template);
+                assignment = template;
+            }
+            else
+            {
+                assignment.DefaultGroup = template.DefaultGroup;
+                assignment.TriggersJson = template.TriggersJson;
+            }
+            await db.SaveChangesAsync();
+            await publisher.RefreshNodeAsync(nodeId);
+            return Results.Ok(assignment);
         });
 
         displays.MapPut("/{displayId}", async (KlippyfaceDbContext db, string nodeId, string displayId, NodeDisplay input, NodePublisher publisher) =>
@@ -237,7 +262,8 @@ public static class NodesApi
                             });
                         }
 
-                        await PersistLastSeenAsync(scopeFactory, dbNodeId);
+                        await PersistHelloAsync(scopeFactory, dbNodeId,
+                            msg["board"]?.GetValue<string>(), msg["fw_version"]?.GetValue<string>());
                         break;
                     }
                     case "heartbeat":
@@ -255,6 +281,26 @@ public static class NodesApi
         finally
         {
             statusService.Unregister(macAddress, ws);
+        }
+    }
+
+    // Older firmware doesn't send `board`; keep what we have rather than blanking it.
+    private static async Task PersistHelloAsync(IServiceScopeFactory scopeFactory, string dbNodeId,
+                                                string? board, string? firmwareVersion)
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<KlippyfaceDbContext>();
+            var node = await db.Nodes.FindAsync(dbNodeId);
+            if (node is null) return;
+            node.LastSeen = DateTime.UtcNow;
+            if (!string.IsNullOrEmpty(board)) node.Board = board;
+            if (!string.IsNullOrEmpty(firmwareVersion)) node.FirmwareVersion = firmwareVersion;
+            await db.SaveChangesAsync();
+        }
+        catch
+        {
         }
     }
 

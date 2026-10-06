@@ -24,7 +24,8 @@ stable: true
 | DELETE | `/api/nodes/{id}` | Delete node + displays + assignments |
 | GET | `/api/ws/node/{mac}` | **WebSocket** — persistent channel for online tracking, heartbeat, config push |
 | GET | `/api/nodes/{id}/displays` | List displays on node |
-| POST | `/api/nodes/{id}/displays` | Add display to node (gets a default assignment mapping each printer state to its starter group, where those groups exist) |
+| POST | `/api/nodes/{id}/displays` | Add display to node (gets a default assignment mapping each printer state to the starter group sized for it; a sized pack is imported on demand) |
+| POST | `/api/nodes/{id}/displays/{did}/starter-faces` | Point the display at the starter faces sized for it (importing them if needed): replaces default group and triggers, keeps the active preset, refreshes the node |
 | PUT | `/api/nodes/{id}/displays/{did}` | Update display config |
 | DELETE | `/api/nodes/{id}/displays/{did}` | Remove display |
 | GET | `/api/nodes/{id}/displays/{did}/assignment` | Get a display's assignment |
@@ -57,7 +58,7 @@ Writes to groups, sets, frames and elements are saved immediately but **do not**
 | PUT | `/api/elements/{eid}` | Update frame element |
 | DELETE | `/api/elements/{eid}` | Delete frame element |
 | PUT | `/api/frames/{fid}/elements/reorder` | Reorder elements |
-| POST | `/api/starter-pack` | Import the built-in starter faces; skips sprite/group ids that already exist. Returns `{ sprites_added, groups_added }` |
+| POST | `/api/starter-pack` | Import the built-in starter faces: the base 128×64 groups plus the sized pack for every display in the system; skips sprite/group ids that already exist. Returns `{ sprites_added, groups_added }` |
 
 ## Sprite Endpoints
 
@@ -142,7 +143,7 @@ GET /api/config/node?mac=AA:BB:CC:DD:EE:01
               {
                 "duration_ms": 3000, "bg_color": "#000000",
                 "elements": [
-                  { "type": "text", "value": "zzz", "x": 64, "y": 32, "color": "#FFFFFF" }
+                  { "type": "text", "value": "zzz", "x": 64, "y": 32, "color": "#FFFFFF", "size": 1 }
                 ]
               }
             ]
@@ -167,7 +168,7 @@ and instant config push. Messages are JSON with a `type` field:
 
 | Type | Payload | Timing |
 |------|---------|--------|
-| `hello` | `{ node_id, friendly_name, config_version, fw_version }` | On connect/reconnect |
+| `hello` | `{ node_id, friendly_name, config_version, fw_version, board }` | On connect/reconnect. `board` is the firmware build env (e.g. `esp32dev`, `esp32s3-ws-lcd169`); the server stores it and `fw_version` on the node |
 | `heartbeat` | `{ heap_free, uptime_s, rssi, display_count }` | Every 30s |
 
 ### Server → Node

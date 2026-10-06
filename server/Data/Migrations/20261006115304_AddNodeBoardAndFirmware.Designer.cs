@@ -3,6 +3,7 @@ using System;
 using Klippyface.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Klippyface.Server.Data.Migrations
 {
     [DbContext(typeof(KlippyfaceDbContext))]
-    partial class KlippyfaceDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261006115304_AddNodeBoardAndFirmware")]
+    partial class AddNodeBoardAndFirmware
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.0");
@@ -97,9 +100,6 @@ namespace Klippyface.Server.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("Size")
-                        .HasColumnType("INTEGER");
-
                     b.Property<int>("SortOrder")
                         .HasColumnType("INTEGER");
 
@@ -142,10 +142,6 @@ namespace Klippyface.Server.Data.Migrations
 
                     b.Property<bool>("PendingPublish")
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("Profile")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("INTEGER");

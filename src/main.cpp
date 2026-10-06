@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <Wire.h>
+#include "config/Board.h"
 #include "config/Settings.h"
 #include "wifi/WifiManager.h"
 #include "display/DisplayManager.h"
@@ -171,12 +172,12 @@ void serverClientTask(void *pvParameters) {
 // GPIO Monitor Task (Core 0) — factory reset on 3s BOOT button hold
 // -------------------------------------------------------------------
 void gpioMonitorTask(void *pvParameters) {
-    pinMode(0, INPUT_PULLUP);
+    pinMode(BOOT_BUTTON_PIN, INPUT_PULLUP);
     unsigned long pressStart = 0;
     bool wasPressed = false;
 
     for (;;) {
-        bool isPressed = (digitalRead(0) == LOW);
+        bool isPressed = (digitalRead(BOOT_BUTTON_PIN) == LOW);
 
         if (isPressed && !wasPressed) {
             pressStart = millis();
@@ -244,14 +245,23 @@ void displayTask(void *pvParameters) {
 // Setup
 // -------------------------------------------------------------------
 void setup() {
+    // Latch battery power first, before anything slow can let it drop
+    if (POWER_HOLD_PIN >= 0) {
+        pinMode(POWER_HOLD_PIN, OUTPUT);
+        digitalWrite(POWER_HOLD_PIN, HIGH);
+    }
+
     Serial.begin(115200);
     delay(1000);
     Serial.println();
     Serial.printf("[BOOT] Klippyface Display System v%s\n", KLIPPYFACE_VERSION);
-    Serial.printf("[BOOT] ESP32 chip rev %d, %d cores, %d MB flash\n",
+    Serial.printf("[BOOT] Board %s, %s rev %d, %d cores, %d MB flash, %d KB PSRAM\n",
+                  BOARD_NAME,
+                  ESP.getChipModel(),
                   ESP.getChipRevision(),
                   ESP.getChipCores(),
-                  ESP.getFlashChipSize() / (1024 * 1024));
+                  ESP.getFlashChipSize() / (1024 * 1024),
+                  ESP.getPsramSize() / 1024);
 
     Settings::begin();
 

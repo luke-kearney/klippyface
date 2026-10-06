@@ -79,6 +79,9 @@ export const api = {
   // Assignments
   upsertAssignment: (nodeId: string, displayId: string, d: AssignmentInput) =>
     put<Assignment>(`/api/nodes/${nodeId}/displays/${displayId}/assignment`, d),
+  /** Point the display at the starter faces sized for it, importing them if needed. */
+  useStarterFaces: (nodeId: string, displayId: string) =>
+    post<Assignment>(`/api/nodes/${nodeId}/displays/${displayId}/starter-faces`, {}),
 
   // Groups
   getGroups: () => get<Group[]>('/api/groups'),
@@ -86,7 +89,7 @@ export const api = {
   createGroup: (d: Pick<Group, 'id' | 'label' | 'description' | 'sortOrder'>) => post<Group>('/api/groups', d),
   /** Adds the built-in faces; existing sprite/group ids are left alone. */
   importStarterPack: () => post<{ spritesAdded: number; groupsAdded: number }>('/api/starter-pack', {}),
-  updateGroup: (id: string, d: Pick<Group, 'label' | 'description' | 'sortOrder'>) => put<Group>(`/api/groups/${id}`, d),
+  updateGroup: (id: string, d: Pick<Group, 'label' | 'description' | 'profile' | 'sortOrder'>) => put<Group>(`/api/groups/${id}`, d),
   /** Repoints sets, assignments and preset swaps; GCODE macros must be updated by hand. */
   renameGroup: (id: string, newId: string) => post<Group>(`/api/groups/${id}/rename`, { id: newId }),
   deleteGroup: (id: string) => del(`/api/groups/${id}`),

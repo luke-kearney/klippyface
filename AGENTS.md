@@ -34,4 +34,4 @@ Use `gh issue list`, `gh issue view <id>`, `gh issue create`, `gh issue close` t
 - **Firmware:** PlatformIO + Arduino core + FreeRTOS (C++)
 - **Server:** .NET 10 + SQLite (minimal API)
 - **Web UI:** React + TypeScript + Vite (Tailwind, shadcn/ui)
-- **Build commands:** See `platformio.ini` for env targets (`esp32dev`, `esp32dev-mock`)
+- **Build commands:** See `platformio.ini` for env targets (`esp32dev`, `esp32dev-mock`, `esp32s3-ws-lcd169`, `esp32s3-ws-lcd128`)

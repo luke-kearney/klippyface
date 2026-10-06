@@ -15,10 +15,11 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { ConfirmDelete, EmptyState, ErrorState, Field, InlineDescription, Loading, Page, PageHeader } from '@/components/common'
 import { RenameIdDialog } from '@/components/RenameIdDialog'
-import { SetPlayer } from '@/components/DisplayPreview'
+import { DISPLAY_PROFILES, SetPlayer, profileById } from '@/components/DisplayPreview'
 import { keys, useApiMutation, useGroup, useGroups, useSpriteBitmaps } from '@/hooks/queries'
 import { api } from '@/lib/api'
 import type { Group, Set } from '@/lib/types'
@@ -32,10 +33,11 @@ export function GroupDetailPage() {
   const sprites = useSpriteBitmaps()
 
   const save = useApiMutation(
-    (patch: { label?: string; description?: string }) =>
+    (patch: { label?: string; description?: string; profile?: string }) =>
       api.updateGroup(groupId, {
         label: patch.label ?? group!.label,
         description: patch.description ?? group!.description,
+        profile: patch.profile ?? group!.profile,
         sortOrder: group!.sortOrder,
       }),
     { invalidate: [keys.groups, keys.group(groupId)] },
@@ -149,8 +151,27 @@ export function GroupDetailPage() {
         value={group.description}
         onSave={(description) => save.mutate({ description })}
         placeholder="Add a description for this group…"
-        className="-mt-4 mb-6 max-w-2xl"
+        className="-mt-4 mb-4 max-w-2xl"
       />
+      <div className="mb-6 flex items-center gap-2 text-sm">
+        <span className="text-muted-foreground">Designed for</span>
+        <Select
+          value={profileById(group.profile).id}
+          onValueChange={(v) => save.mutate({ profile: v === DISPLAY_PROFILES[0].id ? '' : v })}
+        >
+          <SelectTrigger size="sm" className="w-52">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {DISPLAY_PROFILES.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-xs text-muted-foreground">Sets the preview size here and in the editor.</span>
+      </div>
 
       {sets.length === 0 && (
         <EmptyState icon={<Film />} title="No sets yet">
@@ -162,7 +183,13 @@ export function GroupDetailPage() {
         {sets.map((s, i) => (
           <Card key={s.id} className="group/card gap-0 overflow-hidden p-0">
             <Link to={`/groups/${group.id}/sets/${s.id}`} className="block bg-black p-3">
-              <SetPlayer frames={s.frames} frameTime={s.frameTime} sprites={sprites} />
+              <SetPlayer
+                frames={s.frames}
+                frameTime={s.frameTime}
+                sprites={sprites}
+                profile={profileById(group.profile)}
+                    fit
+              />
             </Link>
             <div className="flex items-center gap-2 px-4 py-3">
               <Link to={`/groups/${group.id}/sets/${s.id}`} className="min-w-0 flex-1">

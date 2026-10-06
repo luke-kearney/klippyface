@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Separator } from '@/components/ui/separator'
 import { Slider } from '@/components/ui/slider'
 import { Textarea } from '@/components/ui/textarea'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Field } from '@/components/common'
 import { DATA_KEYS, isMono } from '@/lib/render'
 import { groupByFolder } from '@/lib/sprite'
@@ -139,6 +140,26 @@ export function ElementInspector({
           </Select>
         </Field>
       )}
+
+      <Field
+        label="Size"
+        hint={element.type === 'sprite' ? 'Each sprite pixel drawn as a size×size block.' : `Font scale: ${6 * (element.size || 1)}×${8 * (element.size || 1)}px per character.`}
+      >
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={String(element.size || 1)}
+          onValueChange={(v) => v && onChange({ size: +v })}
+          className="w-full"
+        >
+          {[1, 2, 3, 4].map((n) => (
+            <ToggleGroupItem key={n} value={String(n)} className="flex-1 font-mono text-xs">
+              {n}×
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="X">

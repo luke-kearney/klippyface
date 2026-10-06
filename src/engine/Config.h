@@ -22,6 +22,7 @@ struct FrameElement {
     uint32_t    color   = 0xFFFFFF;
     int16_t     x       = 0;
     int16_t     y       = 0;
+    uint8_t     size    = 1;   // font scale for text/data values, pixel scale for sprites
 };
 
 // -------------------------------------------------------------------

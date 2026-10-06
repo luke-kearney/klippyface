@@ -30,6 +30,8 @@ CREATE TABLE nodes (
     description         TEXT NOT NULL DEFAULT '',
     last_seen           TEXT,                            -- set by WS heartbeat
     last_config_version INTEGER NOT NULL DEFAULT 0,      -- bumped on admin edits
+    board               TEXT NOT NULL DEFAULT '',        -- firmware build env from hello, e.g. esp32s3-ws-lcd169
+    firmware_version    TEXT NOT NULL DEFAULT '',        -- fw_version from hello
     created_at          TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -42,7 +44,7 @@ CREATE TABLE node_displays (
     id              TEXT PRIMARY KEY,
     node_id         TEXT NOT NULL REFERENCES nodes(id) ON DELETE CASCADE,
     label           TEXT NOT NULL DEFAULT '',
-    driver_type     TEXT NOT NULL,               -- "sh1106", "ssd1306", "st7789", "ili9341"
+    driver_type     TEXT NOT NULL,               -- "sh1106", "hx8347", "st7789", "gc9a01" (+ "ssd1306", "ili9341": no firmware driver yet)
     bus_type        TEXT NOT NULL DEFAULT 'i2c',
     bus_config      TEXT NOT NULL DEFAULT '{}',
     width           INTEGER NOT NULL DEFAULT 128,
@@ -73,6 +75,7 @@ CREATE TABLE groups (
     id          TEXT PRIMARY KEY,
     label       TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
+    profile     TEXT NOT NULL DEFAULT '',          -- display profile the faces are drawn for (UI previews); '' = 128x64 OLED
     sort_order  INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at  TEXT NOT NULL DEFAULT (datetime('now')),  -- also bumped by edits to its sets/frames/elements
@@ -118,7 +121,8 @@ CREATE TABLE frame_elements (
     label       TEXT NOT NULL DEFAULT '',
     color       TEXT NOT NULL DEFAULT '#FFFFFF',
     x           INTEGER NOT NULL DEFAULT 0,
-    y           INTEGER NOT NULL DEFAULT 0
+    y           INTEGER NOT NULL DEFAULT 0,
+    size        INTEGER NOT NULL DEFAULT 1           -- 1–8: font scale for text/datavalue, pixel scale for sprites
 );
 ```
 

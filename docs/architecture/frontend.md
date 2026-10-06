@@ -31,6 +31,7 @@ ui/
     ├── index.css                # Tailwind + theme tokens, brand palette, fonts
     ├── lib/
     │   ├── api.ts               # Typed REST client; snake_case ↔ camelCase key conversion
+    │   ├── boards.ts            # Board presets for the display dialog (driver, size, pins)
     │   ├── types.ts             # Mirrors server/Models
     │   ├── render.ts            # Software renderer mirroring firmware Renderer.cpp
     │   ├── utils.ts             # cn() class merging
@@ -46,7 +47,7 @@ ui/
     │   ├── Logo.tsx             # Logo mark and pixel wordmark
     │   ├── RenameIdDialog.tsx   # Change a sprite or group id
     │   ├── DisplayPreview.tsx   # FrameCanvas, SetPlayer, display profiles
-    │   ├── DisplayDialog.tsx    # Display wiring editor (I²C / SPI / parallel pins)
+    │   ├── DisplayDialog.tsx    # Display wiring editor (I²C / SPI / parallel pins), board presets
     │   ├── PixelEditor.tsx      # Sprite drawing canvas (pencil/eraser/fill/line/rect/text, placeable mirror lines, reference overlay)
     │   ├── SpriteThumb.tsx
     │   └── editor/              # Set editor: EditorCanvas, Inspector, Filmstrip
@@ -64,7 +65,7 @@ ui/
 
 ## Set editor
 
-`#/groups/:groupId/sets/:setId` is a canvas editor: drag elements to move them (snapping to the panel centre/edges and other elements' edges and centres; toggle with the magnet, hold Alt to bypass), drop sprites from the palette, arrow keys nudge (Shift = 8px), Delete removes, Ctrl+D duplicates, Space plays, `[`/`]` step frames. The filmstrip reorders frames by drag. Onion skin overlays the previous frame by default; its picker can switch to the next frame or pin any frame in the group (marked in the filmstrip).
+`#/groups/:groupId/sets/:setId` is a canvas editor: drag elements to move them (snapping to the panel centre/edges and other elements' edges and centres; toggle with the magnet, hold Alt to bypass), drop sprites from the palette, arrow keys nudge (Shift = 8px), Delete removes, Ctrl+D duplicates, Space plays, `[`/`]` step frames. The filmstrip reorders frames by drag. Elements have a size (1–4× in the inspector): font scale for text and data values, pixel scale for sprites. A group's "Designed for" profile sets its preview size on the group pages and the editor's starting display profile. Onion skin overlays the previous frame by default; its picker can switch to the next frame or pin any frame in the group (marked in the filmstrip).
 
 Edits are applied locally first and saved in the background (`useSetDocument`, 350 ms debounce per entity). Saves don't reach nodes on their own: the header shows *Saved · displays sync in Ns*, and the group is published (nodes refresh) 30 s after the last save, on **Sync now** / Ctrl+S, or when leaving the editor (closing the tab publishes via `sendBeacon`; the server also publishes groups idle for 60 s). The group page shows a banner while a group has unsynced edits.
 

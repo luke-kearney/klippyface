@@ -37,6 +37,17 @@ public:
 
     // -- Frame buffer -----------------------------------------------------
     virtual void show() = 0;
+
+    // -- Banded rendering -------------------------------------------------
+    // Drivers without room for a full frame buffer render a frame as
+    // horizontal bands: the caller draws the whole frame once per band
+    // (beginBand(i), draw, show()) and only the band's rows are kept. Drawing
+    // uses panel coordinates throughout. Single-pass drivers keep the defaults.
+    virtual uint8_t bandCount() const { return 1; }
+    virtual void beginBand(uint8_t index) { (void)index; }
+    // Whether rows [y, y + h) fall in the current band, so callers can skip
+    // work that would be clipped anyway.
+    virtual bool rowsVisible(int16_t y, int16_t h) const { (void)y; (void)h; return true; }
 };
 
 #endif
