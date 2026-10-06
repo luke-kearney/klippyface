@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [esp32dev, esp32dev-mock]
+        env: [esp32dev, esp32dev-mock, esp32s3-ws-lcd169, esp32s3-ws-lcd128]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,7 +34,8 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.platformio
-          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          # Per env: the S3 targets pull a different toolchain than the classic ESP32
+          key: pio-${{ runner.os }}-${{ matrix.env }}-${{ hashFiles('platformio.ini') }}
 
       - run: pip install platformio
 
