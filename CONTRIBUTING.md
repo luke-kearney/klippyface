@@ -28,9 +28,6 @@ Thanks for your interest! This is a multi-node ESP32 display system driven by Mo
 ### Firmware (ESP32)
 
 ```bash
-# Build the mock variant (no printer needed)
-pio run -e esp32dev-mock
-
 # Flash to device (classic ESP32; S3 boards: esp32s3-ws-lcd169, esp32s3-ws-lcd128)
 pio run -e esp32dev -t upload
 
@@ -284,7 +281,7 @@ Firmware builds from the matching `v<VERSION>` tag report the plain version (`0.
 
 **Dev builds:** every push to `develop` replaces the rolling `dev` pre-release with the same artifacts, named `X.Y.Z-dev.<sha>`, except that only the classic `esp32dev` firmware is built. The firmware reports `X.Y.Z+g<sha>`.
 
-**CI:** the `CI` workflow builds the firmware (`esp32dev`, `esp32dev-mock`, `esp32s3-ws-lcd169`, `esp32s3-ws-lcd128`), Web UI and server on every PR into `develop`/`master` and every push to `develop`. Run the `Release` workflow manually (Actions → Release → Run workflow) to build the release artifacts (all boards) from any branch without publishing. Board targets for the release live in `FIRMWARE_TARGETS` in `release.yml`.
+**CI:** the `CI` workflow builds the firmware (`esp32dev`, `esp32s3-ws-lcd169`, `esp32s3-ws-lcd128`), Web UI and server on every PR into `develop`/`master` and every push to `develop`. Run the `Release` workflow manually (Actions → Release → Run workflow) to build the release artifacts (all boards) from any branch without publishing. Board targets for the release live in `FIRMWARE_TARGETS` in `release.yml`.
 
 ---
 

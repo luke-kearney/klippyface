@@ -15,8 +15,6 @@ MoonrakerClient::~MoonrakerClient() {
     if (_instance == this) _instance = nullptr;
 }
 
-#ifndef MOONRAKER_MOCK
-
 bool MoonrakerClient::begin(const String& host, uint16_t port, bool useTls) {
     _host = host;
     _port = port;
@@ -217,79 +215,3 @@ void MoonrakerClient::handleGcodeResponse(const String& message) {
         Serial.printf("[%s] Gcode queue full — dropping message\n", TAG);
     }
 }
-
-#else  /* MOONRAKER_MOCK */
-
-bool MoonrakerClient::begin(const String& host, uint16_t port, bool useTls) {
-    String wsScheme = useTls ? "wss" : "ws";
-    Serial.printf("[%s] MOCK MODE — simulating Moonraker at %s://%s:%u\n",
-                  TAG, wsScheme.c_str(), host.c_str(), port);
-    _connected = true;
-    strncpy(_lastState, "idle", sizeof(_lastState) - 1);
-    _lastState[sizeof(_lastState) - 1] = '\0';
-    return true;
-}
-
-void MoonrakerClient::tick() {
-    static enum { MOCK_IDLE, MOCK_PRINTING, MOCK_COMPLETE } mockState = MOCK_IDLE;
-    static unsigned long mockStartTime = millis();
-    static float mockProgress = 0;
-
-    unsigned long now = millis();
-    unsigned long elapsed = now - mockStartTime;
-
-    char newTrigger[24] = "";
-
-    switch (mockState) {
-        case MOCK_IDLE:
-            if (elapsed > 5000) {
-                mockState = MOCK_PRINTING;
-                mockStartTime = now;
-                mockProgress = 0;
-                snprintf(newTrigger, sizeof(newTrigger), "state:printing");
-            }
-            break;
-
-        case MOCK_PRINTING:
-            mockProgress = ((float)(now - mockStartTime) / 15000.0f) * 100.0f;
-            if (mockProgress >= 100.0f) {
-                mockState = MOCK_COMPLETE;
-                mockStartTime = now;
-                snprintf(newTrigger, sizeof(newTrigger), "state:complete");
-            }
-            break;
-
-        case MOCK_COMPLETE:
-            if (elapsed > 3000) {
-                mockState = MOCK_IDLE;
-                mockStartTime = now;
-                snprintf(newTrigger, sizeof(newTrigger), "state:idle");
-            }
-            break;
-    }
-
-    if (_stateQueue) {
-        StateEvent event;
-        strncpy(event.trigger, newTrigger, sizeof(event.trigger) - 1);
-        event.trigger[sizeof(event.trigger) - 1] = '\0';
-        event.progress = mockProgress;
-        event.nozzleTemp = (mockState == MOCK_PRINTING) ? 210.0f : 25.0f;
-        event.bedTemp = (mockState == MOCK_PRINTING) ? 60.0f : 25.0f;
-        event.nozzleTarget = (mockState == MOCK_PRINTING) ? 220.0f : 0.0f;
-        event.bedTarget = (mockState == MOCK_PRINTING) ? 65.0f : 0.0f;
-        event.connected = _connected;
-
-        if (newTrigger[0] != '\0') {
-            Serial.printf("[%s] MOCK state: %s (progress: %.1f%%)\n",
-                          TAG, newTrigger, mockProgress);
-        }
-
-        xQueueSend(_stateQueue, &event, 0);
-    }
-}
-
-void MoonrakerClient::disconnect() {
-    _connected = false;
-}
-
-#endif /* MOONRAKER_MOCK */

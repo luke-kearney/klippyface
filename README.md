@@ -40,9 +40,6 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 ### Firmware (ESP32)
 
 ```bash
-# Build with mock mode (no printer needed)
-pio run -e esp32dev-mock
-
 # Flash to device (classic ESP32; see docs/hardware/mcu.md for S3 board envs)
 pio run -e esp32dev -t upload
 
@@ -172,9 +169,13 @@ Three dedicated display groups for connection states:
 | `moonraker_offline` | "Moonraker Down" + "Reconnecting..." | `moonraker:disconnected` |
 | `screen_sleep` | Blank (OLED powers off) | 30s idle timeout |
 
-### Mock Mode (No Printer Required)
+### Testing Without a Printer
 
-For testing without a physical Moonraker instance, build with `esp32dev-mock`. It simulates printer state transitions on a timer: **idle (5s) → printing (15s, rising progress) → complete (3s) → idle → ...**
+Run the [fake Moonraker](tools/FakeMoonraker/README.md) on your PC and point the node's Moonraker host at it (port 7125):
+
+```bash
+dotnet run --project tools/FakeMoonraker -- --profile single --scenario print-loop
+```
 
 ### Serial Log Output
 

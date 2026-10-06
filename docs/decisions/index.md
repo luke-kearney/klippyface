@@ -359,6 +359,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-06: Fake Moonraker replaces the firmware mock build
+
+**Context:** Testing without a printer relied on `esp32dev-mock`, which faked a fixed idle → printing → complete loop inside the firmware and skipped the real WebSocket and JSON parsing entirely. It couldn't show multi-extruder data, partial status updates, Klipper restarts or dropped connections (#35). Moonraker is also moving behind the server (#34), where an in-firmware mock is no help.
+
+**Decision:** Add `tools/FakeMoonraker`, a standalone .NET app that speaks Moonraker's JSON-RPC over `/websocket`, following Klipper's `QueryStatusHelper` (change-only updates every 250 ms, unknown objects as `{}`/`null` rather than errors). Printers are JSON profiles, scripted runs are C# scenarios, and `/_sim/*` endpoints drive it by hand or from tests. Remove `esp32dev-mock` and the `MOONRAKER_MOCK` code (supersedes "Mock mode — #ifdef inside MoonrakerClient.cpp").
+
+**Consequences:** Real nodes, and later the server, test against the real protocol path. Testing without a printer needs a PC on the LAN running the fake, rather than just flashing a mock build.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations
