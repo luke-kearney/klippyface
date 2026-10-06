@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Klippyface.Server.Data;
 using Klippyface.Server.Models;
 using Klippyface.Server.Services;
+using Klippyface.Server.Services.Moonraker;
 
 namespace Klippyface.Server.Api;
 
@@ -13,13 +14,14 @@ public static class NodesApi
 {
     public static WebApplication MapNodesApi(this WebApplication app)
     {
-        app.MapGet("/api/ws/node/{id}", async (HttpContext ctx, string id, NodeStatusService statusService, IServiceScopeFactory scopeFactory) =>
+        app.MapGet("/api/ws/node/{id}", async (HttpContext ctx, string id, NodeStatusService statusService,
+            NodeStateRelay relay, IServiceScopeFactory scopeFactory) =>
         {
             if (!ctx.WebSockets.IsWebSocketRequest)
                 return Results.BadRequest("Expected a WebSocket request");
 
             var ws = await ctx.WebSockets.AcceptWebSocketAsync();
-            await HandleNodeWebSocket(ws, id, statusService, scopeFactory);
+            await HandleNodeWebSocket(ws, id, statusService, relay, scopeFactory);
             return Results.Empty;
         });
 
@@ -197,7 +199,8 @@ public static class NodesApi
         return app;
     }
 
-    private static async Task HandleNodeWebSocket(WebSocket ws, string macAddress, NodeStatusService statusService, IServiceScopeFactory scopeFactory)
+    private static async Task HandleNodeWebSocket(WebSocket ws, string macAddress, NodeStatusService statusService,
+                                                  NodeStateRelay relay, IServiceScopeFactory scopeFactory)
     {
         var buffer = new byte[4096];
 
@@ -264,6 +267,10 @@ public static class NodesApi
 
                         await PersistHelloAsync(scopeFactory, dbNodeId,
                             msg["board"]?.GetValue<string>(), msg["fw_version"]?.GetValue<string>());
+
+                        // Printer state for the faces this node shows; nodes re-announce
+                        // after applying a config, so the key set follows config changes
+                        await relay.OnNodeHelloAsync(macAddress);
                         break;
                     }
                     case "heartbeat":
