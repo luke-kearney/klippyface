@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <stdint.h>
+#include <atomic>
 #include <map>
 #include <vector>
 #include <freertos/FreeRTOS.h>
@@ -49,10 +50,18 @@ public:
 
     // Apply a "state" message's values; full replaces everything, null removes a key
     void apply(JsonObjectConst values, bool full);
-    void setMoonrakerConnected(bool connected) { _moonrakerConnected = connected; }
+    void setMoonrakerConnected(bool connected) {
+        if (_moonrakerConnected != connected) {
+            _moonrakerConnected = connected;
+            _version++;
+        }
+    }
 
     // Display string for a binding key: "210°C", "42.0%", "--" when unknown
     String resolve(const String& key) const;
+
+    // Bumped on every change, so the renderer only re-resolves values when it moves
+    uint32_t version() const { return _version.load(); }
 
 private:
     struct Value {
@@ -64,6 +73,7 @@ private:
     SemaphoreHandle_t       _mutex = nullptr;
     std::map<String, Value> _values;
     volatile bool           _moonrakerConnected = false;
+    std::atomic<uint32_t>   _version{0};
 
     PrinterState(const PrinterState&) = delete;
     PrinterState& operator=(const PrinterState&) = delete;

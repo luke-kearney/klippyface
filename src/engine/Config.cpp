@@ -79,6 +79,7 @@ void PrinterState::apply(JsonObjectConst values, bool full) {
     for (const auto& key : removals) _values.erase(key);
     for (auto& u : updates) _values[u.first] = std::move(u.second);
     xSemaphoreGive(_mutex);
+    _version++;
 }
 
 static bool endsWith(const String& s, const char* suffix) {
