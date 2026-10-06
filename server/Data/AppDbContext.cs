@@ -17,6 +17,7 @@ public class KlippyfaceDbContext : DbContext
     public DbSet<Sprite> Sprites => Set<Sprite>();
     public DbSet<Preset> Presets => Set<Preset>();
     public DbSet<NodePreset> NodePresets => Set<NodePreset>();
+    public DbSet<MoonrakerSettings> MoonrakerSettings => Set<MoonrakerSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -75,6 +76,12 @@ public class KlippyfaceDbContext : DbContext
                   .WithOne(el => el.Frame)
                   .HasForeignKey(el => el.FrameId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MoonrakerSettings>(entity =>
+        {
+            entity.Ignore(e => e.IsConfigured);
+            entity.Ignore(e => e.WebSocketUri);
         });
 
         modelBuilder.Entity<NodePreset>(entity =>

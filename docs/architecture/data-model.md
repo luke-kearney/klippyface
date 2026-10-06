@@ -159,3 +159,18 @@ CREATE TABLE node_presets (
     PRIMARY KEY (node_id, preset_id)
 );
 ```
+
+### Moonraker Settings
+
+One row (`id` 1) for the server's Moonraker connection; no row, or an empty `host`, means not set up yet.
+
+```sql
+CREATE TABLE MoonrakerSettings (
+    Id          INTEGER PRIMARY KEY,
+    Host        TEXT NOT NULL,
+    Port        INTEGER NOT NULL,           -- 7125 by default
+    UseTls      INTEGER NOT NULL,           -- wss:// when 1
+    ApiKey      TEXT NOT NULL,              -- sent as X-Api-Key; '' = none
+    UpdatedAt   TEXT NOT NULL
+);
+```

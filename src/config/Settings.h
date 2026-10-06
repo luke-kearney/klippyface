@@ -16,16 +16,7 @@ public:
     static String getWifiPassword();
     static void setWifiCredentials(const String& ssid, const String& password);
 
-    // Moonraker
-    static String getMoonrakerHost();
-    static uint16_t getMoonrakerPort();
-    static bool getMoonrakerUseTls();
-    static bool getMoonrakerTlsVerify();
-    static void setMoonrakerHost(const String& host, uint16_t port);
-    static void setMoonrakerUseTls(bool useTls);
-    static void setMoonrakerTlsVerify(bool verify);
-
-    // Companion server
+    // Companion server (it relays Moonraker; nodes don't talk to Moonraker)
     static String getServerHost();
     static uint16_t getServerPort();
     static bool getServerUseTls();

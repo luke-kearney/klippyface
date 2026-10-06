@@ -13,8 +13,6 @@
 #include "display/DisplayDriver.h"
 #include "display/Sprite.h"
 
-struct StateEvent;
-
 class DisplayManager {
 public:
     DisplayManager();
@@ -23,8 +21,9 @@ public:
     bool begin();
     void tickAll(uint32_t now);
     void onStateChange(const String& trigger);
-    void updateState(const StateEvent& event);
-    void setMoonrakerConnected(bool connected);
+    // Printer values from the server's "state" message (called on core 0)
+    void applyState(JsonObjectConst values, bool full) { _printerState.apply(values, full); }
+    void setMoonrakerConnected(bool connected) { _printerState.setMoonrakerConnected(connected); }
     void directCommand(const String& groupId,
                        const String& setId = "",
                        int16_t loopCount = 0);
@@ -52,6 +51,9 @@ private:
         DisplayDriver*      driver = nullptr;
         AnimationEngine     engine;
         const Frame*        lastRenderedFrame = nullptr;
+        // Data values as last drawn, so a still frame redraws when one changes
+        uint32_t            stateVersion = 0;
+        std::vector<String> lastValues;
     };
 
     std::vector<DisplaySlot> _slots;
@@ -72,6 +74,7 @@ private:
     void configureEngine(DisplaySlot& slot, const struct DisplaySlotConfig& dispConfig,
                          const struct NodeConfig& config);
     void logHeap() const;
+    std::vector<String> dataValues(const Frame& frame) const;
 };
 
 #endif

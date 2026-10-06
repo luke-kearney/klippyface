@@ -41,43 +41,81 @@ uint32_t hexColorToUint32(const char* hex) {
 }
 
 // -------------------------------------------------------------------
-// PrinterState::resolve — maps Moonraker keys to formatted display strings
+// PrinterState — data key → value, as relayed by the server
 // -------------------------------------------------------------------
+PrinterState::PrinterState() {
+    _mutex = xSemaphoreCreateMutex();
+}
+
+PrinterState::~PrinterState() {
+    if (_mutex) vSemaphoreDelete(_mutex);
+}
+
+void PrinterState::apply(JsonObjectConst values, bool full) {
+    // Convert outside the lock so the renderer waits as little as possible
+    std::vector<std::pair<String, Value>> updates;
+    std::vector<String> removals;
+    for (JsonPairConst kv : values) {
+        JsonVariantConst v = kv.value();
+        Value value;
+        if (v.isNull()) {
+            removals.push_back(kv.key().c_str());
+            continue;
+        } else if (v.is<bool>()) {
+            value.text = v.as<bool>() ? "Yes" : "No";
+        } else if (v.is<float>()) {
+            value.isNumber = true;
+            value.number = v.as<float>();
+        } else if (v.is<const char*>()) {
+            value.text = v.as<const char*>();
+        } else {
+            continue;  // arrays/objects have no display form yet
+        }
+        updates.emplace_back(kv.key().c_str(), value);
+    }
+
+    if (!_mutex || xSemaphoreTake(_mutex, portMAX_DELAY) != pdTRUE) return;
+    if (full) _values.clear();
+    for (const auto& key : removals) _values.erase(key);
+    for (auto& u : updates) _values[u.first] = std::move(u.second);
+    xSemaphoreGive(_mutex);
+    _version++;
+}
+
+static bool endsWith(const String& s, const char* suffix) {
+    size_t n = strlen(suffix);
+    return s.length() >= n && strcmp(s.c_str() + s.length() - n, suffix) == 0;
+}
+
 String PrinterState::resolve(const String& key) const {
-    if (key == "print_stats.progress") {
-        char buf[16];
-        snprintf(buf, sizeof(buf), "%.1f%%", progress);
-        return String(buf);
-    }
-
-    if (key == "extruder.temperature") {
-        char buf[16];
-        snprintf(buf, sizeof(buf), "%.0f°C", nozzleTemp);
-        return String(buf);
-    }
-
-    if (key == "heater_bed.temperature") {
-        char buf[16];
-        snprintf(buf, sizeof(buf), "%.0f°C", bedTemp);
-        return String(buf);
-    }
-
-    if (key == "extruder.target") {
-        char buf[16];
-        snprintf(buf, sizeof(buf), "%.0f°C", nozzleTarget);
-        return String(buf);
-    }
-
-    if (key == "heater_bed.target") {
-        char buf[16];
-        snprintf(buf, sizeof(buf), "%.0f°C", bedTarget);
-        return String(buf);
-    }
-
     if (key == "moonraker.connected") {
-        return moonrakerConnected ? "Online" : "Offline";
+        return _moonrakerConnected ? "Online" : "Offline";
     }
 
-    Serial.printf("[%s] Unknown binding key: %s\n", TAG, key.c_str());
-    return "?";
+    Value value;
+    bool found = false;
+    if (_mutex && xSemaphoreTake(_mutex, portMAX_DELAY) == pdTRUE) {
+        auto it = _values.find(key);
+        if (it != _values.end()) {
+            value = it->second;
+            found = true;
+        }
+        xSemaphoreGive(_mutex);
+    }
+
+    if (!found) return "--";
+    if (!value.isNumber) return value.text;
+
+    char buf[24];
+    if (endsWith(key, ".temperature") || endsWith(key, ".target")) {
+        snprintf(buf, sizeof(buf), "%.0f°C", value.number);
+    } else if (endsWith(key, "progress")) {
+        // Klipper reports progress as 0–1
+        snprintf(buf, sizeof(buf), "%.1f%%", value.number * 100.0f);
+    } else if (value.number == (float)(long)value.number) {
+        snprintf(buf, sizeof(buf), "%ld", (long)value.number);
+    } else {
+        snprintf(buf, sizeof(buf), "%.1f", value.number);
+    }
+    return String(buf);
 }

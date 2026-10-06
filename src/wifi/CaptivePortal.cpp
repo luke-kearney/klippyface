@@ -94,10 +94,6 @@ void CaptivePortal::handleSave() {
 
     String ssid = doc["ssid"] | "";
     String password = doc["password"] | "";
-    String mkHost = doc["mk_host"] | "";
-    uint16_t mkPort = doc["mk_port"] | 7125;
-    bool mkUseTls = doc["mk_tls"] | false;
-    bool mkTlsVerify = doc["mk_tls_verify"] | false;
     String svHost = doc["sv_host"] | "";
     uint16_t svPort = doc["sv_port"] | 5000;
     bool svUseTls = doc["sv_tls"] | false;
@@ -108,14 +104,12 @@ void CaptivePortal::handleSave() {
         _server.send(400, "text/plain", "WiFi SSID is required");
         return;
     }
-    if (mkHost.length() == 0) {
-        _server.send(400, "text/plain", "Moonraker host is required");
+    if (svHost.length() == 0) {
+        _server.send(400, "text/plain", "Klippyface server host is required");
         return;
     }
 
-    if (!_setup.saveConfig(ssid, password, mkHost, mkPort, mkUseTls,
-                           svHost, svPort, svUseTls, svTlsVerify, mkTlsVerify,
-                           friendlyName)) {
+    if (!_setup.saveConfig(ssid, password, svHost, svPort, svUseTls, svTlsVerify, friendlyName)) {
         _server.send(500, "text/plain", "Failed to save configuration");
         return;
     }

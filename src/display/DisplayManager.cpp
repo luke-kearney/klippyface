@@ -2,7 +2,6 @@
 #include "display/Renderer.h"
 #include "display/Sprite.h"
 #include "display/DisplayFactory.h"
-#include "comms/MoonrakerClient.h"
 #include "config/Board.h"
 #include <ArduinoJson.h>
 #include <Wire.h>
@@ -310,28 +309,39 @@ void DisplayManager::tickAll(uint32_t now) {
         if (!slot.driver) continue;
 
         const Frame* frame = slot.engine.tick(now);
-        if (frame && frame != slot.lastRenderedFrame) {
+        if (!frame) continue;
+
+        // Redraw on a new frame, or when a value this frame shows reads differently
+        // (a single-frame face would otherwise never update its data values)
+        bool redraw = frame != slot.lastRenderedFrame;
+        uint32_t version = _printerState.version();
+        std::vector<String> values;
+        if (redraw || version != slot.stateVersion) {
+            slot.stateVersion = version;
+            values = dataValues(*frame);
+            redraw = redraw || values != slot.lastValues;
+        }
+
+        if (redraw) {
             for (uint8_t band = 0; band < slot.driver->bandCount(); band++) {
                 slot.driver->beginBand(band);
                 renderFrame(*frame, *slot.driver, &_sprites, &_printerState);
                 slot.driver->show();
             }
             slot.lastRenderedFrame = frame;
+            slot.lastValues = std::move(values);
         }
     }
 }
 
-void DisplayManager::updateState(const StateEvent& event) {
-    _printerState.progress = event.progress;
-    _printerState.nozzleTemp = event.nozzleTemp;
-    _printerState.bedTemp = event.bedTemp;
-    _printerState.nozzleTarget = event.nozzleTarget;
-    _printerState.bedTarget = event.bedTarget;
-    _printerState.moonrakerConnected = event.connected;
-}
-
-void DisplayManager::setMoonrakerConnected(bool connected) {
-    _printerState.moonrakerConnected = connected;
+std::vector<String> DisplayManager::dataValues(const Frame& frame) const {
+    std::vector<String> values;
+    for (const auto& element : frame.elements) {
+        if (element.type == FrameElement::DataValue) {
+            values.push_back(_printerState.resolve(element.value));
+        }
+    }
+    return values;
 }
 
 void DisplayManager::onStateChange(const String& trigger) {

@@ -61,32 +61,15 @@ input::placeholder{color:#666}
   </div>
 
   <div class="section">
-    <h2>Moonraker</h2>
-    <input type="text" id="mkHost" placeholder="Host IP (e.g. 192.168.2.21)" autocomplete="off">
+    <h2>Klippyface Server</h2>
+    <label>The server connects to your printer; this display gets everything from it.</label>
+    <input type="text" id="svHost" placeholder="Host (e.g. 192.168.1.50)" autocomplete="off">
     <div style="display:flex;gap:8px;align-items:center">
-      <input type="number" id="mkPort" value="7125" placeholder="Port" min="1" max="65535" style="margin-bottom:0">
-      <label style="white-space:nowrap;font-size:13px;margin-bottom:0"><input type="checkbox" id="mkTls" onchange="toggleMkTlsVerify()"> WSS</label>
+      <input type="number" id="svPort" value="5000" placeholder="Port" min="1" max="65535" style="margin-bottom:0">
+      <label style="white-space:nowrap;font-size:13px;margin-bottom:0"><input type="checkbox" id="svTls" onchange="toggleSvTlsVerify()"> HTTPS</label>
     </div>
-    <div id="mkTlsVerifyWrap" style="display:none;margin-top:4px">
-      <label style="font-size:12px;color:#888"><input type="checkbox" id="mkTlsVerify"> Verify SSL certificate</label>
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>Companion Server</h2>
-    <label style="font-size:13px;color:#aaa;cursor:pointer">
-      <input type="checkbox" id="useSeparateServer" onchange="toggleServerSection()">
-      Use a different server
-    </label>
-    <div id="serverSection" style="display:none;margin-top:8px">
-      <input type="text" id="svHost" placeholder="Host (e.g. 192.168.2.21)" autocomplete="off">
-      <div style="display:flex;gap:8px;align-items:center">
-        <input type="number" id="svPort" value="5000" placeholder="Port" min="1" max="65535" style="margin-bottom:0">
-        <label style="white-space:nowrap;font-size:13px;margin-bottom:0"><input type="checkbox" id="svTls" onchange="toggleSvTlsVerify()"> HTTPS</label>
-      </div>
-      <div id="svTlsVerifyWrap" style="display:none;margin-top:4px">
-        <label style="font-size:12px;color:#888"><input type="checkbox" id="svTlsVerify"> Verify SSL certificate</label>
-      </div>
+    <div id="svTlsVerifyWrap" style="display:none;margin-top:4px">
+      <label style="font-size:12px;color:#888"><input type="checkbox" id="svTlsVerify"> Verify SSL certificate</label>
     </div>
   </div>
 
@@ -109,14 +92,6 @@ function togglePw(){
 }
 
 function selectSsid(val){if(val)byId('ssid').value=val}
-
-function toggleMkTlsVerify(){
-  byId('mkTlsVerifyWrap').style.display=byId('mkTls').checked?'block':'none'
-}
-
-function toggleServerSection(){
-  byId('serverSection').style.display=byId('useSeparateServer').checked?'block':'none'
-}
 
 function toggleSvTlsVerify(){
   byId('svTlsVerifyWrap').style.display=byId('svTls').checked?'block':'none'
@@ -144,25 +119,18 @@ function scanNetworks(){
 
 function saveConfig(){
   var ssid=byId('ssid').value.trim()
-  var host=byId('mkHost').value.trim()
+  var host=byId('svHost').value.trim()
   if(!ssid){setStatus('WiFi SSID is required','error');return}
-  if(!host){setStatus('Moonraker host is required','error');return}
+  if(!host){setStatus('Klippyface server host is required','error');return}
 
   var payload={
     ssid:ssid,
     password:byId('password').value,
-    mk_host:host,
-    mk_port:parseInt(byId('mkPort').value)||7125,
-    mk_tls:byId('mkTls').checked,
-    mk_tls_verify:byId('mkTlsVerify').checked,
+    sv_host:host,
+    sv_port:parseInt(byId('svPort').value)||5000,
+    sv_tls:byId('svTls').checked,
+    sv_tls_verify:byId('svTlsVerify').checked,
     friendly_name:byId('friendlyName').value.trim()
-  }
-
-  if(byId('useSeparateServer').checked){
-    payload.sv_host=byId('svHost').value.trim()
-    payload.sv_port=parseInt(byId('svPort').value)||5000
-    payload.sv_tls=byId('svTls').checked
-    payload.sv_tls_verify=byId('svTlsVerify').checked
   }
 
   var btn=byId('saveBtn')

@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [esp32dev, esp32dev-mock, esp32s3-ws-lcd169, esp32s3-ws-lcd128]
+        env: [esp32dev, esp32s3-ws-lcd169, esp32s3-ws-lcd128]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -66,6 +66,9 @@ jobs:
       - name: Build server
         working-directory: server
         run: dotnet build -c Release
+
+      - name: Test
+        run: dotnet test --solution klippyface.slnx -c Release
 
   release-check:
     name: Release check
