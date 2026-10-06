@@ -62,6 +62,20 @@ export type ElementInput = Omit<FrameElement, 'id' | 'frameId'>
 export type SpriteInput = Pick<Sprite, 'id' | 'label' | 'folder' | 'description' | 'width' | 'height' | 'dataBase64'>
 export type PresetInput = Pick<Preset, 'id' | 'label' | 'conditionsJson' | 'overridesJson'>
 
+export type MoonrakerState = 'NotConfigured' | 'Connecting' | 'KlippyNotReady' | 'Ready' | 'Disconnected'
+
+/** The server's Moonraker connection: saved settings plus live status. */
+export interface MoonrakerInfo {
+  host: string
+  port: number
+  useTls: boolean
+  hasApiKey: boolean
+  status: { state: MoonrakerState; detail?: string; connected: boolean; objects: string[] }
+}
+
+/** `apiKey`: undefined keeps the saved key, '' clears it. */
+export type MoonrakerInput = Pick<MoonrakerInfo, 'host' | 'port' | 'useTls'> & { apiKey?: string }
+
 export const api = {
   // Nodes
   getNodes: () => get<Node[]>('/api/nodes'),
@@ -122,6 +136,16 @@ export const api = {
   /** Changes the id and repoints frame elements that use it. */
   renameSprite: (id: string, newId: string) =>
     post<{ sprite: Sprite; elementsUpdated: number }>(`/api/sprites/${id}/rename`, { id: newId }),
+
+  // Moonraker (the server's printer connection)
+  getMoonraker: () => get<MoonrakerInfo>('/api/moonraker'),
+  updateMoonraker: (d: MoonrakerInput) => put<MoonrakerInfo>('/api/moonraker', d),
+  /** Current printer values by data key. Fetched raw: keys like "extruder.temperature" must not be camel-cased. */
+  getPrinterState: async () => {
+    const res = await fetch('/api/moonraker/state')
+    if (!res.ok) throw new ApiError(res.status, `${res.status} ${res.statusText}`)
+    return (await res.json()) as Record<string, unknown>
+  },
 
   // Presets
   getPresets: () => get<Preset[]>('/api/presets'),

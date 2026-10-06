@@ -8,6 +8,7 @@ import { SetEditorPage } from '@/pages/SetEditorPage'
 import { SpritesPage } from '@/pages/SpritesPage'
 import { SpriteEditorPage } from '@/pages/SpriteEditorPage'
 import { PresetsPage } from '@/pages/PresetsPage'
+import { PrinterPage } from '@/pages/PrinterPage'
 
 // Hash routing: the .NET server only serves static files, with no SPA fallback.
 export const router = createHashRouter([
@@ -23,6 +24,7 @@ export const router = createHashRouter([
       { path: 'sprites', element: <SpritesPage /> },
       { path: 'sprites/:spriteId', element: <SpriteEditorPage /> },
       { path: 'presets', element: <PresetsPage /> },
+      { path: 'printer', element: <PrinterPage /> },
       { path: '*', element: <Navigate to="/nodes" replace /> },
     ],
   },
