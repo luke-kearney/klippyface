@@ -179,7 +179,7 @@ public sealed class MoonrakerHub(PrinterSimulation sim, TimeProvider time, ILogg
     private JsonObject ServerInfo() => new()
     {
         ["klippy_connected"] = true,
-        ["klippy_state"] = _klippyReady ? "ready" : "startup",
+        ["klippy_state"] = KlippyState,
         ["components"] = new JsonArray("websockets", "klippy_apis"),
         ["failed_components"] = new JsonArray(),
         ["registered_directories"] = new JsonArray("gcodes", "config"),
@@ -192,8 +192,8 @@ public sealed class MoonrakerHub(PrinterSimulation sim, TimeProvider time, ILogg
 
     private JsonObject PrinterInfo() => new()
     {
-        ["state"] = _klippyReady ? "ready" : "startup",
-        ["state_message"] = _klippyReady ? "Printer is ready" : "Printer is not ready",
+        ["state"] = KlippyState,
+        ["state_message"] = _klippyReady ? Model.GetString("webhooks", "state_message") ?? "" : "Printer is not ready",
         ["hostname"] = "fake-moonraker",
         ["software_version"] = "v0.12.0-fake",
         ["cpu_info"] = "",
@@ -202,6 +202,8 @@ public sealed class MoonrakerHub(PrinterSimulation sim, TimeProvider time, ILogg
         ["log_file"] = "",
         ["config_file"] = "",
     };
+
+    private string KlippyState => _klippyReady ? Model.GetString("webhooks", "state") ?? "ready" : "startup";
 
     private Outcome? RequireKlippy() =>
         _klippyReady ? null : Failure(KlippyNotReady, "Klippy Host not connected");
@@ -278,6 +280,19 @@ public sealed class MoonrakerHub(PrinterSimulation sim, TimeProvider time, ILogg
         foreach (var session in _sessions.Values)
             session.Send(Notification("notify_klippy_ready"));
         log.LogInformation("Klippy ready");
+    }
+
+    /// <summary>
+    /// Klipper shuts down: clients get notify_klippy_shutdown and keep their
+    /// subscriptions (Klipper still answers), which carry webhooks.state = shutdown.
+    /// Only a restart brings it back.
+    /// </summary>
+    public void ShutdownKlippy(string message)
+    {
+        sim.Shutdown(message);
+        foreach (var session in _sessions.Values)
+            session.Send(Notification("notify_klippy_shutdown"));
+        log.LogWarning("Klippy shut down: {Message}", message);
     }
 
     /// <summary>Drop every connection without a close handshake.</summary>

@@ -83,6 +83,16 @@ public sealed class PrinterModel
                 ["max_velocity"] = 300.0,
                 ["max_accel"] = 3000.0,
             };
+            _objects["idle_timeout"] = new JsonObject
+            {
+                ["state"] = "Idle",
+                ["printing_time"] = 0.0,
+            };
+            _objects["webhooks"] = new JsonObject
+            {
+                ["state"] = "ready",
+                ["state_message"] = "Printer is ready",
+            };
             _objects["heater_bed"] = Heater();
             foreach (var name in Profile.ExtruderNames)
             {

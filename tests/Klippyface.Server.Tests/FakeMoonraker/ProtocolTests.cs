@@ -29,8 +29,8 @@ public class ProtocolTests : IAsyncLifetime
 
         var objects = reply["result"]!["objects"]!.AsArray().Select(o => o!.GetValue<string>());
         Assert.Equal(
-            ["print_stats", "virtual_sdcard", "display_status", "toolhead", "heater_bed",
-             "extruder", "extruder1", "extruder2", "extruder3"],
+            ["print_stats", "virtual_sdcard", "display_status", "toolhead", "idle_timeout", "webhooks",
+             "heater_bed", "extruder", "extruder1", "extruder2", "extruder3"],
             objects);
     }
 

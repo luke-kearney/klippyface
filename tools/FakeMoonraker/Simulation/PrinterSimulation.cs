@@ -21,6 +21,8 @@ public sealed class PrinterSimulation(PrinterModel model)
 
     private readonly Lock _lock = new();
     private PrintJob? _job;
+    private double _busyFor;       // seconds of non-print G-code left (homing, macros)
+    private double _readyFor;      // seconds since G-code last ran, towards the idle timeout
 
     public PrinterModel Model => model;
 
@@ -29,6 +31,11 @@ public sealed class PrinterSimulation(PrinterModel model)
 
     /// <summary>Off while replaying a capture, so only recorded values change.</summary>
     public bool Physics { get; set; } = true;
+
+    /// <summary>Klipper's [idle_timeout] timeout: Ready → Idle, heaters and motors off. Default 10 min.</summary>
+    public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromMinutes(10);
+
+    public bool IsShutdown => model.GetString("webhooks", "state") == "shutdown";
 
     public bool IsPrinting
     {
@@ -55,7 +62,48 @@ public sealed class PrinterSimulation(PrinterModel model)
 
             if (_job is not null)
                 AdvanceJob(_job, dt);
+            AdvanceIdleTimeout(dt);
         }
+    }
+
+    /// <summary>
+    /// Klipper's idle_timeout: "Printing" while G-code runs, "Ready" after, and
+    /// "Idle" once the timeout passes with nothing running (heaters and motors off).
+    /// </summary>
+    private void AdvanceIdleTimeout(double dt)
+    {
+        var state = model.GetString("idle_timeout", "state");
+        var running = _job is { Phase: not PrintPhase.Paused } || _busyFor > 0;
+        _busyFor = Math.Max(0, _busyFor - dt);
+
+        if (running)
+        {
+            _readyFor = 0;
+            model.Set("idle_timeout", "printing_time", Round(model.GetDouble("idle_timeout", "printing_time") + dt, 3));
+            if (state != "Printing") model.Set("idle_timeout", "state", "Printing");
+            return;
+        }
+
+        if (state == "Printing")
+        {
+            model.Set("idle_timeout", "state", "Ready");
+            model.Set("idle_timeout", "printing_time", 0.0);
+            _readyFor = 0;
+            return;
+        }
+
+        _readyFor += dt;
+        if (state == "Ready" && _job is null && _readyFor >= IdleTimeout.TotalSeconds)
+            GoIdle();
+    }
+
+    private void GoIdle()
+    {
+        model.Set("idle_timeout", "state", "Idle");
+        model.Set("toolhead", "homed_axes", "");
+        model.Set("heater_bed", "target", 0.0);
+        foreach (var name in model.Profile.ExtruderNames)
+            model.Set(name, "target", 0.0);
     }
 
     private double AdvanceHeater(string name, double tau, double dt)
@@ -207,6 +255,43 @@ public sealed class PrinterSimulation(PrinterModel model)
         return true;
     }
 
+    /// <summary>Run non-print G-code (homing, a macro) for a while: idle_timeout shows Printing.</summary>
+    public void Busy(TimeSpan duration)
+    {
+        lock (_lock) _busyFor = Math.Max(_busyFor, duration.TotalSeconds);
+    }
+
+    /// <summary>Skip to the idle timeout firing. False while a print is running or paused.</summary>
+    public bool ForceIdle()
+    {
+        lock (_lock)
+        {
+            if (_job is not null) return false;
+            _busyFor = 0;
+            GoIdle();
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Klipper shuts down (thermal runaway, lost MCU…): any print stops, heaters
+    /// go off and webhooks.state says shutdown until Klipper is restarted.
+    /// </summary>
+    public void Shutdown(string message)
+    {
+        lock (_lock)
+        {
+            _job = null;
+            _busyFor = 0;
+            model.Set("webhooks", "state", "shutdown");
+            model.Set("webhooks", "state_message", message);
+            model.Set("virtual_sdcard", "is_active", false);
+            model.Set("heater_bed", "target", 0.0);
+            foreach (var name in model.Profile.ExtruderNames)
+                model.Set(name, "target", 0.0);
+        }
+    }
+
     /// <summary>
     /// Switch the active tool (T0, T1, ...). During a print the old tool drops to
     /// standby temperature and the new one heats to print temperature.
@@ -236,6 +321,8 @@ public sealed class PrinterSimulation(PrinterModel model)
         lock (_lock)
         {
             _job = null;
+            _busyFor = 0;
+            _readyFor = 0;
             model.Reset(profile);
         }
     }

@@ -27,7 +27,10 @@ public sealed class ConsoleCommands(PrinterSimulation sim, MoonrakerHub hub, ILo
           temp <heater> <°C>        set a target: bed, extruder, extruder1, t2, ...
           set <object.field> <value>  set any field, e.g. set print_stats.message hello
           respond <text>            console line, e.g. respond display:group=win
-          restart [seconds]         restart Klipper
+          busy [seconds]            run non-print G-code, e.g. homing (default 10 s)
+          idle                      fire the idle timeout now (heaters, motors off)
+          shutdown [message]        Klipper shuts down, like a thermal runaway
+          restart [seconds]         restart Klipper (also recovers from shutdown)
           disconnect                drop every client
           help
         """;
@@ -148,6 +151,20 @@ public sealed class ConsoleCommands(PrinterSimulation sim, MoonrakerHub hub, ILo
                 return $"Klipper restarting for {seconds:0.#} s";
             }
 
+            case "busy":
+            {
+                var seconds = args.Length > 0 && double.TryParse(args[0], CultureInfo.InvariantCulture, out var s) ? s : 10;
+                sim.Busy(TimeSpan.FromSeconds(seconds));
+                return $"Running G-code for {seconds:0} s";
+            }
+
+            case "idle":
+                return sim.ForceIdle() ? "Idle timeout fired: heaters and motors off" : "Not while printing";
+
+            case "shutdown":
+                hub.ShutdownKlippy(rest.Length > 0 ? rest : "Shutdown requested");
+                return "Klipper shut down — 'restart' to recover";
+
             case "disconnect":
                 return $"Dropped {hub.DisconnectAll()} client(s)";
 
@@ -167,13 +184,15 @@ public sealed class ConsoleCommands(PrinterSimulation sim, MoonrakerHub hub, ILo
     {
         var m = sim.Model;
         var text = new StringBuilder();
-        text.AppendLine($"{m.Profile.Name}: {m.Profile.Extruders} extruder(s), klippy {(hub.KlippyReady ? "ready" : "restarting")}, {hub.ClientCount} client(s)");
+        var klippy = !hub.KlippyReady ? "restarting" : sim.IsShutdown ? "SHUT DOWN" : "ready";
+        text.AppendLine($"{m.Profile.Name}: {m.Profile.Extruders} extruder(s), klippy {klippy}, {hub.ClientCount} client(s)");
 
         var state = m.GetString("print_stats", "state");
         var progress = m.GetDouble("virtual_sdcard", "progress") * 100;
         text.AppendLine(state == "printing" || state == "paused"
             ? $"print: {state} {m.GetString("print_stats", "filename")} {progress:0.0}%"
             : $"print: {state}");
+        text.AppendLine($"idle_timeout: {m.GetString("idle_timeout", "state")}");
 
         var active = PrinterProfile.ExtruderName(sim.ActiveTool);
         foreach (var name in m.Profile.ExtruderNames.Append("heater_bed"))
