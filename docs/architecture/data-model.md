@@ -75,6 +75,7 @@ CREATE TABLE groups (
     id          TEXT PRIMARY KEY,
     label       TEXT NOT NULL,
     description TEXT NOT NULL DEFAULT '',
+    profile     TEXT NOT NULL DEFAULT '',          -- display profile the faces are drawn for (UI previews); '' = 128x64 OLED
     sort_order  INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at  TEXT NOT NULL DEFAULT (datetime('now')),  -- also bumped by edits to its sets/frames/elements
@@ -120,7 +121,8 @@ CREATE TABLE frame_elements (
     label       TEXT NOT NULL DEFAULT '',
     color       TEXT NOT NULL DEFAULT '#FFFFFF',
     x           INTEGER NOT NULL DEFAULT 0,
-    y           INTEGER NOT NULL DEFAULT 0
+    y           INTEGER NOT NULL DEFAULT 0,
+    size        INTEGER NOT NULL DEFAULT 1           -- 1–8: font scale for text/datavalue, pixel scale for sprites
 );
 ```
 

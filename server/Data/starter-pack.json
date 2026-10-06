@@ -554,6 +554,1602 @@
         }
       ],
       "sort_order": 5
+    },
+    {
+      "id": "idle_tft320x240",
+      "label": "Idle · 320×240",
+      "profile": "tft320x240",
+      "sort_order": 10,
+      "sets": [
+        {
+          "label": "Calm",
+          "loop_count": 0,
+          "frame_time": 3500,
+          "frames": [
+            {
+              "duration_ms": 3500,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_idle",
+                  "label": "",
+                  "color": "#60A5FA",
+                  "x": 53,
+                  "y": 32,
+                  "size": 3
+                },
+                {
+                  "type": "text",
+                  "value": "IDLE",
+                  "label": "",
+                  "color": "#60A5FA",
+                  "x": 160,
+                  "y": 188,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "extruder.temperature",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 160,
+                  "y": 218,
+                  "size": 2
+                }
+              ]
+            },
+            {
+              "duration_ms": 150,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_idle_blink",
+                  "label": "",
+                  "color": "#60A5FA",
+                  "x": 53,
+                  "y": 32,
+                  "size": 3
+                },
+                {
+                  "type": "text",
+                  "value": "IDLE",
+                  "label": "",
+                  "color": "#60A5FA",
+                  "x": 160,
+                  "y": 188,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "extruder.temperature",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 160,
+                  "y": 218,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "printing_tft320x240",
+      "label": "Printing · 320×240",
+      "profile": "tft320x240",
+      "sort_order": 11,
+      "sets": [
+        {
+          "label": "Focused",
+          "loop_count": 0,
+          "frame_time": 1000,
+          "frames": [
+            {
+              "duration_ms": 1000,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_printing",
+                  "label": "",
+                  "color": "#FF6900",
+                  "x": 58,
+                  "y": 42,
+                  "size": 3
+                },
+                {
+                  "type": "text",
+                  "value": "PRINTING",
+                  "label": "",
+                  "color": "#FF6900",
+                  "x": 160,
+                  "y": 188,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "print_stats.progress",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 160,
+                  "y": 218,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "paused_tft320x240",
+      "label": "Paused · 320×240",
+      "profile": "tft320x240",
+      "sort_order": 12,
+      "sets": [
+        {
+          "label": "Waiting",
+          "loop_count": 0,
+          "frame_time": 2000,
+          "frames": [
+            {
+              "duration_ms": 2000,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_paused",
+                  "label": "",
+                  "color": "#FACC15",
+                  "x": 61,
+                  "y": 30,
+                  "size": 3
+                },
+                {
+                  "type": "text",
+                  "value": "PAUSED",
+                  "label": "",
+                  "color": "#FACC15",
+                  "x": 160,
+                  "y": 188,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "print_stats.progress",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 160,
+                  "y": 218,
+                  "size": 2
+                }
+              ]
+            },
+            {
+              "duration_ms": 1200,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_paused_glance",
+                  "label": "",
+                  "color": "#FACC15",
+                  "x": 61,
+                  "y": 30,
+                  "size": 3
+                },
+                {
+                  "type": "text",
+                  "value": "PAUSED",
+                  "label": "",
+                  "color": "#FACC15",
+                  "x": 160,
+                  "y": 188,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "print_stats.progress",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 160,
+                  "y": 218,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "error_tft320x240",
+      "label": "Error · 320×240",
+      "profile": "tft320x240",
+      "sort_order": 13,
+      "sets": [
+        {
+          "label": "Worried",
+          "loop_count": 0,
+          "frame_time": 700,
+          "frames": [
+            {
+              "duration_ms": 700,
+              "bg_color": "#450A0A",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_error",
+                  "label": "",
+                  "color": "#FB7185",
+                  "x": 32,
+                  "y": 24,
+                  "size": 3
+                },
+                {
+                  "type": "text",
+                  "value": "! ERROR",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 160,
+                  "y": 188,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "extruder.temperature",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 160,
+                  "y": 218,
+                  "size": 2
+                }
+              ]
+            },
+            {
+              "duration_ms": 700,
+              "bg_color": "#450A0A",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_error_drip",
+                  "label": "",
+                  "color": "#FB7185",
+                  "x": 32,
+                  "y": 24,
+                  "size": 3
+                },
+                {
+                  "type": "text",
+                  "value": "! ERROR",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 160,
+                  "y": 188,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "extruder.temperature",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 160,
+                  "y": 218,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "complete_tft320x240",
+      "label": "Complete · 320×240",
+      "profile": "tft320x240",
+      "sort_order": 14,
+      "sets": [
+        {
+          "label": "Celebrating",
+          "loop_count": 0,
+          "frame_time": 400,
+          "frames": [
+            {
+              "duration_ms": 400,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_complete",
+                  "label": "",
+                  "color": "#4ADE80",
+                  "x": 40,
+                  "y": 42,
+                  "size": 2
+                },
+                {
+                  "type": "text",
+                  "value": "DONE!",
+                  "label": "",
+                  "color": "#4ADE80",
+                  "x": 160,
+                  "y": 188,
+                  "size": 3
+                }
+              ]
+            },
+            {
+              "duration_ms": 400,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_complete_sparkle",
+                  "label": "",
+                  "color": "#4ADE80",
+                  "x": 40,
+                  "y": 42,
+                  "size": 2
+                },
+                {
+                  "type": "text",
+                  "value": "DONE!",
+                  "label": "",
+                  "color": "#4ADE80",
+                  "x": 160,
+                  "y": 188,
+                  "size": 3
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep_tft320x240",
+      "label": "Sleep · 320×240",
+      "profile": "tft320x240",
+      "sort_order": 15,
+      "sets": [
+        {
+          "label": "Sleeping",
+          "loop_count": 0,
+          "frame_time": 1200,
+          "frames": [
+            {
+              "duration_ms": 1200,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_sleep",
+                  "label": "",
+                  "color": "#A1A1AA",
+                  "x": 28,
+                  "y": 23,
+                  "size": 3
+                }
+              ]
+            },
+            {
+              "duration_ms": 1200,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_sleep_doze",
+                  "label": "",
+                  "color": "#A1A1AA",
+                  "x": 28,
+                  "y": 23,
+                  "size": 3
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_tft240x320",
+      "label": "Idle · 240×320",
+      "profile": "tft240x320",
+      "sort_order": 20,
+      "sets": [
+        {
+          "label": "Calm",
+          "loop_count": 0,
+          "frame_time": 3500,
+          "frames": [
+            {
+              "duration_ms": 3500,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_idle",
+                  "label": "",
+                  "color": "#60A5FA",
+                  "x": 13,
+                  "y": 71,
+                  "size": 3
+                },
+                {
+                  "type": "text",
+                  "value": "IDLE",
+                  "label": "",
+                  "color": "#60A5FA",
+                  "x": 120,
+                  "y": 254,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "extruder.temperature",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 288,
+                  "size": 2
+                }
+              ]
+            },
+            {
+              "duration_ms": 150,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_idle_blink",
+                  "label": "",
+                  "color": "#60A5FA",
+                  "x": 13,
+                  "y": 71,
+                  "size": 3
+                },
+                {
+                  "type": "text",
+                  "value": "IDLE",
+                  "label": "",
+                  "color": "#60A5FA",
+                  "x": 120,
+                  "y": 254,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "extruder.temperature",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 288,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "printing_tft240x320",
+      "label": "Printing · 240×320",
+      "profile": "tft240x320",
+      "sort_order": 21,
+      "sets": [
+        {
+          "label": "Focused",
+          "loop_count": 0,
+          "frame_time": 1000,
+          "frames": [
+            {
+              "duration_ms": 1000,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_printing",
+                  "label": "",
+                  "color": "#FF6900",
+                  "x": 18,
+                  "y": 81,
+                  "size": 3
+                },
+                {
+                  "type": "text",
+                  "value": "PRINTING",
+                  "label": "",
+                  "color": "#FF6900",
+                  "x": 120,
+                  "y": 254,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "print_stats.progress",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 288,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "paused_tft240x320",
+      "label": "Paused · 240×320",
+      "profile": "tft240x320",
+      "sort_order": 22,
+      "sets": [
+        {
+          "label": "Waiting",
+          "loop_count": 0,
+          "frame_time": 2000,
+          "frames": [
+            {
+              "duration_ms": 2000,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_paused",
+                  "label": "",
+                  "color": "#FACC15",
+                  "x": 21,
+                  "y": 69,
+                  "size": 3
+                },
+                {
+                  "type": "text",
+                  "value": "PAUSED",
+                  "label": "",
+                  "color": "#FACC15",
+                  "x": 120,
+                  "y": 254,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "print_stats.progress",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 288,
+                  "size": 2
+                }
+              ]
+            },
+            {
+              "duration_ms": 1200,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_paused_glance",
+                  "label": "",
+                  "color": "#FACC15",
+                  "x": 21,
+                  "y": 69,
+                  "size": 3
+                },
+                {
+                  "type": "text",
+                  "value": "PAUSED",
+                  "label": "",
+                  "color": "#FACC15",
+                  "x": 120,
+                  "y": 254,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "print_stats.progress",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 288,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "error_tft240x320",
+      "label": "Error · 240×320",
+      "profile": "tft240x320",
+      "sort_order": 23,
+      "sets": [
+        {
+          "label": "Worried",
+          "loop_count": 0,
+          "frame_time": 700,
+          "frames": [
+            {
+              "duration_ms": 700,
+              "bg_color": "#450A0A",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_error",
+                  "label": "",
+                  "color": "#FB7185",
+                  "x": 35,
+                  "y": 84,
+                  "size": 2
+                },
+                {
+                  "type": "text",
+                  "value": "! ERROR",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 254,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "extruder.temperature",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 288,
+                  "size": 2
+                }
+              ]
+            },
+            {
+              "duration_ms": 700,
+              "bg_color": "#450A0A",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_error_drip",
+                  "label": "",
+                  "color": "#FB7185",
+                  "x": 35,
+                  "y": 84,
+                  "size": 2
+                },
+                {
+                  "type": "text",
+                  "value": "! ERROR",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 254,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "extruder.temperature",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 288,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "complete_tft240x320",
+      "label": "Complete · 240×320",
+      "profile": "tft240x320",
+      "sort_order": 24,
+      "sets": [
+        {
+          "label": "Celebrating",
+          "loop_count": 0,
+          "frame_time": 400,
+          "frames": [
+            {
+              "duration_ms": 400,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_complete",
+                  "label": "",
+                  "color": "#4ADE80",
+                  "x": 60,
+                  "y": 103,
+                  "size": 1
+                },
+                {
+                  "type": "text",
+                  "value": "DONE!",
+                  "label": "",
+                  "color": "#4ADE80",
+                  "x": 120,
+                  "y": 254,
+                  "size": 3
+                }
+              ]
+            },
+            {
+              "duration_ms": 400,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_complete_sparkle",
+                  "label": "",
+                  "color": "#4ADE80",
+                  "x": 60,
+                  "y": 103,
+                  "size": 1
+                },
+                {
+                  "type": "text",
+                  "value": "DONE!",
+                  "label": "",
+                  "color": "#4ADE80",
+                  "x": 120,
+                  "y": 254,
+                  "size": 3
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep_tft240x320",
+      "label": "Sleep · 240×320",
+      "profile": "tft240x320",
+      "sort_order": 25,
+      "sets": [
+        {
+          "label": "Sleeping",
+          "loop_count": 0,
+          "frame_time": 1200,
+          "frames": [
+            {
+              "duration_ms": 1200,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_sleep",
+                  "label": "",
+                  "color": "#A1A1AA",
+                  "x": 32,
+                  "y": 83,
+                  "size": 2
+                }
+              ]
+            },
+            {
+              "duration_ms": 1200,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_sleep_doze",
+                  "label": "",
+                  "color": "#A1A1AA",
+                  "x": 32,
+                  "y": 83,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_tft240x280",
+      "label": "Idle · 240×280",
+      "profile": "tft240x280",
+      "sort_order": 30,
+      "sets": [
+        {
+          "label": "Calm",
+          "loop_count": 0,
+          "frame_time": 3500,
+          "frames": [
+            {
+              "duration_ms": 3500,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_idle",
+                  "label": "",
+                  "color": "#60A5FA",
+                  "x": 13,
+                  "y": 47,
+                  "size": 3
+                },
+                {
+                  "type": "text",
+                  "value": "IDLE",
+                  "label": "",
+                  "color": "#60A5FA",
+                  "x": 120,
+                  "y": 214,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "extruder.temperature",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 246,
+                  "size": 2
+                }
+              ]
+            },
+            {
+              "duration_ms": 150,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_idle_blink",
+                  "label": "",
+                  "color": "#60A5FA",
+                  "x": 13,
+                  "y": 47,
+                  "size": 3
+                },
+                {
+                  "type": "text",
+                  "value": "IDLE",
+                  "label": "",
+                  "color": "#60A5FA",
+                  "x": 120,
+                  "y": 214,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "extruder.temperature",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 246,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "printing_tft240x280",
+      "label": "Printing · 240×280",
+      "profile": "tft240x280",
+      "sort_order": 31,
+      "sets": [
+        {
+          "label": "Focused",
+          "loop_count": 0,
+          "frame_time": 1000,
+          "frames": [
+            {
+              "duration_ms": 1000,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_printing",
+                  "label": "",
+                  "color": "#FF6900",
+                  "x": 18,
+                  "y": 57,
+                  "size": 3
+                },
+                {
+                  "type": "text",
+                  "value": "PRINTING",
+                  "label": "",
+                  "color": "#FF6900",
+                  "x": 120,
+                  "y": 214,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "print_stats.progress",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 246,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "paused_tft240x280",
+      "label": "Paused · 240×280",
+      "profile": "tft240x280",
+      "sort_order": 32,
+      "sets": [
+        {
+          "label": "Waiting",
+          "loop_count": 0,
+          "frame_time": 2000,
+          "frames": [
+            {
+              "duration_ms": 2000,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_paused",
+                  "label": "",
+                  "color": "#FACC15",
+                  "x": 21,
+                  "y": 45,
+                  "size": 3
+                },
+                {
+                  "type": "text",
+                  "value": "PAUSED",
+                  "label": "",
+                  "color": "#FACC15",
+                  "x": 120,
+                  "y": 214,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "print_stats.progress",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 246,
+                  "size": 2
+                }
+              ]
+            },
+            {
+              "duration_ms": 1200,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_paused_glance",
+                  "label": "",
+                  "color": "#FACC15",
+                  "x": 21,
+                  "y": 45,
+                  "size": 3
+                },
+                {
+                  "type": "text",
+                  "value": "PAUSED",
+                  "label": "",
+                  "color": "#FACC15",
+                  "x": 120,
+                  "y": 214,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "print_stats.progress",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 246,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "error_tft240x280",
+      "label": "Error · 240×280",
+      "profile": "tft240x280",
+      "sort_order": 33,
+      "sets": [
+        {
+          "label": "Worried",
+          "loop_count": 0,
+          "frame_time": 700,
+          "frames": [
+            {
+              "duration_ms": 700,
+              "bg_color": "#450A0A",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_error",
+                  "label": "",
+                  "color": "#FB7185",
+                  "x": 35,
+                  "y": 60,
+                  "size": 2
+                },
+                {
+                  "type": "text",
+                  "value": "! ERROR",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 214,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "extruder.temperature",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 246,
+                  "size": 2
+                }
+              ]
+            },
+            {
+              "duration_ms": 700,
+              "bg_color": "#450A0A",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_error_drip",
+                  "label": "",
+                  "color": "#FB7185",
+                  "x": 35,
+                  "y": 60,
+                  "size": 2
+                },
+                {
+                  "type": "text",
+                  "value": "! ERROR",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 214,
+                  "size": 3
+                },
+                {
+                  "type": "datavalue",
+                  "value": "extruder.temperature",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 246,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "complete_tft240x280",
+      "label": "Complete · 240×280",
+      "profile": "tft240x280",
+      "sort_order": 34,
+      "sets": [
+        {
+          "label": "Celebrating",
+          "loop_count": 0,
+          "frame_time": 400,
+          "frames": [
+            {
+              "duration_ms": 400,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_complete",
+                  "label": "",
+                  "color": "#4ADE80",
+                  "x": 60,
+                  "y": 79,
+                  "size": 1
+                },
+                {
+                  "type": "text",
+                  "value": "DONE!",
+                  "label": "",
+                  "color": "#4ADE80",
+                  "x": 120,
+                  "y": 214,
+                  "size": 3
+                }
+              ]
+            },
+            {
+              "duration_ms": 400,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_complete_sparkle",
+                  "label": "",
+                  "color": "#4ADE80",
+                  "x": 60,
+                  "y": 79,
+                  "size": 1
+                },
+                {
+                  "type": "text",
+                  "value": "DONE!",
+                  "label": "",
+                  "color": "#4ADE80",
+                  "x": 120,
+                  "y": 214,
+                  "size": 3
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep_tft240x280",
+      "label": "Sleep · 240×280",
+      "profile": "tft240x280",
+      "sort_order": 35,
+      "sets": [
+        {
+          "label": "Sleeping",
+          "loop_count": 0,
+          "frame_time": 1200,
+          "frames": [
+            {
+              "duration_ms": 1200,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_sleep",
+                  "label": "",
+                  "color": "#A1A1AA",
+                  "x": 32,
+                  "y": 59,
+                  "size": 2
+                }
+              ]
+            },
+            {
+              "duration_ms": 1200,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_sleep_doze",
+                  "label": "",
+                  "color": "#A1A1AA",
+                  "x": 32,
+                  "y": 59,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "idle_round240",
+      "label": "Idle · Round 240",
+      "profile": "round240",
+      "sort_order": 40,
+      "sets": [
+        {
+          "label": "Calm",
+          "loop_count": 0,
+          "frame_time": 3500,
+          "frames": [
+            {
+              "duration_ms": 3500,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_idle",
+                  "label": "",
+                  "color": "#60A5FA",
+                  "x": 49,
+                  "y": 48,
+                  "size": 2
+                },
+                {
+                  "type": "text",
+                  "value": "IDLE",
+                  "label": "",
+                  "color": "#60A5FA",
+                  "x": 120,
+                  "y": 166,
+                  "size": 2
+                },
+                {
+                  "type": "datavalue",
+                  "value": "extruder.temperature",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 194,
+                  "size": 2
+                }
+              ]
+            },
+            {
+              "duration_ms": 150,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_idle_blink",
+                  "label": "",
+                  "color": "#60A5FA",
+                  "x": 49,
+                  "y": 48,
+                  "size": 2
+                },
+                {
+                  "type": "text",
+                  "value": "IDLE",
+                  "label": "",
+                  "color": "#60A5FA",
+                  "x": 120,
+                  "y": 166,
+                  "size": 2
+                },
+                {
+                  "type": "datavalue",
+                  "value": "extruder.temperature",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 194,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "printing_round240",
+      "label": "Printing · Round 240",
+      "profile": "round240",
+      "sort_order": 41,
+      "sets": [
+        {
+          "label": "Focused",
+          "loop_count": 0,
+          "frame_time": 1000,
+          "frames": [
+            {
+              "duration_ms": 1000,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_printing",
+                  "label": "",
+                  "color": "#FF6900",
+                  "x": 52,
+                  "y": 55,
+                  "size": 2
+                },
+                {
+                  "type": "text",
+                  "value": "PRINTING",
+                  "label": "",
+                  "color": "#FF6900",
+                  "x": 120,
+                  "y": 166,
+                  "size": 2
+                },
+                {
+                  "type": "datavalue",
+                  "value": "print_stats.progress",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 194,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "paused_round240",
+      "label": "Paused · Round 240",
+      "profile": "round240",
+      "sort_order": 42,
+      "sets": [
+        {
+          "label": "Waiting",
+          "loop_count": 0,
+          "frame_time": 2000,
+          "frames": [
+            {
+              "duration_ms": 2000,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_paused",
+                  "label": "",
+                  "color": "#FACC15",
+                  "x": 54,
+                  "y": 47,
+                  "size": 2
+                },
+                {
+                  "type": "text",
+                  "value": "PAUSED",
+                  "label": "",
+                  "color": "#FACC15",
+                  "x": 120,
+                  "y": 166,
+                  "size": 2
+                },
+                {
+                  "type": "datavalue",
+                  "value": "print_stats.progress",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 194,
+                  "size": 2
+                }
+              ]
+            },
+            {
+              "duration_ms": 1200,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_paused_glance",
+                  "label": "",
+                  "color": "#FACC15",
+                  "x": 54,
+                  "y": 47,
+                  "size": 2
+                },
+                {
+                  "type": "text",
+                  "value": "PAUSED",
+                  "label": "",
+                  "color": "#FACC15",
+                  "x": 120,
+                  "y": 166,
+                  "size": 2
+                },
+                {
+                  "type": "datavalue",
+                  "value": "print_stats.progress",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 194,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "error_round240",
+      "label": "Error · Round 240",
+      "profile": "round240",
+      "sort_order": 43,
+      "sets": [
+        {
+          "label": "Worried",
+          "loop_count": 0,
+          "frame_time": 700,
+          "frames": [
+            {
+              "duration_ms": 700,
+              "bg_color": "#450A0A",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_error",
+                  "label": "",
+                  "color": "#FB7185",
+                  "x": 35,
+                  "y": 43,
+                  "size": 2
+                },
+                {
+                  "type": "text",
+                  "value": "! ERROR",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 166,
+                  "size": 2
+                },
+                {
+                  "type": "datavalue",
+                  "value": "extruder.temperature",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 194,
+                  "size": 2
+                }
+              ]
+            },
+            {
+              "duration_ms": 700,
+              "bg_color": "#450A0A",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_error_drip",
+                  "label": "",
+                  "color": "#FB7185",
+                  "x": 35,
+                  "y": 43,
+                  "size": 2
+                },
+                {
+                  "type": "text",
+                  "value": "! ERROR",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 166,
+                  "size": 2
+                },
+                {
+                  "type": "datavalue",
+                  "value": "extruder.temperature",
+                  "label": "",
+                  "color": "#FFFFFF",
+                  "x": 120,
+                  "y": 194,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "complete_round240",
+      "label": "Complete · Round 240",
+      "profile": "round240",
+      "sort_order": 44,
+      "sets": [
+        {
+          "label": "Celebrating",
+          "loop_count": 0,
+          "frame_time": 400,
+          "frames": [
+            {
+              "duration_ms": 400,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_complete",
+                  "label": "",
+                  "color": "#4ADE80",
+                  "x": 60,
+                  "y": 62,
+                  "size": 1
+                },
+                {
+                  "type": "text",
+                  "value": "DONE!",
+                  "label": "",
+                  "color": "#4ADE80",
+                  "x": 120,
+                  "y": 166,
+                  "size": 2
+                }
+              ]
+            },
+            {
+              "duration_ms": 400,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_complete_sparkle",
+                  "label": "",
+                  "color": "#4ADE80",
+                  "x": 60,
+                  "y": 62,
+                  "size": 1
+                },
+                {
+                  "type": "text",
+                  "value": "DONE!",
+                  "label": "",
+                  "color": "#4ADE80",
+                  "x": 120,
+                  "y": 166,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep_round240",
+      "label": "Sleep · Round 240",
+      "profile": "round240",
+      "sort_order": 45,
+      "sets": [
+        {
+          "label": "Sleeping",
+          "loop_count": 0,
+          "frame_time": 1200,
+          "frames": [
+            {
+              "duration_ms": 1200,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_sleep",
+                  "label": "",
+                  "color": "#A1A1AA",
+                  "x": 32,
+                  "y": 42,
+                  "size": 2
+                }
+              ]
+            },
+            {
+              "duration_ms": 1200,
+              "bg_color": "#000000",
+              "elements": [
+                {
+                  "type": "sprite",
+                  "value": "face_sleep_doze",
+                  "label": "",
+                  "color": "#A1A1AA",
+                  "x": 32,
+                  "y": 42,
+                  "size": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "triggers": {
@@ -563,5 +2159,51 @@
     "state:error": "error",
     "state:complete": "complete"
   },
-  "default_group": "idle"
+  "default_group": "idle",
+  "profiles": {
+    "tft320x240": {
+      "label": "320×240",
+      "triggers": {
+        "state:idle": "idle_tft320x240",
+        "state:printing": "printing_tft320x240",
+        "state:paused": "paused_tft320x240",
+        "state:error": "error_tft320x240",
+        "state:complete": "complete_tft320x240"
+      },
+      "default_group": "idle_tft320x240"
+    },
+    "tft240x320": {
+      "label": "240×320",
+      "triggers": {
+        "state:idle": "idle_tft240x320",
+        "state:printing": "printing_tft240x320",
+        "state:paused": "paused_tft240x320",
+        "state:error": "error_tft240x320",
+        "state:complete": "complete_tft240x320"
+      },
+      "default_group": "idle_tft240x320"
+    },
+    "tft240x280": {
+      "label": "240×280",
+      "triggers": {
+        "state:idle": "idle_tft240x280",
+        "state:printing": "printing_tft240x280",
+        "state:paused": "paused_tft240x280",
+        "state:error": "error_tft240x280",
+        "state:complete": "complete_tft240x280"
+      },
+      "default_group": "idle_tft240x280"
+    },
+    "round240": {
+      "label": "Round 240",
+      "triggers": {
+        "state:idle": "idle_round240",
+        "state:printing": "printing_round240",
+        "state:paused": "paused_round240",
+        "state:error": "error_round240",
+        "state:complete": "complete_round240"
+      },
+      "default_group": "idle_round240"
+    }
+  }
 }

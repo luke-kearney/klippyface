@@ -224,6 +224,7 @@ void ConfigDeserializer::parseElement(JsonObject& elJson, FrameElement& outEl) {
     outEl.value = elJson["value"] | "";
     outEl.label = elJson["label"] | "";
     outEl.x = elJson["x"] | 0;
+    outEl.size = constrain((int)(elJson["size"] | 1), 1, 8);
     outEl.y = elJson["y"] | 0;
 
     String colorStr = elJson["color"] | "";

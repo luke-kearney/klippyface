@@ -85,7 +85,7 @@ npm run build
 | ESP32-S3 support | 🟨 Build targets, release binaries and panel drivers for two Waveshare S3 boards; awaiting hardware ([#20](https://github.com/luke-kearney/klippyface/issues/20)) |
 | Real-time Moonraker WebSocket integration | ⚠️ Partial — print state triggers, live progress/nozzle/bed values, connection monitoring, screen sleep. First extruder only ([#22](https://github.com/luke-kearney/klippyface/issues/22)) |
 | Configurable animations (Groups → Sets → Frames → Elements) | ✅ Done — sprite, text and live data elements, per-frame durations, looping. Richer progress/temperature rendering planned ([#3](https://github.com/luke-kearney/klippyface/issues/3), [#4](https://github.com/luke-kearney/klippyface/issues/4)) |
-| Starter faces for every printer state | ✅ Done — imported on first run, or from the Groups page |
+| Starter faces for every printer state | ✅ Done — imported on first run, or from the Groups page; sized packs for 320×240, 240×320, 240×280 and round 240×240 colour displays ([#32](https://github.com/luke-kearney/klippyface/issues/32)) |
 | Klipper GCODE macro integration | ⚠️ Partial — `DISPLAY_FACE` switches group/set; alerts and per-node targeting not yet |
 | Presets (night mode, schedules) | ⚠️ Partial — editable in the Web UI, not yet applied to nodes ([#2](https://github.com/luke-kearney/klippyface/issues/2)) |
 | .NET 10 companion server with SQLite | ✅ Done — full CRUD API + per-node config export |

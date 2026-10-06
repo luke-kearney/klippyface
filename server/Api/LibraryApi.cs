@@ -10,8 +10,9 @@ public static class LibraryApi
 {
     public static WebApplication MapLibraryApi(this WebApplication app)
     {
+        // Base faces plus the sized packs for every display in the system
         app.MapPost("/api/starter-pack", async (StarterPackService starterPack) =>
-            Results.Ok(await starterPack.ImportAsync()));
+            Results.Ok(await starterPack.ImportForDisplaysAsync()));
 
         var groups = app.MapGroup("/api/groups");
 
@@ -47,6 +48,7 @@ public static class LibraryApi
 
             group.Label = input.Label;
             group.Description = input.Description;
+            group.Profile = input.Profile;
             group.SortOrder = input.SortOrder;
             group.UpdatedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
@@ -75,6 +77,7 @@ public static class LibraryApi
                 Id = newId,
                 Label = group.Label,
                 Description = group.Description,
+                Profile = group.Profile,
                 SortOrder = group.SortOrder,
                 CreatedAt = group.CreatedAt,
                 UpdatedAt = DateTime.UtcNow,
@@ -287,6 +290,7 @@ public static class LibraryApi
 
             element.Id = Guid.NewGuid().ToString();
             element.FrameId = frameId;
+            element.Size = Math.Clamp(element.Size, 1, 8);
             db.FrameElements.Add(element);
             await db.SaveChangesAsync();
             var groupId = await GetGroupIdForFrameAsync(db, frameId);
@@ -327,6 +331,7 @@ public static class LibraryApi
             element.Color = input.Color;
             element.X = input.X;
             element.Y = input.Y;
+            element.Size = Math.Clamp(input.Size, 1, 8);
             element.SortOrder = input.SortOrder;
             await db.SaveChangesAsync();
             var groupId = await GetGroupIdForElementAsync(db, id);

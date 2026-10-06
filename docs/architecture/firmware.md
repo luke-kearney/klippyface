@@ -149,9 +149,9 @@ Stateless free function: `renderFrame(Frame, DisplayDriver, PrinterState)`
 
 1. Clear canvas to `Frame::bg_color`
 2. For each `FrameElement`:
-   - `text` → draw static string at (x, y)
-   - `sprite` → blit named bitmap at (x, y)
-   - `datavalue` → resolve Moonraker key via `PrinterState::resolve()`, draw `label: value` at (x, y)
+   - `text` → draw static string centred on (x, y) at GFX text size `size`
+   - `sprite` → blit named bitmap with its top-left at (x, y); `size` > 1 draws each 1-bit pixel as a `size`×`size` block
+   - `datavalue` → resolve Moonraker key via `PrinterState::resolve()`, draw the value centred on (x, y) at text size `size`
 
 ## Sprite Format
 

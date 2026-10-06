@@ -349,6 +349,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-06: Element size and generated starter packs per display
+
+**Context:** The starter faces were drawn for a 128×64 OLED and text was always GFX size 1, so on 240–320px colour panels faces sat small in a corner and text was unreadable (#32).
+
+**Decision:** Frame elements get a `size` (1–8): GFX text size for text/data values, pixel scale for 1-bit sprites, rendered identically by the firmware and the Web UI. `scripts/starter_pack.py` generates a copy of each base group per display profile (`tft320x240`, `tft240x320`, `tft240x280`, `round240`) using scaled faces in state colours and large centred labels, written into `starter-pack.json` with a `profiles` trigger map. Groups record the `profile` they're drawn for, used for previews. The server picks a profile from a display's driver and size (orientation-strict) and imports that pack on demand when a display is added or "Use starter faces" is clicked.
+
+**Consequences:** No duplicated sprite art: the same sprites serve every size. The base groups stay the hand-edited source of truth; sized packs are regenerated, not edited. Libraries only get sized groups for displays they have.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations

@@ -48,6 +48,8 @@ export interface Group {
   id: string
   label: string
   description: string
+  /** Display profile the faces are drawn for (DISPLAY_PROFILES id); '' = default OLED. */
+  profile: string
   sortOrder: number
   createdAt: string
   updatedAt: string
@@ -88,6 +90,8 @@ export interface FrameElement {
   color: string
   x: number
   y: number
+  /** Font scale for text/data values, pixel scale for sprites (1–8). */
+  size: number
 }
 
 export interface Sprite {

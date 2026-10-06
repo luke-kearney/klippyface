@@ -65,7 +65,7 @@ ui/
 
 ## Set editor
 
-`#/groups/:groupId/sets/:setId` is a canvas editor: drag elements to move them (snapping to the panel centre/edges and other elements' edges and centres; toggle with the magnet, hold Alt to bypass), drop sprites from the palette, arrow keys nudge (Shift = 8px), Delete removes, Ctrl+D duplicates, Space plays, `[`/`]` step frames. The filmstrip reorders frames by drag. Onion skin overlays the previous frame by default; its picker can switch to the next frame or pin any frame in the group (marked in the filmstrip).
+`#/groups/:groupId/sets/:setId` is a canvas editor: drag elements to move them (snapping to the panel centre/edges and other elements' edges and centres; toggle with the magnet, hold Alt to bypass), drop sprites from the palette, arrow keys nudge (Shift = 8px), Delete removes, Ctrl+D duplicates, Space plays, `[`/`]` step frames. The filmstrip reorders frames by drag. Elements have a size (1–4× in the inspector): font scale for text and data values, pixel scale for sprites. A group's "Designed for" profile sets its preview size on the group pages and the editor's starting display profile. Onion skin overlays the previous frame by default; its picker can switch to the next frame or pin any frame in the group (marked in the filmstrip).
 
 Edits are applied locally first and saved in the background (`useSetDocument`, 350 ms debounce per entity). Saves don't reach nodes on their own: the header shows *Saved · displays sync in Ns*, and the group is published (nodes refresh) 30 s after the last save, on **Sync now** / Ctrl+S, or when leaving the editor (closing the tab publishes via `sendBeacon`; the server also publishes groups idle for 60 s). The group page shows a banner while a group has unsynced edits.
 

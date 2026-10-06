@@ -89,6 +89,7 @@ public class ConfigExportService
                             ["color"] = element.Color,
                             ["x"] = element.X,
                             ["y"] = element.Y,
+                            ["size"] = element.Size,
                         });
                     }
 
@@ -224,6 +225,7 @@ public class ConfigExportService
                             ["color"] = element.Color,
                             ["x"] = element.X,
                             ["y"] = element.Y,
+                            ["size"] = element.Size,
                         });
                     }
 

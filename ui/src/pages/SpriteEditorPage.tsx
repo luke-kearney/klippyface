@@ -291,6 +291,7 @@ function SpriteEditor({ sprite, sprites }: { sprite: Sprite; sprites: Sprite[] }
           color: '#FFFFFF',
           x: Math.floor((128 - w) / 2),
           y: Math.floor((64 - h) / 2),
+          size: 1,
         },
       ],
     }),

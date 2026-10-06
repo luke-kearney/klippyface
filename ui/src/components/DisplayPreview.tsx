@@ -19,7 +19,11 @@ export const DISPLAY_PROFILES: DisplayProfile[] = [
   { id: 'tft240x280', label: 'TFT 240×280 colour', width: 240, height: 280, driverType: 'st7789' },
   { id: 'round240', label: 'Round 240×240 colour', width: 240, height: 240, driverType: 'gc9a01' },
   { id: 'tft320x240', label: 'TFT 320×240 colour', width: 320, height: 240, driverType: 'hx8347' },
+  { id: 'tft240x320', label: 'TFT 240×320 colour', width: 240, height: 320, driverType: 'hx8347' },
 ]
+
+/** Preview profile for a group's `profile` (default: the 128×64 OLED). */
+export const profileById = (id: string | undefined) => DISPLAY_PROFILES.find((p) => p.id === id) ?? DISPLAY_PROFILES[0]
 
 type FrameLike = Pick<Frame, 'bgColor' | 'elements'>
 
@@ -80,6 +84,8 @@ export function useFramePlayback(frames: Frame[] | undefined, playing: boolean, 
   return [safe, setIndex] as const
 }
 
+const FIT_HEIGHT = 176
+
 /** Self-playing thumbnail of a set. Plays on hover unless `autoPlay`. */
 export function SetPlayer({
   frames,
@@ -87,6 +93,7 @@ export function SetPlayer({
   sprites,
   profile = DISPLAY_PROFILES[0],
   autoPlay = false,
+  fit = false,
   className,
 }: {
   frames: Frame[] | undefined
@@ -95,12 +102,19 @@ export function SetPlayer({
   sprites: Map<string, Bitmap>
   profile?: Pick<DisplayProfile, 'width' | 'height' | 'driverType'>
   autoPlay?: boolean
+  /** Cap the height (portrait profiles would otherwise tower over card grids). */
+  fit?: boolean
   className?: string
 }) {
   const [hover, setHover] = useState(false)
   const [index] = useFramePlayback(frames, autoPlay || hover, 1, frameTime)
   return (
-    <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} className={className}>
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      className={cn(fit && 'mx-auto', className)}
+      style={fit ? { maxWidth: `${(FIT_HEIGHT * profile.width) / profile.height}px` } : undefined}
+    >
       <FrameCanvas frame={frames?.[index]} sprites={sprites} profile={profile} />
     </div>
   )

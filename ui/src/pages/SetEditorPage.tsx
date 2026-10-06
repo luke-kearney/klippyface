@@ -53,6 +53,11 @@ export function SetEditorPage() {
 
   const [profileId, setProfileId] = useStoredState(PROFILE_KEY, DISPLAY_PROFILES[0].id)
   const profile = DISPLAY_PROFILES.find((p) => p.id === profileId) ?? DISPLAY_PROFILES[0]
+  // A group drawn for a specific display opens at that size; others keep the last pick
+  const groupProfile = doc.group?.profile
+  useEffect(() => {
+    if (groupProfile && DISPLAY_PROFILES.some((p) => p.id === groupProfile)) setProfileId(groupProfile)
+  }, [groupProfile])
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState('1')
   const [onion, setOnion] = useState(false)
@@ -98,6 +103,7 @@ export function SetEditorPage() {
         color: '#FFFFFF',
         x: Math.floor(profile.width / 2),
         y: Math.floor(profile.height / 2),
+        size: 1,
         ...el,
       })
       if (created) setSelectedId(created.id)
@@ -116,7 +122,7 @@ export function SetEditorPage() {
   }
 
   const duplicateElement = (el: FrameElement) =>
-    addElement({ type: el.type, value: el.value, label: el.label, color: el.color, x: el.x + 4, y: el.y + 4 })
+    addElement({ type: el.type, value: el.value, label: el.label, color: el.color, x: el.x + 4, y: el.y + 4, size: el.size })
 
   const moveLayer = (el: FrameElement, dir: -1 | 1) => {
     if (!frame) return
