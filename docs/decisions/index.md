@@ -379,6 +379,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-06: Printer states for faces come from the server
+
+**Context:** Nodes fired `state:<print_stats.state>`, but Klipper's print state has no idle (`standby`), lumps heating into `printing`, keeps `complete`/`cancelled` until the next print, and doesn't report a Klipper shutdown at all (that's `webhooks.state`), which nodes showed as Moonraker offline (#36).
+
+**Decision:** The server derives `klippyface.state` from `print_stats`, `idle_timeout` and `webhooks` — error, heating (printing with nothing extruded), printing, paused, complete/cancelled until `idle_timeout` reaches `Idle`, busy (G-code running outside a print), idle — and nodes fire `state:*` from it only; raw `print_stats.state` triggers are dropped (the value stays available as a data key). A Klipper shutdown keeps the connection "up" (`KlippyShutdown`) so nodes show `error`. A `state:*` trigger with no group on a display falls back to its default group. The starter pack maps heating to the printing faces.
+
+**Consequences:** The starter faces' `state:idle` fires for the first time, and the complete face clears with Klipper's idle timeout. Anyone wanting raw Klipper states as triggers would need them added back as a separate family.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations

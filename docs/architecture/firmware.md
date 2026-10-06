@@ -211,7 +211,8 @@ to the companion server, replacing the old 5-minute HTTP polling:
 - **On connect:** sends `hello` with identity and `config_version`
 - **Heartbeat:** every 30s, carries `heap_free`, `uptime_s`, `rssi`, `display_count`
 - **Commands:** handles `refresh_config` (fetches config on-demand), `config_status` (version check). Both only set a pending flag; `tick()` runs one fetch for any number of requests, outside the WS callback. The fetched JSON is queued for `displayTask` as a heap `char*` (newest wins: an older queued config is evicted and freed) and parsed in place (ArduinoJson zero-copy).
-- **Printer state:** `state` messages go into `PrinterState` (`full: true` replaces everything). A change of `print_stats.state` fires `state:<value>`; a full snapshot fires it again, because the node re-announces after applying a config and its new engines need the current state.
+- **Printer state:** `state` messages go into `PrinterState` (`full: true` replaces everything). A change of `klippyface.state` (the state the server works out: idle, busy, heating, printing, paused, complete, cancelled, error) fires `state:<value>`; a full snapshot fires it again, because the node re-announces after applying a config and its new engines need the current state.
+- **Unmapped states:** a `state:*` trigger with no group on a display switches it to its default group (`AnimationEngine::onTrigger`), so e.g. the printing face doesn't stay up after a cancel.
 - **Moonraker status:** `moonraker_status { connected }` feeds the connection monitor and the `moonraker.connected` data key.
 - **Display commands:** `display_cmd { group, set?, loop? }` → `DisplayManager::directCommand()`. The server parses `RESPOND` lines and picks the node; the firmware no longer reads console output.
 - **Reconnect:** auto-reconnect at 5s interval (WebSockets library manages this)
