@@ -191,6 +191,12 @@ The pixel editor in the web UI draws on a `<canvas>` (in native color), converts
 
 ESP32 has 4 MB flash and ~320 KB usable RAM.
 
+## Setup Portal
+
+A node with no saved settings starts the `Klippyface-Setup` access point (open) and serves the setup page (`setup_html.h`) at `http://192.168.4.1`; DNS answers every name with that address and unknown paths redirect to `/`, so phones open it as a captive portal. The page asks for the WiFi network, the Klippyface server's address and port, and an optional display name, then saves to NVS and reboots. Holding BOOT for 3 s clears the settings; an unused portal reboots after 30 minutes.
+
+The portal runs in AP+STA mode from the start, because scanning needs station mode and switching it on mid-scan dropped phones off the access point. A scan starts with the portal; `GET /scan` returns the last results (`{ scanning, networks: [{ ssid, rssi, secure }] }`, one entry per name, strongest first) and `/scan?refresh=1` starts a new one. The page polls while `scanning` is true.
+
 ## Connection State Machine
 
 Priority-based state monitoring in `serverClientTask` (`main.cpp`):
