@@ -359,6 +359,66 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-06: Fake Moonraker replaces the firmware mock build
+
+**Context:** Testing without a printer relied on `esp32dev-mock`, which faked a fixed idle → printing → complete loop inside the firmware and skipped the real WebSocket and JSON parsing entirely. It couldn't show multi-extruder data, partial status updates, Klipper restarts or dropped connections (#35). Moonraker is also moving behind the server (#34), where an in-firmware mock is no help.
+
+**Decision:** Add `tools/FakeMoonraker`, a standalone .NET app that speaks Moonraker's JSON-RPC over `/websocket`, following Klipper's `QueryStatusHelper` (change-only updates every 250 ms, unknown objects as `{}`/`null` rather than errors). Printers are JSON profiles, scripted runs are C# scenarios, and `/_sim/*` endpoints drive it by hand or from tests. Remove `esp32dev-mock` and the `MOONRAKER_MOCK` code (supersedes "Mock mode — #ifdef inside MoonrakerClient.cpp").
+
+**Consequences:** Real nodes, and later the server, test against the real protocol path. Testing without a printer needs a PC on the LAN running the fake, rather than just flashing a mock build.
+
+---
+
+## 2026-10-06: The server relays Moonraker to nodes
+
+**Context:** Every node opened its own WebSocket to Moonraker beside the one it already held to the server, and parsed Moonraker's JSON itself. That meant per-node Moonraker settings in the setup portal, a firmware release for every new data key, and per-node handling of Moonraker's change-only updates — which the firmware got wrong (missing fields read as 0, the subscribe reply's initial state ignored, and `print_stats.progress`, a field Klipper doesn't have, as the progress source) (#34).
+
+**Decision:** The server holds the one Moonraker connection (settings in the database, Printer page in the Web UI), merges updates into a store keyed by data key, and sends each node only the keys its faces bind to plus `print_stats.state`, over the node WebSocket: a full `state` on every hello, then changes. Values are sent raw, and the node formats them by key ending, so number-based renderers (#3, #4) stay possible. `RESPOND MSG="display:…"` is parsed on the server and routed by `node=`. Nodes lose `MoonrakerClient`, `GcodeHandler` and their Moonraker settings, and gain a `server:disconnected` trigger. `print_stats.progress` stays as a key the server derives from `display_status.progress` / `virtual_sdcard.progress`, so existing faces keep working.
+
+**Consequences:** No live printer data on a node while the server is down (it already needed the server to boot). New data keys need no firmware change. Nodes provisioned before this fall back to their saved Moonraker host as the server address, which matches the usual setup of the server running on the printer's host.
+
+---
+
+## 2026-10-06: Printer states for faces come from the server
+
+**Context:** Nodes fired `state:<print_stats.state>`, but Klipper's print state has no idle (`standby`), lumps heating into `printing`, keeps `complete`/`cancelled` until the next print, and doesn't report a Klipper shutdown at all (that's `webhooks.state`), which nodes showed as Moonraker offline (#36).
+
+**Decision:** The server derives `klippyface.state` from `print_stats`, `idle_timeout` and `webhooks` — error, heating (printing with nothing extruded), printing, paused, complete/cancelled until `idle_timeout` reaches `Idle`, busy (G-code running outside a print), idle — and nodes fire `state:*` from it only; raw `print_stats.state` triggers are dropped (the value stays available as a data key). A Klipper shutdown keeps the connection "up" (`KlippyShutdown`) so nodes show `error`. A `state:*` trigger with no group on a display falls back to its default group. The starter pack maps heating to the printing faces.
+
+**Consequences:** The starter faces' `state:idle` fires for the first time, and the complete face clears with Klipper's idle timeout. Anyone wanting raw Klipper states as triggers would need them added back as a separate family.
+
+---
+
+## 2026-10-15: Preheating outside a print shows heating
+
+**Context:** Watching a real printer showed that a preheat before a print (bed and nozzle targets set with no print running) left the face on idle, or on complete after an earlier print, because `print_stats` and `idle_timeout` don't change while a heater is warming up — `M140`/`M104` don't wait.
+
+**Decision:** Outside a print, `klippyface.state` is `heating` while `heater_bed` or any `extruder*` has a target set and is more than 2°C below it. It's checked after printing/paused and before complete/cancelled and busy, so it also covers a preheat for the next print and `M190`/`M109` waits. A heater holding at its target, or one with a lowered target, doesn't count.
+
+**Consequences:** The heating face also shows for a preheat, not only at the start of a print. A heater that can't reach its target keeps the face on heating.
+
+---
+
+## 2026-10-15: A finished print's result stays dismissed
+
+**Context:** On the real printer, turning the motors off (`M84`) after a print left the face on complete, because only `idle_timeout` reaching `Idle` cleared it and `M84` restarts that countdown. And because Klipper keeps `print_stats.state` = `complete` until the next print, any G-code after the timeout (homing, jogging) brought the complete face back.
+
+**Decision:** `PrinterStateStore` remembers when the current complete/cancelled result is dismissed — `idle_timeout` goes `Idle`, or `toolhead.homed_axes` goes empty in a later update than the result (motors turned off; an `M84` in the end G-code arrives with the result and doesn't count). It stays dismissed until `print_stats.state` changes. Fluidd/Mainsail's "clear file" (`SDCARD_RESET_FILE`) already resets `print_stats` to `standby`.
+
+**Consequences:** The dismissal lives in server memory: a server restart while the result is shown brings it back until the next dismissal. A cancel macro that turns the motors off in a separate step after `CANCEL_PRINT_BASE` would dismiss cancelled straight away — not yet checked on a real printer.
+
+---
+
+## 2026-10-15: Screen sleep follows the printer, with a per-node timeout
+
+**Context:** Nodes slept after 5 minutes without a trigger or command (#38). A printer state is only sent as a trigger when it changes, so a long print went dark about 5 minutes in, and the timeout couldn't be changed.
+
+**Decision:** The server sends `klippyface.active` (printing, paused, heating, busy or error) with every node's state, and each node has a `sleep_after_seconds` (default 300, 0 = never) set in the Web UI and sent in its config as `sleep_after_s`. Nodes don't sleep while the printer is active and reachable; the timeout counts from it going to rest. Which states are active is fixed on the server rather than configurable. Waking re-applies the current state's face, and the unused `screen_sleep` group switch is gone.
+
+**Consequences:** A printer left in error (e.g. shut down) keeps its displays on until Klipper restarts. Firmware older than this ignores both the field and the key and keeps its fixed 5 minutes.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations

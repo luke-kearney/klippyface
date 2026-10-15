@@ -27,6 +27,7 @@ bool ConfigDeserializer::deserialize(char* json, NodeConfig& outConfig) {
 
     outConfig.node_id = nodeObj["id"] | "";
     outConfig.friendly_name = nodeObj["friendly_name"] | "";
+    outConfig.sleep_after_s = nodeObj["sleep_after_s"] | 300;
 
     // Parse displays
     JsonArray displays = nodeObj["displays"];

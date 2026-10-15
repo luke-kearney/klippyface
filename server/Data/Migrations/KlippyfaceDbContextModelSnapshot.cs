@@ -15,7 +15,7 @@ namespace Klippyface.Server.Data.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.0");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
 
             modelBuilder.Entity("Klippyface.Server.Models.Assignment", b =>
                 {
@@ -158,6 +158,34 @@ namespace Klippyface.Server.Data.Migrations
                     b.ToTable("Groups");
                 });
 
+            modelBuilder.Entity("Klippyface.Server.Models.MoonrakerSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ApiKey")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Host")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Port")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("UseTls")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("MoonrakerSettings");
+                });
+
             modelBuilder.Entity("Klippyface.Server.Models.Node", b =>
                 {
                     b.Property<string>("Id")
@@ -191,6 +219,9 @@ namespace Klippyface.Server.Data.Migrations
                     b.Property<string>("MacAddress")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("SleepAfterSeconds")
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");

@@ -1,10 +1,12 @@
 #include "display/Renderer.h"
+#include "display/FontText.h"
 
 static const char* TAG = "RENDER";
 
 static void renderTextElement(const FrameElement& element, DisplayDriver& display) {
-    const char* text = element.value.c_str();
-    size_t len = strlen(text);
+    std::string glyphs = toFontText(element.value.c_str());
+    const char* text = glyphs.c_str();
+    size_t len = glyphs.length();
 
     // GFX 5x7 font: 6x8 cells, scaled by the element size
     int16_t textW = (int16_t)(len * 6 * element.size);
@@ -29,9 +31,9 @@ static void renderDataValueElement(const FrameElement& element, DisplayDriver& d
         return;
     }
 
-    String resolved = state->resolve(element.value);
-    const char* text = resolved.c_str();
-    size_t len = strlen(text);
+    std::string glyphs = toFontText(state->resolve(element.value).c_str());
+    const char* text = glyphs.c_str();
+    size_t len = glyphs.length();
 
     int16_t textW = (int16_t)(len * 6 * element.size);
     int16_t textH = 8 * element.size;

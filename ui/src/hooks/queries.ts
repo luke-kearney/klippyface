@@ -12,6 +12,8 @@ export const keys = {
   group: (id: string) => ['groups', id] as const,
   sprites: ['sprites'] as const,
   presets: ['presets'] as const,
+  moonraker: ['moonraker'] as const,
+  printerState: ['moonraker', 'state'] as const,
 }
 
 export const useNodes = () =>
@@ -27,6 +29,12 @@ export const useGroup = (id: string) => useQuery({ queryKey: keys.group(id), que
 export const useSprites = () => useQuery({ queryKey: keys.sprites, queryFn: api.getSprites })
 
 export const usePresets = () => useQuery({ queryKey: keys.presets, queryFn: api.getPresets })
+
+export const useMoonraker = () =>
+  useQuery({ queryKey: keys.moonraker, queryFn: api.getMoonraker, refetchInterval: 5_000 })
+
+export const usePrinterState = (enabled: boolean) =>
+  useQuery({ queryKey: keys.printerState, queryFn: api.getPrinterState, refetchInterval: 2_000, enabled })
 
 /** All sprites decoded to bitmaps, keyed by sprite id. */
 export function useSpriteBitmaps(): Map<string, Bitmap> {

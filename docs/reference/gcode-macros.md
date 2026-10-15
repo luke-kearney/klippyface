@@ -43,9 +43,11 @@ gcode:
 RESPOND MSG="display:node=printer_face display=face_oled group=celebration set=party loop=3"
 ```
 
+The Klippyface server reads these lines from Moonraker's console stream and sends a `display_cmd` to the matching nodes; nodes never see the console.
+
 Parameters:
-- `node` — target node ID (optional, defaults to the receiving node)
-- `display` — target display ID (optional, applies to all displays)
+- `node` — target node: its name (case-insensitive), MAC address or id. Optional; without it every connected node switches
+- `display` — target display ID (not yet supported: every display on the node switches)
 - `group` — group ID to switch to
 - `set` — specific set ID within the group (optional)
 - `loop` — loop count (optional, default 1)

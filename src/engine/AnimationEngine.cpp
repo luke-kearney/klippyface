@@ -89,10 +89,19 @@ bool AnimationEngine::onTrigger(const String& trigger) {
     if (!_configured) return false;
 
     auto it = _triggers.find(trigger);
-    if (it == _triggers.end()) return false;
+    if (it == _triggers.end() || it->second.isEmpty()) {
+        // A printer state with no face of its own shows the default group, so the
+        // previous state's face (e.g. printing after a cancel) doesn't linger
+        if (trigger.startsWith("state:") && _currentGroupId != _defaultGroupId && findGroup(_defaultGroupId)) {
+            Serial.printf("[%s] Trigger: %s (unmapped) → default group: %s\n",
+                          TAG, trigger.c_str(), _defaultGroupId.c_str());
+            startGroup(_defaultGroupId);
+            return true;
+        }
+        return false;
+    }
 
     const String& targetGroup = it->second;
-    if (targetGroup.isEmpty()) return false;
     if (targetGroup == _currentGroupId) return false;
 
     Serial.printf("[%s] Trigger: %s → group: %s\n", TAG, trigger.c_str(), targetGroup.c_str());

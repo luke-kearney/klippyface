@@ -5,8 +5,6 @@
 #include "config/Settings.h"
 #include "wifi/WifiManager.h"
 #include "display/DisplayManager.h"
-#include "comms/MoonrakerClient.h"
-#include "comms/GcodeHandler.h"
 #include "comms/ServerClient.h"
 #include "engine/ConfigDeserializer.h"
 #include "wifi/CaptivePortal.h"
@@ -17,8 +15,6 @@
 // -------------------------------------------------------------------
 WifiManager wifiManager;
 DisplayManager displayManager;
-MoonrakerClient moonrakerClient;
-GcodeHandler gcodeHandler;
 ServerClient serverClient;
 
 // -------------------------------------------------------------------
@@ -26,16 +22,12 @@ ServerClient serverClient;
 // -------------------------------------------------------------------
 TaskHandle_t wifiTaskHandle = nullptr;
 TaskHandle_t displayTaskHandle = nullptr;
-TaskHandle_t moonrakerTaskHandle = nullptr;
-TaskHandle_t gcodeHandlerTaskHandle = nullptr;
 TaskHandle_t captivePortalTaskHandle = nullptr;
 TaskHandle_t serverClientTaskHandle = nullptr;
 
 // -------------------------------------------------------------------
 // Inter-task queues
 // -------------------------------------------------------------------
-QueueHandle_t stateQueue = nullptr;
-QueueHandle_t gcodeQueue = nullptr;
 QueueHandle_t configQueue = nullptr;
 
 // -------------------------------------------------------------------
@@ -58,112 +50,63 @@ void wifiTask(void *pvParameters) {
 }
 
 // -------------------------------------------------------------------
-// Moonraker Task (Core 0) — WebSocket I/O + state dispatch
+// Server Client Task (Core 0) — WebSocket to the companion server, which
+// also relays printer state from Moonraker
 // -------------------------------------------------------------------
-void moonrakerTask(void *pvParameters) {
-    // Wait for WiFi before connecting to Moonraker
+void serverClientTask(void *pvParameters) {
+    // Wait for WiFi before connecting
     while (!wifiManager.waitForConnection(pdMS_TO_TICKS(1000))) {
         Serial.println("[MAIN] Waiting for WiFi...");
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
-    String host = Settings::getMoonrakerHost();
-    uint16_t port = Settings::getMoonrakerPort();
-    bool mkUseTls = Settings::getMoonrakerUseTls();
-    moonrakerClient.setStateQueue(stateQueue);
-    moonrakerClient.setGcodeQueue(gcodeQueue);
-    moonrakerClient.begin(host, port, mkUseTls);
-
-    enum ConnMonitor : uint8_t {
-        CONN_ONLINE,
-        CONN_WIFI_OFFLINE,
-        CONN_MOONRAKER_OFFLINE
-    };
-    ConnMonitor lastConn = CONN_ONLINE;
-
-    StateEvent event;
-    for (;;) {
-        moonrakerClient.tick();
-
-        while (xQueueReceive(stateQueue, &event, 0) == pdTRUE) {
-            Serial.printf("[MAIN] State: %s (progress: %.1f%%)\n",
-                          event.trigger, event.progress);
-            displayManager.updateState(event);
-            if (event.trigger[0] != '\0') {
-                displayManager.onStateChange(String(event.trigger));
-            }
-        }
-
-        // Connection state monitor — priority: WiFi > Moonraker > Online
-        bool wifiOk = WiFi.isConnected();
-        bool mrOk = moonrakerClient.isConnected();
-
-        ConnMonitor newConn;
-        if (!wifiOk)                     newConn = CONN_WIFI_OFFLINE;
-        else if (!mrOk)                  newConn = CONN_MOONRAKER_OFFLINE;
-        else                             newConn = CONN_ONLINE;
-
-        if (newConn != lastConn) {
-            lastConn = newConn;
-            switch (newConn) {
-                case CONN_WIFI_OFFLINE:
-                    Serial.println("[MAIN] Connection: WIFI_OFFLINE");
-                    displayManager.setMoonrakerConnected(false);
-                    displayManager.onStateChange("wifi:disconnected");
-                    break;
-                case CONN_MOONRAKER_OFFLINE:
-                    Serial.println("[MAIN] Connection: MOONRAKER_OFFLINE");
-                    displayManager.setMoonrakerConnected(false);
-                    displayManager.onStateChange("moonraker:disconnected");
-                    break;
-                case CONN_ONLINE:
-                    Serial.println("[MAIN] Connection: ONLINE");
-                    displayManager.setMoonrakerConnected(true);
-                    break;
-            }
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(50));
-    }
-}
-
-// -------------------------------------------------------------------
-// GCODE Handler Task (Core 0) — parse display:... commands
-// -------------------------------------------------------------------
-void gcodeHandlerTask(void *pvParameters) {
-    GcodeMessage rawMsg;
-    DisplayCommand cmd;
-
-    for (;;) {
-        if (xQueueReceive(gcodeQueue, &rawMsg, portMAX_DELAY) == pdTRUE) {
-            String msg(rawMsg.text);
-
-            if (gcodeHandler.parseDisplayCommand(msg, cmd)) {
-                if (!cmd.group.isEmpty()) {
-                    displayManager.directCommand(cmd.group, cmd.set, cmd.loop);
-                }
-            }
-        }
-    }
-}
-
-// -------------------------------------------------------------------
-// Server Client Task (Core 0) — WebSocket to companion server
-// -------------------------------------------------------------------
-void serverClientTask(void *pvParameters) {
-    // Wait for WiFi before connecting
-    while (!wifiManager.waitForConnection(pdMS_TO_TICKS(1000))) {
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
-
     serverClient.setConfigQueue(configQueue);
+    serverClient.setDisplayManager(&displayManager);
     String host = Settings::getServerHost();
     uint16_t port = Settings::getServerPort();
     bool svUseTls = Settings::getServerUseTls();
     serverClient.begin(host, port, svUseTls);
 
+    enum ConnMonitor : uint8_t {
+        CONN_ONLINE,
+        CONN_WIFI_OFFLINE,
+        CONN_SERVER_OFFLINE,
+        CONN_MOONRAKER_OFFLINE
+    };
+    ConnMonitor lastConn = CONN_ONLINE;
+
     for (;;) {
         serverClient.tick();
+
+        // Connection state monitor — priority: WiFi > server > Moonraker > online
+        ConnMonitor newConn;
+        if (!WiFi.isConnected())                        newConn = CONN_WIFI_OFFLINE;
+        else if (!serverClient.isConnected())           newConn = CONN_SERVER_OFFLINE;
+        else if (!serverClient.isMoonrakerConnected())  newConn = CONN_MOONRAKER_OFFLINE;
+        else                                            newConn = CONN_ONLINE;
+
+        if (newConn != lastConn) {
+            lastConn = newConn;
+            displayManager.setMoonrakerConnected(newConn == CONN_ONLINE);
+            switch (newConn) {
+                case CONN_WIFI_OFFLINE:
+                    Serial.println("[MAIN] Connection: WIFI_OFFLINE");
+                    displayManager.onStateChange("wifi:disconnected");
+                    break;
+                case CONN_SERVER_OFFLINE:
+                    Serial.println("[MAIN] Connection: SERVER_OFFLINE");
+                    displayManager.onStateChange("server:disconnected");
+                    break;
+                case CONN_MOONRAKER_OFFLINE:
+                    Serial.println("[MAIN] Connection: MOONRAKER_OFFLINE");
+                    displayManager.onStateChange("moonraker:disconnected");
+                    break;
+                case CONN_ONLINE:
+                    Serial.println("[MAIN] Connection: ONLINE");
+                    break;
+            }
+        }
+
         vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
@@ -286,20 +229,12 @@ void setup() {
     }
 
     // Create inter-task queues
-    stateQueue = xQueueCreate(5, sizeof(StateEvent));
-    gcodeQueue = xQueueCreate(5, sizeof(GcodeMessage));
     configQueue = xQueueCreate(2, sizeof(char*));
 
     displayManager.begin();
 
     xTaskCreatePinnedToCore(
         wifiTask, "wifiTask", 4096, nullptr, 8, &wifiTaskHandle, 0);
-
-    xTaskCreatePinnedToCore(
-        moonrakerTask, "moonrakerTask", 8192, nullptr, 9, &moonrakerTaskHandle, 0);
-
-    xTaskCreatePinnedToCore(
-        gcodeHandlerTask, "gcodeHandlerTask", 4096, nullptr, 7, &gcodeHandlerTaskHandle, 0);
 
     xTaskCreatePinnedToCore(
         serverClientTask, "serverClientTask", 6144, nullptr, 6, &serverClientTaskHandle, 0);

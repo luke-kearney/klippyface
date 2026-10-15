@@ -14,7 +14,9 @@ CaptivePortal::CaptivePortal()
 }
 
 bool CaptivePortal::begin() {
-    WiFi.mode(WIFI_AP);
+    // Station mode on from the start: scanning needs it, and switching it on
+    // mid-scan knocked phones off the access point
+    WiFi.mode(WIFI_AP_STA);
     if (!WiFi.softAP(AP_SSID)) {
         Serial.printf("[%s] Failed to start AP\n", TAG);
         return false;
@@ -29,7 +31,15 @@ bool CaptivePortal::begin() {
     _server.on("/", HTTP_GET, [this]() { handleRoot(); });
     _server.on("/save", HTTP_POST, [this]() { handleSave(); });
     _server.on("/scan", HTTP_GET, [this]() { handleScan(); });
+    // Phones probe a known URL to detect a captive portal; send them all to the setup page
+    _server.onNotFound([this]() {
+        _server.sendHeader("Location", "http://" + WiFi.softAPIP().toString() + "/", true);
+        _server.send(302, "text/plain", "");
+    });
     _server.begin();
+
+    // Networks are listed by the time the page opens
+    _setup.startScan();
 
     _running = true;
     _lastActivity = millis();
@@ -45,6 +55,7 @@ void CaptivePortal::tick() {
 
     _dns.processNextRequest();
     _server.handleClient();
+    _setup.pollScan();
 
     if (millis() - _lastActivity > IDLE_TIMEOUT_MS) {
         Serial.printf("[%s] Idle 30min — rebooting\n", TAG);
@@ -94,10 +105,6 @@ void CaptivePortal::handleSave() {
 
     String ssid = doc["ssid"] | "";
     String password = doc["password"] | "";
-    String mkHost = doc["mk_host"] | "";
-    uint16_t mkPort = doc["mk_port"] | 7125;
-    bool mkUseTls = doc["mk_tls"] | false;
-    bool mkTlsVerify = doc["mk_tls_verify"] | false;
     String svHost = doc["sv_host"] | "";
     uint16_t svPort = doc["sv_port"] | 5000;
     bool svUseTls = doc["sv_tls"] | false;
@@ -108,14 +115,12 @@ void CaptivePortal::handleSave() {
         _server.send(400, "text/plain", "WiFi SSID is required");
         return;
     }
-    if (mkHost.length() == 0) {
-        _server.send(400, "text/plain", "Moonraker host is required");
+    if (svHost.length() == 0) {
+        _server.send(400, "text/plain", "Klippyface server host is required");
         return;
     }
 
-    if (!_setup.saveConfig(ssid, password, mkHost, mkPort, mkUseTls,
-                           svHost, svPort, svUseTls, svTlsVerify, mkTlsVerify,
-                           friendlyName)) {
+    if (!_setup.saveConfig(ssid, password, svHost, svPort, svUseTls, svTlsVerify, friendlyName)) {
         _server.send(500, "text/plain", "Failed to save configuration");
         return;
     }
@@ -125,8 +130,9 @@ void CaptivePortal::handleSave() {
     _rebootPending = true;
 }
 
+// GET /scan lists the last scan's networks; /scan?refresh=1 also starts a new one
 void CaptivePortal::handleScan() {
     touchActivity();
-    String json = _setup.scanNetworks();
-    _server.send(200, "application/json", json);
+    if (_server.hasArg("refresh")) _setup.startScan();
+    _server.send(200, "application/json", _setup.scanJson());
 }

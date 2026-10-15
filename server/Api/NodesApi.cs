@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Klippyface.Server.Data;
 using Klippyface.Server.Models;
 using Klippyface.Server.Services;
+using Klippyface.Server.Services.Moonraker;
 
 namespace Klippyface.Server.Api;
 
@@ -13,13 +14,14 @@ public static class NodesApi
 {
     public static WebApplication MapNodesApi(this WebApplication app)
     {
-        app.MapGet("/api/ws/node/{id}", async (HttpContext ctx, string id, NodeStatusService statusService, IServiceScopeFactory scopeFactory) =>
+        app.MapGet("/api/ws/node/{id}", async (HttpContext ctx, string id, NodeStatusService statusService,
+            NodeStateRelay relay, IServiceScopeFactory scopeFactory) =>
         {
             if (!ctx.WebSockets.IsWebSocketRequest)
                 return Results.BadRequest("Expected a WebSocket request");
 
             var ws = await ctx.WebSockets.AcceptWebSocketAsync();
-            await HandleNodeWebSocket(ws, id, statusService, scopeFactory);
+            await HandleNodeWebSocket(ws, id, statusService, relay, scopeFactory);
             return Results.Empty;
         });
 
@@ -50,15 +52,21 @@ public static class NodesApi
             return node is null ? Results.NotFound() : Results.Ok(node);
         });
 
-        nodes.MapPut("/{id}", async (KlippyfaceDbContext db, string id, Node input) =>
+        nodes.MapPut("/{id}", async (KlippyfaceDbContext db, string id, NodeUpdate input, NodePublisher publisher) =>
         {
             var node = await db.Nodes.FindAsync(id);
             if (node is null) return Results.NotFound();
+            if (input.SleepAfterSeconds is < 0 or > NodeUpdate.MaxSleepAfterSeconds)
+                return Results.BadRequest($"sleep_after_seconds must be 0 (never) to {NodeUpdate.MaxSleepAfterSeconds}");
 
             node.FriendlyName = input.FriendlyName;
             node.Description = input.Description;
             node.UpdatedAt = DateTime.UtcNow;
+            var sleepChanged = input.SleepAfterSeconds is { } sleep && sleep != node.SleepAfterSeconds;
+            if (sleepChanged) node.SleepAfterSeconds = input.SleepAfterSeconds!.Value;
             await db.SaveChangesAsync();
+            // The timeout is part of the node's config; names aren't
+            if (sleepChanged) await publisher.RefreshNodeAsync(id);
             return Results.Ok(node);
         });
 
@@ -197,7 +205,8 @@ public static class NodesApi
         return app;
     }
 
-    private static async Task HandleNodeWebSocket(WebSocket ws, string macAddress, NodeStatusService statusService, IServiceScopeFactory scopeFactory)
+    private static async Task HandleNodeWebSocket(WebSocket ws, string macAddress, NodeStatusService statusService,
+                                                  NodeStateRelay relay, IServiceScopeFactory scopeFactory)
     {
         var buffer = new byte[4096];
 
@@ -264,6 +273,10 @@ public static class NodesApi
 
                         await PersistHelloAsync(scopeFactory, dbNodeId,
                             msg["board"]?.GetValue<string>(), msg["fw_version"]?.GetValue<string>());
+
+                        // Printer state for the faces this node shows; nodes re-announce
+                        // after applying a config, so the key set follows config changes
+                        await relay.OnNodeHelloAsync(macAddress);
                         break;
                     }
                     case "heartbeat":

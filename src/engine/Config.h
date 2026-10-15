@@ -3,8 +3,12 @@
 
 #include <Arduino.h>
 #include <stdint.h>
+#include <atomic>
 #include <map>
 #include <vector>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <ArduinoJson.h>
 
 // -------------------------------------------------------------------
 // FrameElement — a single positioned element within a Frame
@@ -35,17 +39,50 @@ struct Frame {
 };
 
 // -------------------------------------------------------------------
-// PrinterState — live runtime values from Moonraker
+// PrinterState — live printer values relayed by the server, by data key
+// ("extruder.temperature"). Written from the server task (core 0), read
+// by the renderer (core 1), so every access takes the mutex.
 // -------------------------------------------------------------------
-struct PrinterState {
-    float progress      = 0.0f;
-    float nozzleTemp    = 0.0f;
-    float bedTemp       = 0.0f;
-    float nozzleTarget  = 0.0f;
-    float bedTarget     = 0.0f;
-    bool  moonrakerConnected = false;
+class PrinterState {
+public:
+    PrinterState();
+    ~PrinterState();
 
+    // Apply a "state" message's values; full replaces everything, null removes a key
+    void apply(JsonObjectConst values, bool full);
+    void setMoonrakerConnected(bool connected) {
+        if (_moonrakerConnected != connected) {
+            _moonrakerConnected = connected;
+            _version++;
+        }
+    }
+
+    // Display string for a binding key: "210°C", "42.0%", "--" when unknown
     String resolve(const String& key) const;
+
+    // A text value as sent ("printing"; booleans read "Yes"/"No"); empty when unknown or numeric
+    String text(const String& key) const;
+
+    // Server and Moonraker both reachable, Klipper ready
+    bool online() const { return _moonrakerConnected; }
+
+    // Bumped on every change, so the renderer only re-resolves values when it moves
+    uint32_t version() const { return _version.load(); }
+
+private:
+    struct Value {
+        bool    isNumber = false;
+        float   number   = 0.0f;
+        String  text;
+    };
+
+    SemaphoreHandle_t       _mutex = nullptr;
+    std::map<String, Value> _values;
+    volatile bool           _moonrakerConnected = false;
+    std::atomic<uint32_t>   _version{0};
+
+    PrinterState(const PrinterState&) = delete;
+    PrinterState& operator=(const PrinterState&) = delete;
 };
 
 // -------------------------------------------------------------------
@@ -118,6 +155,7 @@ struct NodeConfig {
     uint32_t                                config_version  = 1;
     String                                  node_id;
     String                                  friendly_name;
+    uint32_t                                sleep_after_s   = 300;  // 0 = never
     std::vector<DisplaySlotConfig>          displays;
     std::map<String, Group>                 library_groups;
     std::map<String, SpriteInfo>            sprites;

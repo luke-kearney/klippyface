@@ -2,7 +2,6 @@
 #include "display/Renderer.h"
 #include "display/Sprite.h"
 #include "display/DisplayFactory.h"
-#include "comms/MoonrakerClient.h"
 #include "config/Board.h"
 #include <ArduinoJson.h>
 #include <Wire.h>
@@ -242,6 +241,7 @@ bool DisplayManager::applyConfig(const NodeConfig& config) {
     }
 
     _configVersion = config.config_version;
+    _sleepAfterMs = config.sleep_after_s * 1000UL;
     _lastActivity = millis();
     _screenSaverActive = false;
 
@@ -253,21 +253,32 @@ bool DisplayManager::applyConfig(const NodeConfig& config) {
     return ok;
 }
 
+// The server says the printer is working (printing, paused, heating, busy, error).
+// Without a live connection that can't be trusted, so it doesn't hold the screens on.
+bool DisplayManager::printerActive() const {
+    return _printerState.online() && _printerState.text("klippyface.active") == "Yes";
+}
+
+void DisplayManager::wake() {
+    // Restart on the current printer state's face, not whatever the wake command maps to
+    String state = _printerState.text("klippyface.state");
+    for (auto& slot : _slots) {
+        if (slot.driver) {
+            slot.driver->powerSave(false);
+        }
+        slot.engine.resetToDefault();
+        if (!state.isEmpty()) slot.engine.onTrigger("state:" + state);
+    }
+    _screenSaverActive = false;
+    Serial.printf("[%s] Woken from screen sleep\n", TAG);
+}
+
 void DisplayManager::tickAll(uint32_t now) {
     // Phase A — Process CmdMessage queue (wake if sleeping)
     if (_cmdQueue) {
         CmdMessage cmd;
         while (xQueueReceive(_cmdQueue, &cmd, 0) == pdTRUE) {
-            if (_screenSaverActive) {
-                for (auto& slot : _slots) {
-                    if (slot.driver) {
-                        slot.driver->powerSave(false);
-                    }
-                    slot.engine.resetToDefault();
-                }
-                _screenSaverActive = false;
-                Serial.printf("[%s] Woken from screen sleep\n", TAG);
-            }
+            if (_screenSaverActive) wake();
 
             switch (cmd.type) {
                 case CmdMessage::TriggerChange:
@@ -290,17 +301,19 @@ void DisplayManager::tickAll(uint32_t now) {
         }
     }
 
-    // Phase B — Check sleep timeout
-    if (!_screenSaverActive && (now - _lastActivity >= SCREEN_SAVER_TIMEOUT)) {
+    // Phase B — Sleep after the node's timeout, counted from the printer going to rest
+    if (printerActive()) {
+        _lastActivity = now;
+        if (_screenSaverActive) wake();
+    }
+    if (!_screenSaverActive && _sleepAfterMs > 0 && (now - _lastActivity >= _sleepAfterMs)) {
         for (auto& slot : _slots) {
-            slot.engine.switchToGroup("screen_sleep");
             if (slot.driver) {
                 slot.driver->powerSave(true);
             }
         }
         _screenSaverActive = true;
-        Serial.printf("[%s] Screen sleep after %lums inactivity\n",
-                      TAG, (unsigned long)SCREEN_SAVER_TIMEOUT);
+        Serial.printf("[%s] Screen sleep after %lums inactivity\n", TAG, _sleepAfterMs);
     }
 
     // Phase C — Render (skip if sleeping)
@@ -310,28 +323,39 @@ void DisplayManager::tickAll(uint32_t now) {
         if (!slot.driver) continue;
 
         const Frame* frame = slot.engine.tick(now);
-        if (frame && frame != slot.lastRenderedFrame) {
+        if (!frame) continue;
+
+        // Redraw on a new frame, or when a value this frame shows reads differently
+        // (a single-frame face would otherwise never update its data values)
+        bool redraw = frame != slot.lastRenderedFrame;
+        uint32_t version = _printerState.version();
+        std::vector<String> values;
+        if (redraw || version != slot.stateVersion) {
+            slot.stateVersion = version;
+            values = dataValues(*frame);
+            redraw = redraw || values != slot.lastValues;
+        }
+
+        if (redraw) {
             for (uint8_t band = 0; band < slot.driver->bandCount(); band++) {
                 slot.driver->beginBand(band);
                 renderFrame(*frame, *slot.driver, &_sprites, &_printerState);
                 slot.driver->show();
             }
             slot.lastRenderedFrame = frame;
+            slot.lastValues = std::move(values);
         }
     }
 }
 
-void DisplayManager::updateState(const StateEvent& event) {
-    _printerState.progress = event.progress;
-    _printerState.nozzleTemp = event.nozzleTemp;
-    _printerState.bedTemp = event.bedTemp;
-    _printerState.nozzleTarget = event.nozzleTarget;
-    _printerState.bedTarget = event.bedTarget;
-    _printerState.moonrakerConnected = event.connected;
-}
-
-void DisplayManager::setMoonrakerConnected(bool connected) {
-    _printerState.moonrakerConnected = connected;
+std::vector<String> DisplayManager::dataValues(const Frame& frame) const {
+    std::vector<String> values;
+    for (const auto& element : frame.elements) {
+        if (element.type == FrameElement::DataValue) {
+            values.push_back(_printerState.resolve(element.value));
+        }
+    }
+    return values;
 }
 
 void DisplayManager::onStateChange(const String& trigger) {

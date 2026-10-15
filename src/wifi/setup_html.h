@@ -8,37 +8,44 @@ static const char SETUP_HTML[] PROGMEM = R"rawliteral(
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Klippyface Setup</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#1a1a2e;color:#eee;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
-.container{background:#16213e;border-radius:12px;padding:24px;max-width:420px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,.4)}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#1a1a2e;color:#eee;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:16px}
+.container{background:#16213e;border-radius:12px;padding:20px;max-width:420px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,.4)}
 h1{font-size:22px;text-align:center;margin-bottom:20px;color:#e94560;font-weight:700}
-h2{font-size:14px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+h2{font-size:13px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
 .section{margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #1a1a2e}
-.section:last-of-type{border-bottom:none;margin-bottom:0;padding-bottom:0}
-label{display:block;font-size:13px;color:#aaa;margin-bottom:4px}
-input,select{width:100%;padding:10px 12px;border:1px solid #333;border-radius:8px;background:#0f3460;color:#eee;font-size:16px;margin-bottom:8px;outline:none;transition:border-color .2s}
-input:focus,select:focus{border-color:#e94560}
-input::placeholder{color:#666}
-.password-wrap{display:flex;gap:8px}
-.password-wrap input{flex:1}
-.password-wrap button{flex-shrink:0;padding:10px 16px;border-radius:8px;font-size:14px}
-.btn{width:100%;padding:12px;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;transition:opacity .2s,transform .1s}
-.btn:active{transform:scale(.98)}
-.btn-primary{background:#e94560;color:#fff}
-.btn-primary:hover{opacity:.9}
-.btn-secondary{background:#333;color:#eee}
-.btn-secondary:hover{opacity:.8}
-.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.scan-row{display:flex;gap:8px;margin-bottom:8px}
-.scan-row button{flex-shrink:0}
-#ssidSelect{display:none}
-.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:14px;color:#ccc;margin-bottom:6px}
+.hint{font-size:12px;color:#888;margin-top:6px;line-height:1.4}
+input[type=text],input[type=password],input[type=number]{display:block;width:100%;min-width:0;padding:11px 12px;border:1px solid #333;border-radius:8px;background:#0f3460;color:#eee;font-size:16px;outline:none}
+input:focus{border-color:#e94560}
+input::placeholder{color:#667}
+.check{display:flex;align-items:center;gap:8px;font-size:14px;color:#ccc;cursor:pointer}
+.check input{width:18px;height:18px;accent-color:#e94560;flex-shrink:0}
+.row{display:flex;gap:12px;align-items:flex-end}
+.row .grow{flex:1;min-width:0}
+.list-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.list-head span{font-size:14px;color:#ccc}
+.link{background:none;border:none;color:#e94560;font-size:14px;cursor:pointer;padding:4px 0}
+.link:disabled{color:#666;cursor:default}
+#networks{border:1px solid #333;border-radius:8px;max-height:220px;overflow-y:auto;margin-bottom:12px}
+.net{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;background:none;border:none;border-bottom:1px solid #22284a;color:#eee;font-size:15px;text-align:left;cursor:pointer}
+.net:last-child{border-bottom:none}
+.net.selected{background:#0f3460}
+.net .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.net .lock{font-size:12px;color:#888}
+.bars{display:inline-flex;align-items:flex-end;gap:2px;height:14px;flex-shrink:0}
+.bars i{display:block;width:3px;background:#444;border-radius:1px}
+.bars i.on{background:#8cf}
+.empty{padding:12px;font-size:14px;color:#888}
+.btn{display:block;width:100%;padding:13px;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;background:#e94560;color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:-2px;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
 #status{margin-top:12px;padding:10px 12px;border-radius:8px;font-size:14px;display:none}
-#status.info{display:block;background:#1a3a5c;color:#8cf}
 #status.error{display:block;background:#3a1a1a;color:#f88}
 #status.success{display:block;background:#1a3a1a;color:#8f8}
 </style>
@@ -49,124 +56,124 @@ input::placeholder{color:#666}
 
   <div class="section">
     <h2>WiFi Network</h2>
-    <div class="scan-row">
-      <button class="btn btn-secondary" onclick="scanNetworks()" id="scanBtn">Scan</button>
-      <select id="ssidSelect" onchange="selectSsid(this.value)"><option value="">— pick from scan —</option></select>
+    <div class="list-head">
+      <span>Nearby networks</span>
+      <button class="link" type="button" id="rescan" onclick="scan(true)">Rescan</button>
     </div>
-    <input type="text" id="ssid" placeholder="Network name (SSID)" autocomplete="off">
-    <div class="password-wrap">
-      <input type="password" id="password" placeholder="Password" autocomplete="off">
-      <button class="btn btn-secondary" onclick="togglePw()" id="pwToggle">Show</button>
+    <div id="networks"><div class="empty"><span class="spinner"></span>Scanning…</div></div>
+    <div class="field">
+      <label for="ssid">Network name</label>
+      <input type="text" id="ssid" placeholder="Pick above or type it" autocomplete="off" autocapitalize="none">
     </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Leave empty for an open network" autocomplete="off">
+    </div>
+    <label class="check"><input type="checkbox" id="showPw" onchange="byId('password').type=this.checked?'text':'password'"> Show password</label>
   </div>
 
   <div class="section">
-    <h2>Moonraker</h2>
-    <input type="text" id="mkHost" placeholder="Host IP (e.g. 192.168.2.21)" autocomplete="off">
-    <div style="display:flex;gap:8px;align-items:center">
-      <input type="number" id="mkPort" value="7125" placeholder="Port" min="1" max="65535" style="margin-bottom:0">
-      <label style="white-space:nowrap;font-size:13px;margin-bottom:0"><input type="checkbox" id="mkTls" onchange="toggleMkTlsVerify()"> WSS</label>
-    </div>
-    <div id="mkTlsVerifyWrap" style="display:none;margin-top:4px">
-      <label style="font-size:12px;color:#888"><input type="checkbox" id="mkTlsVerify"> Verify SSL certificate</label>
-    </div>
-  </div>
-
-  <div class="section">
-    <h2>Companion Server</h2>
-    <label style="font-size:13px;color:#aaa;cursor:pointer">
-      <input type="checkbox" id="useSeparateServer" onchange="toggleServerSection()">
-      Use a different server
-    </label>
-    <div id="serverSection" style="display:none;margin-top:8px">
-      <input type="text" id="svHost" placeholder="Host (e.g. 192.168.2.21)" autocomplete="off">
-      <div style="display:flex;gap:8px;align-items:center">
-        <input type="number" id="svPort" value="5000" placeholder="Port" min="1" max="65535" style="margin-bottom:0">
-        <label style="white-space:nowrap;font-size:13px;margin-bottom:0"><input type="checkbox" id="svTls" onchange="toggleSvTlsVerify()"> HTTPS</label>
+    <h2>Klippyface Server</h2>
+    <div class="row field">
+      <div class="grow">
+        <label for="svHost">Server address</label>
+        <input type="text" id="svHost" placeholder="e.g. 192.168.1.50" autocomplete="off" autocapitalize="none" inputmode="url">
       </div>
-      <div id="svTlsVerifyWrap" style="display:none;margin-top:4px">
-        <label style="font-size:12px;color:#888"><input type="checkbox" id="svTlsVerify"> Verify SSL certificate</label>
+      <div style="width:96px">
+        <label for="svPort">Port</label>
+        <input type="number" id="svPort" value="5000" min="1" max="65535">
+      </div>
+    </div>
+    <p class="hint">The IP address of the computer running the Klippyface server (the address you open its web page on). The server connects to your printer; this display gets everything from it.</p>
+    <div style="margin-top:12px">
+      <label class="check"><input type="checkbox" id="svTls" onchange="byId('svTlsVerifyWrap').style.display=this.checked?'block':'none'"> Use HTTPS</label>
+      <div id="svTlsVerifyWrap" style="display:none;margin:10px 0 0 26px">
+        <label class="check"><input type="checkbox" id="svTlsVerify"> Verify certificate</label>
       </div>
     </div>
   </div>
 
-  <div class="section">
+  <div class="section" style="border-bottom:none;padding-bottom:0">
     <h2>Display Name</h2>
-    <input type="text" id="friendlyName" placeholder="Optional — e.g. Printer Face" autocomplete="off">
+    <div class="field">
+      <label for="friendlyName">Name (optional)</label>
+      <input type="text" id="friendlyName" placeholder="e.g. Printer Face" autocomplete="off">
+    </div>
   </div>
 
-  <button class="btn btn-primary" onclick="saveConfig()" id="saveBtn">Save &amp; Reboot</button>
+  <button class="btn" type="button" onclick="saveConfig()" id="saveBtn">Save &amp; Reboot</button>
   <div id="status"></div>
 </div>
 
 <script>
 function byId(id){return document.getElementById(id)}
 
-function togglePw(){
-  var p=byId('password'),t=byId('pwToggle')
-  if(p.type==='password'){p.type='text';t.textContent='Hide'}
-  else{p.type='password';t.textContent='Show'}
-}
+var pollTimer=null,pollFailures=0
 
-function selectSsid(val){if(val)byId('ssid').value=val}
-
-function toggleMkTlsVerify(){
-  byId('mkTlsVerifyWrap').style.display=byId('mkTls').checked?'block':'none'
-}
-
-function toggleServerSection(){
-  byId('serverSection').style.display=byId('useSeparateServer').checked?'block':'none'
-}
-
-function toggleSvTlsVerify(){
-  byId('svTlsVerifyWrap').style.display=byId('svTls').checked?'block':'none'
-}
-
-function scanNetworks(){
-  var btn=byId('scanBtn'),sel=byId('ssidSelect')
-  btn.disabled=true;btn.textContent='Scanning...'
-  fetch('/scan').then(function(r){return r.json()}).then(function(nets){
-    sel.innerHTML='<option value="">— pick from scan —</option>'
-    nets.forEach(function(n){
-      var o=document.createElement('option')
-      o.value=n.ssid;o.textContent=n.ssid+(n.rssi?' ('+n.rssi+'dBm)':'')
-      sel.appendChild(o)
-    })
-    sel.style.display='block'
-    btn.textContent='Rescan'
-    btn.disabled=false
+// The display scans on its own when the portal starts; keep asking until it's done.
+// A request can fail while the radio is scanning, so failures just retry a few times.
+function scan(refresh){
+  clearTimeout(pollTimer)
+  byId('rescan').disabled=true
+  fetch('/scan'+(refresh?'?refresh=1':'')).then(function(r){return r.json()}).then(function(res){
+    pollFailures=0
+    showNetworks(res.networks,res.scanning)
+    if(res.scanning)pollTimer=setTimeout(function(){scan(false)},1000)
+    else byId('rescan').disabled=false
   }).catch(function(){
-    setStatus('Scan failed','error')
-    btn.textContent='Scan'
-    btn.disabled=false
+    if(++pollFailures<=5){pollTimer=setTimeout(function(){scan(false)},1500);return}
+    pollFailures=0
+    byId('rescan').disabled=false
+    if(!byId('networks').querySelector('.net'))byId('networks').innerHTML='<div class="empty">Couldn\'t scan. Tap Rescan, or type the network name below.</div>'
+  })
+}
+
+function bars(rssi){
+  var n=rssi>-55?4:rssi>-67?3:rssi>-75?2:1,html='<span class="bars">'
+  for(var i=1;i<=4;i++)html+='<i class="'+(i<=n?'on':'')+'" style="height:'+(i*3+2)+'px"></i>'
+  return html+'</span>'
+}
+
+function showNetworks(nets,scanning){
+  var box=byId('networks')
+  if(!nets.length){
+    box.innerHTML=scanning?'<div class="empty"><span class="spinner"></span>Scanning…</div>':'<div class="empty">No networks found. Tap Rescan, or type the name below.</div>'
+    return
+  }
+  box.innerHTML=''
+  nets.forEach(function(n){
+    var b=document.createElement('button')
+    b.type='button';b.className='net'+(n.ssid===byId('ssid').value?' selected':'')
+    b.innerHTML=bars(n.rssi)+'<span class="name"></span>'+(n.secure?'<span class="lock">secured</span>':'')
+    b.querySelector('.name').textContent=n.ssid
+    b.onclick=function(){
+      byId('ssid').value=n.ssid
+      var all=box.querySelectorAll('.net');for(var i=0;i<all.length;i++)all[i].classList.remove('selected')
+      b.classList.add('selected')
+      if(n.secure)byId('password').focus()
+    }
+    box.appendChild(b)
   })
 }
 
 function saveConfig(){
   var ssid=byId('ssid').value.trim()
-  var host=byId('mkHost').value.trim()
-  if(!ssid){setStatus('WiFi SSID is required','error');return}
-  if(!host){setStatus('Moonraker host is required','error');return}
+  var host=byId('svHost').value.trim()
+  if(!ssid){setStatus('Pick or type a WiFi network','error');return}
+  if(!host){setStatus('Enter the Klippyface server address','error');return}
 
   var payload={
     ssid:ssid,
     password:byId('password').value,
-    mk_host:host,
-    mk_port:parseInt(byId('mkPort').value)||7125,
-    mk_tls:byId('mkTls').checked,
-    mk_tls_verify:byId('mkTlsVerify').checked,
+    sv_host:host,
+    sv_port:parseInt(byId('svPort').value)||5000,
+    sv_tls:byId('svTls').checked,
+    sv_tls_verify:byId('svTlsVerify').checked,
     friendly_name:byId('friendlyName').value.trim()
   }
 
-  if(byId('useSeparateServer').checked){
-    payload.sv_host=byId('svHost').value.trim()
-    payload.sv_port=parseInt(byId('svPort').value)||5000
-    payload.sv_tls=byId('svTls').checked
-    payload.sv_tls_verify=byId('svTlsVerify').checked
-  }
-
   var btn=byId('saveBtn')
-  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Saving...'
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Saving…'
 
   fetch('/save',{
     method:'POST',
@@ -174,8 +181,7 @@ function saveConfig(){
     body:JSON.stringify(payload)
   }).then(function(r){
     if(!r.ok)return r.text().then(function(t){throw new Error(t||'Save failed')})
-    setStatus('Saved! Rebooting in 3 seconds...','success')
-    setTimeout(function(){window.location.reload()},3500)
+    setStatus('Saved. The display is restarting and will join '+ssid+'. You can close this page.','success')
   }).catch(function(e){
     setStatus(e.message,'error')
     btn.disabled=false;btn.textContent='Save & Reboot'
@@ -186,6 +192,8 @@ function setStatus(msg,type){
   var s=byId('status')
   s.textContent=msg;s.className=type
 }
+
+scan(false)
 </script>
 </body>
 </html>

@@ -58,7 +58,7 @@ ui/
 
 `lib/render.ts` reproduces what the panel draws so previews are pixel-accurate:
 
-- Text and data values use the GFX 5×7 font at size 1 (6×8 cells) and are **centred** on x/y, as in `Renderer.cpp`. UTF-8 is printed byte-by-byte, so e.g. `°` renders as two glyphs, just like on the device.
+- Text and data values use the GFX 5×7 font at size 1 (6×8 cells) and are **centred** on x/y, as in `Renderer.cpp`. Text is converted to CP437 glyphs the same way as the firmware's `toFontText()` (`render.ts` mirrors its table), so `°` is one glyph and characters the font lacks show as `?`, just like on the device.
 - Data values show sample readings (`DATA_KEYS`), matching `PrinterState::resolve` formats.
 - Sprites are drawn top-left at x/y.
 - SH1106/SSD1306 are treated as monochrome: any non-black colour lights the pixel.
@@ -81,6 +81,7 @@ Edits are applied locally first and saved in the background (`useSetDocument`, 3
 | `#/sprites` | Sprite library: folder sections (drag cards between them), search |
 | `#/sprites/{id}` | Pixel editor; folder, description and ID rename; mirror lines and a reference sprite overlay in the side panel |
 | `#/presets` | Presets |
+| `#/printer` | Moonraker connection: host/port/TLS/API key, status, subscribed objects, live values |
 
 ## Dev Workflow
 

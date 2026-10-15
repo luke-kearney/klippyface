@@ -28,9 +28,6 @@ Thanks for your interest! This is a multi-node ESP32 display system driven by Mo
 ### Firmware (ESP32)
 
 ```bash
-# Build the mock variant (no printer needed)
-pio run -e esp32dev-mock
-
 # Flash to device (classic ESP32; S3 boards: esp32s3-ws-lcd169, esp32s3-ws-lcd128)
 pio run -e esp32dev -t upload
 
@@ -58,6 +55,23 @@ npm run dev
 npm run build
 # → outputs to server/wwwroot/
 ```
+
+### Without a Printer
+
+```bash
+# Fake Moonraker on :7125 — set it as the Moonraker host on the server's Printer page
+dotnet run --project tools/FakeMoonraker -- --profile quad --scenario print-loop
+```
+
+Profiles, scenarios and the `/_sim/*` control endpoints are in [tools/FakeMoonraker/README.md](tools/FakeMoonraker/README.md).
+
+### Tests
+
+```bash
+dotnet test --solution klippyface.slnx
+```
+
+Tests live in `tests/Klippyface.Server.Tests` (xUnit v3, Microsoft.Testing.Platform via `global.json`). `FakeMoonrakerHost` starts the fake on a random port with a controllable clock, for anything that needs a Moonraker to talk to.
 
 ---
 
@@ -133,7 +147,7 @@ xTaskCreatePinnedToCore(
 ```
 
 **Core assignment:**
-- Core 0: Protocol, networking, background I/O (WiFi, Moonraker, config fetch, GCODE)
+- Core 0: Protocol, networking, background I/O (WiFi, server WebSocket and relayed printer state, config fetch)
 - Core 1: Display rendering (timing-critical, ~30fps tick)
 
 **Priority guidelines:**
@@ -141,15 +155,13 @@ xTaskCreatePinnedToCore(
 | Priority | Task |
 |----------|------|
 | 10 | `displayTask` |
-| 9 | `moonrakerTask` |
 | 8 | `wifiTask` |
-| 7 | `gcodeHandlerTask` |
 | 6 | `serverClientTask` |
 | 5 | `captivePortalTask` |
 
 **Inter-task communication:**
 - Use **Event Groups** for signalling state changes (WiFi up/down, config ready). Document bit assignments.
-- Use **Queues** for structured data transfer. Carry small structs by value (`StateEvent`, `ConfigUpdate`, `DisplayCommand`). Queue depth 5-10.
+- Use **Queues** for structured data transfer. Carry small structs by value (e.g. `CmdMessage`). Queue depth 5-10.
 - Never share mutable data between tasks without a queue or mutex. No shared pointers.
 - Never call `delay()` inside a task — use `vTaskDelay(pdMS_TO_TICKS(N))`.
 
@@ -176,8 +188,6 @@ xTaskCreatePinnedToCore(
 | `[GFX]` | `GfxDriver` (HX8347D, ST7789, GC9A01) |
 | `[CONFIG]` | `ConfigFetcher`, `ConfigDeserializer` |
 | `[SRVCLIENT]` | `ServerClient` |
-| `[MOONRAKER]` | `MoonrakerClient` |
-| `[GCODE]` | `GcodeHandler` |
 | `[ENGINE]` | `AnimationEngine` |
 | `[PORTAL]` | `CaptivePortal` |
 
@@ -207,7 +217,7 @@ src/
 ├── wifi/                 # WiFi management
 ├── display/              # DisplayDriver abstraction + implementations
 ├── engine/               # Animation engine, config structs, data binding
-└── comms/                # Moonraker, HTTP, GCODE handling
+└── comms/                # Server WebSocket, config fetch over HTTP
 ```
 
 One `.h`/`.cpp` pair per class. Free functions may share a pair when closely related.
@@ -284,7 +294,7 @@ Firmware builds from the matching `v<VERSION>` tag report the plain version (`0.
 
 **Dev builds:** every push to `develop` replaces the rolling `dev` pre-release with the same artifacts, named `X.Y.Z-dev.<sha>`, except that only the classic `esp32dev` firmware is built. The firmware reports `X.Y.Z+g<sha>`.
 
-**CI:** the `CI` workflow builds the firmware (`esp32dev`, `esp32dev-mock`, `esp32s3-ws-lcd169`, `esp32s3-ws-lcd128`), Web UI and server on every PR into `develop`/`master` and every push to `develop`. Run the `Release` workflow manually (Actions → Release → Run workflow) to build the release artifacts (all boards) from any branch without publishing. Board targets for the release live in `FIRMWARE_TARGETS` in `release.yml`.
+**CI:** the `CI` workflow builds the firmware (`esp32dev`, `esp32s3-ws-lcd169`, `esp32s3-ws-lcd128`), Web UI and server, and runs the .NET tests, on every PR into `develop`/`master` and every push to `develop`. Run the `Release` workflow manually (Actions → Release → Run workflow) to build the release artifacts (all boards) from any branch without publishing. Board targets for the release live in `FIRMWARE_TARGETS` in `release.yml`.
 
 ---
 

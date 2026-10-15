@@ -32,6 +32,7 @@ CREATE TABLE nodes (
     last_config_version INTEGER NOT NULL DEFAULT 0,      -- bumped on admin edits
     board               TEXT NOT NULL DEFAULT '',        -- firmware build env from hello, e.g. esp32s3-ws-lcd169
     firmware_version    TEXT NOT NULL DEFAULT '',        -- fw_version from hello
+    sleep_after_seconds INTEGER NOT NULL DEFAULT 300,    -- screen sleep while the printer rests; 0 = never
     created_at          TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -157,5 +158,20 @@ CREATE TABLE node_presets (
     preset_id   TEXT NOT NULL REFERENCES presets(id) ON DELETE CASCADE,
     enabled     INTEGER NOT NULL DEFAULT 1,
     PRIMARY KEY (node_id, preset_id)
+);
+```
+
+### Moonraker Settings
+
+One row (`id` 1) for the server's Moonraker connection; no row, or an empty `host`, means not set up yet.
+
+```sql
+CREATE TABLE MoonrakerSettings (
+    Id          INTEGER PRIMARY KEY,
+    Host        TEXT NOT NULL,
+    Port        INTEGER NOT NULL,           -- 7125 by default
+    UseTls      INTEGER NOT NULL,           -- wss:// when 1
+    ApiKey      TEXT NOT NULL,              -- sent as X-Api-Key; '' = none
+    UpdatedAt   TEXT NOT NULL
 );
 ```

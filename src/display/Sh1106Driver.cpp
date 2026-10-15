@@ -25,6 +25,8 @@ bool Sh1106Driver::init() {
     }
 
     _display->setRotation(_rotation);
+    // Real CP437 glyph positions, as Arduino_GFX uses (see FontText.h)
+    _display->cp437(true);
     _display->clearDisplay();
     _display->display();
 

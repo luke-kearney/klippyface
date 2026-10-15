@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router'
-import { Cpu, Image, Layers, Moon } from 'lucide-react'
+import { Cpu, Image, Layers, Moon, Printer } from 'lucide-react'
 import { useNodes } from '@/hooks/queries'
 import { cn } from '@/lib/utils'
 import { StatusDot } from '@/components/common'
@@ -7,6 +7,7 @@ import { KlippyfaceMark, KlippyfaceWordmark } from '@/components/Logo'
 
 const NAV = [
   { to: '/nodes', label: 'Nodes', icon: Cpu },
+  { to: '/printer', label: 'Printer', icon: Printer },
   { section: 'Library' },
   { to: '/groups', label: 'Groups', icon: Layers },
   { to: '/sprites', label: 'Sprites', icon: Image },

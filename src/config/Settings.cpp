@@ -10,10 +10,9 @@ static const char* NVS_NS = "klippyface";
 static const char* KEY_PROVISIONED = "provisioned";
 static const char* KEY_WIFI_SSID   = "wifi_ssid";
 static const char* KEY_WIFI_PASS   = "wifi_pass";
-static const char* KEY_MK_HOST     = "mk_host";
-static const char* KEY_MK_PORT     = "mk_port";
-static const char* KEY_MK_TLS      = "mk_tls";
-static const char* KEY_MK_TLS_VER  = "mk_tls_ver";
+// Nodes set up before the server relayed Moonraker saved its host here, and
+// the server usually runs on the same machine; read only as a fallback.
+static const char* KEY_LEGACY_MK_HOST = "mk_host";
 static const char* KEY_SV_HOST     = "sv_host";
 static const char* KEY_SV_PORT     = "sv_port";
 static const char* KEY_SV_TLS      = "sv_tls";
@@ -70,59 +69,12 @@ void Settings::setWifiCredentials(const String& ssid, const String& password) {
     Serial.printf("[%s] WiFi: %s (********)\n", TAG, ssid.c_str());
 }
 
-// ---- Moonraker ----
-
-String Settings::getMoonrakerHost()  { return readString(KEY_MK_HOST, "192.168.2.21"); }
-uint16_t Settings::getMoonrakerPort() {
-    if (!_ready) return 7125;
-    uint16_t port = 7125;
-    nvs_get_u16(_handle, KEY_MK_PORT, &port);
-    return port;
-}
-
-bool Settings::getMoonrakerUseTls() {
-    if (!_ready) return false;
-    uint8_t val = 0;
-    nvs_get_u8(_handle, KEY_MK_TLS, &val);
-    return val == 1;
-}
-
-bool Settings::getMoonrakerTlsVerify() {
-    if (!_ready) return false;
-    uint8_t val = 0;
-    nvs_get_u8(_handle, KEY_MK_TLS_VER, &val);
-    return val == 1;
-}
-
-void Settings::setMoonrakerHost(const String& host, uint16_t port) {
-    writeString(KEY_MK_HOST, host);
-    if (_ready) {
-        nvs_set_u16(_handle, KEY_MK_PORT, port);
-    }
-    Serial.printf("[%s] Moonraker: %s:%u\n", TAG, host.c_str(), port);
-}
-
-void Settings::setMoonrakerUseTls(bool useTls) {
-    if (!_ready) return;
-    nvs_set_u8(_handle, KEY_MK_TLS, useTls ? 1 : 0);
-    commit();
-    Serial.printf("[%s] Moonraker TLS: %s\n", TAG, useTls ? "wss" : "ws");
-}
-
-void Settings::setMoonrakerTlsVerify(bool verify) {
-    if (!_ready) return;
-    nvs_set_u8(_handle, KEY_MK_TLS_VER, verify ? 1 : 0);
-    commit();
-    Serial.printf("[%s] Moonraker TLS verify: %s\n", TAG, verify ? "on" : "off");
-}
-
 // ---- Companion server ----
 
 String Settings::getServerHost() {
     String sv = readString(KEY_SV_HOST, "");
     if (sv.length() > 0) return sv;
-    // Default to same host as Moonraker
-    return getMoonrakerHost();
+    return readString(KEY_LEGACY_MK_HOST, "");
 }
 
 uint16_t Settings::getServerPort() {

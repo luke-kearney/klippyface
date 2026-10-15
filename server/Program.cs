@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Klippyface.Server.Data;
 using Klippyface.Server.Api;
 using Klippyface.Server.Services;
+using Klippyface.Server.Services.Moonraker;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,15 @@ builder.Services.AddScoped<StarterPackService>();
 builder.Services.AddScoped<NodePublisher>();
 builder.Services.AddSingleton<NodeStatusService>();
 builder.Services.AddHostedService<PendingPublishSweeper>();
+
+// One Moonraker connection for the whole server; nodes get printer state through it
+builder.Services.AddSingleton<PrinterStateStore>();
+builder.Services.AddSingleton<NodeStateRelay>();
+builder.Services.AddSingleton<IPrinterStateListener>(sp => sp.GetRequiredService<NodeStateRelay>());
+builder.Services.AddSingleton<IMoonrakerSettingsProvider, DbMoonrakerSettingsProvider>();
+builder.Services.AddSingleton(new MoonrakerServiceOptions());
+builder.Services.AddSingleton<MoonrakerService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<MoonrakerService>());
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -76,5 +86,6 @@ app.MapLibraryApi();
 app.MapSpritesApi();
 app.MapPresetsApi();
 app.MapConfigApi();
+app.MapMoonrakerApi();
 
 app.Run();
