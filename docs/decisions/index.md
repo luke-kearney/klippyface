@@ -399,6 +399,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-15: A finished print's result stays dismissed
+
+**Context:** On the real printer, turning the motors off (`M84`) after a print left the face on complete, because only `idle_timeout` reaching `Idle` cleared it and `M84` restarts that countdown. And because Klipper keeps `print_stats.state` = `complete` until the next print, any G-code after the timeout (homing, jogging) brought the complete face back.
+
+**Decision:** `PrinterStateStore` remembers when the current complete/cancelled result is dismissed — `idle_timeout` goes `Idle`, or `toolhead.homed_axes` goes empty in a later update than the result (motors turned off; an `M84` in the end G-code arrives with the result and doesn't count). It stays dismissed until `print_stats.state` changes. Fluidd/Mainsail's "clear file" (`SDCARD_RESET_FILE`) already resets `print_stats` to `standby`.
+
+**Consequences:** The dismissal lives in server memory: a server restart while the result is shown brings it back until the next dismissal. A cancel macro that turns the motors off in a separate step after `CANCEL_PRINT_BASE` would dismiss cancelled straight away — not yet checked on a real printer.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations

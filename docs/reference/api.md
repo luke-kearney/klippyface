@@ -235,7 +235,7 @@ Klipper's `print_stats.state` has no idle (it says `standby`), no heating, and k
 | `printing` | Printing |
 | `paused` | Paused |
 | `heating` | No print running, but the bed or an extruder is more than 2°C below its target: a preheat, or an `M190`/`M109` wait |
-| `complete` / `cancelled` | The last print's result, until Klipper's idle timeout fires (`idle_timeout.state` = `Idle`) |
+| `complete` / `cancelled` | The last print's result, until it's dismissed: Klipper's idle timeout fires (`idle_timeout.state` = `Idle`), the motors are turned off after the print ended (`toolhead.homed_axes` goes empty), or the file is cleared. Once dismissed it stays dismissed until the next print, through later homing or moves |
 | `busy` | No print, but Klipper is running G-code: homing, macros, manual moves (`idle_timeout.state` = `Printing`) |
 | `idle` | Anything else |
 

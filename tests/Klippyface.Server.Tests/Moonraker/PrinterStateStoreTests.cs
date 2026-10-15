@@ -145,6 +145,53 @@ public class PrinterStateStoreTests
     }
 
     [Fact]
+    public void Turning_the_motors_off_dismisses_a_finished_print()
+    {
+        _store.Replace(Json("""
+            {"print_stats": {"state": "printing", "filament_used": 10524}, "idle_timeout": {"state": "Printing"},
+             "webhooks": {"state": "ready"}, "toolhead": {"homed_axes": "xyz"}}
+            """));
+        Assert.Equal("complete", State(_store.Apply(Json("""{"print_stats": {"state": "complete"}, "idle_timeout": {"state": "Ready"}}"""))));
+
+        Assert.Equal("idle", State(_store.Apply(Json("""{"toolhead": {"homed_axes": ""}}"""))));
+
+        // Homing afterwards doesn't bring the result back
+        _store.Apply(Json("""{"idle_timeout": {"state": "Printing"}, "toolhead": {"homed_axes": "xyz"}}"""));
+        Assert.Equal("idle", State(_store.Apply(Json("""{"idle_timeout": {"state": "Ready"}}"""))));
+
+        Assert.Equal("heating", State(_store.Apply(Json("""{"print_stats": {"state": "printing", "filament_used": 0}}"""))));
+    }
+
+    [Fact]
+    public void Motors_turned_off_by_the_end_gcode_keep_the_result()
+    {
+        _store.Replace(Json("""
+            {"print_stats": {"state": "printing", "filament_used": 900}, "idle_timeout": {"state": "Printing"},
+             "webhooks": {"state": "ready"}, "toolhead": {"homed_axes": "xyz"}}
+            """));
+
+        var changes = _store.Apply(Json("""
+            {"print_stats": {"state": "complete"}, "idle_timeout": {"state": "Ready"}, "toolhead": {"homed_axes": ""}}
+            """));
+
+        Assert.Equal("complete", State(changes));
+    }
+
+    [Fact]
+    public void Idle_timeout_dismisses_a_finished_print_for_good()
+    {
+        _store.Replace(Json("""
+            {"print_stats": {"state": "cancelled"}, "idle_timeout": {"state": "Ready"},
+             "webhooks": {"state": "ready"}, "toolhead": {"homed_axes": "xyz"}}
+            """));
+
+        Assert.Equal("idle", State(_store.Apply(Json("""{"idle_timeout": {"state": "Idle"}}"""))));
+
+        Assert.Equal("busy", State(_store.Apply(Json("""{"idle_timeout": {"state": "Printing"}}"""))));
+        Assert.Equal("idle", State(_store.Apply(Json("""{"idle_timeout": {"state": "Ready"}}"""))));
+    }
+
+    [Fact]
     public void Display_state_waits_for_a_print_state()
     {
         var changes = _store.Replace(Json("""{"idle_timeout": {"state": "Idle"}}"""));
@@ -153,4 +200,7 @@ public class PrinterStateStoreTests
     }
 
     private static JsonObject Json(string text) => JsonNode.Parse(text)!.AsObject();
+
+    private static string? State(IReadOnlyDictionary<string, JsonNode?> changes) =>
+        changes.GetValueOrDefault(PrinterStateStore.DisplayStateKey)?.GetValue<string>();
 }

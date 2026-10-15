@@ -17,22 +17,22 @@ public sealed class PrinterStateStore
     /// Klipper, but faces have always bound to "print_stats.progress"; it follows
     /// display_status (M73, falling back to the file position).
     /// </summary>
-    private static readonly (string Key, Func<IReadOnlyDictionary<string, JsonNode?>, JsonNode?> Compute)[] Derived =
+    private static readonly (string Key, Func<IReadOnlyDictionary<string, JsonNode?>, bool, JsonNode?> Compute)[] Derived =
     [
-        ("print_stats.progress", v =>
+        ("print_stats.progress", (v, _) =>
             v.GetValueOrDefault("display_status.progress") ?? v.GetValueOrDefault("virtual_sdcard.progress")),
-        (DisplayStateKey, v => DisplayState(v)),
+        (DisplayStateKey, (v, resultDismissed) => DisplayState(v, resultDismissed)),
     ];
 
     /// <summary>
     /// One state for faces, from several Klipper objects (first match wins):
     /// error (Klipper shut down, or the print failed), heating (printing, nothing
     /// extruded yet), printing, paused, heating (no print, but a heater is still
-    /// warming up), complete/cancelled (until idle_timeout goes Idle), busy (no
-    /// print, but running G-code), idle.
+    /// warming up), complete/cancelled (until dismissed, see <see cref="TrackResultLocked"/>),
+    /// busy (no print, but running G-code), idle.
     /// Null until Klipper has reported a print state.
     /// </summary>
-    public static string? DisplayState(IReadOnlyDictionary<string, JsonNode?> v)
+    public static string? DisplayState(IReadOnlyDictionary<string, JsonNode?> v, bool resultDismissed = false)
     {
         var klippy = Text(v, "webhooks.state");
         var print = Text(v, "print_stats.state");
@@ -47,7 +47,7 @@ public sealed class PrinterStateStore
             "printing" => "printing",
             "paused" => "paused",
             _ when HeaterWarmingUp(v) => "heating",
-            "complete" or "cancelled" when idle != "Idle" => print,
+            "complete" or "cancelled" when !resultDismissed && idle != "Idle" => print,
             _ when idle == "Printing" => "busy",
             _ => "idle",
         };
@@ -79,6 +79,10 @@ public sealed class PrinterStateStore
 
     private readonly Lock _lock = new();
     private readonly Dictionary<string, JsonNode?> _values = new();
+
+    // The print_stats.state the dismissed flag belongs to; a new state starts undismissed
+    private string? _resultState;
+    private bool _resultDismissed;
 
     /// <summary>
     /// Replace everything with a full status (a subscribe reply). Returns every
@@ -153,11 +157,34 @@ public sealed class PrinterStateStore
         changes[key] = value?.DeepClone();
     }
 
+    /// <summary>
+    /// Klipper keeps complete/cancelled until the next print or "clear file". The
+    /// result is dismissed when idle_timeout goes Idle or the motors are turned off
+    /// afterwards, and stays dismissed through later homing or moves.
+    /// </summary>
+    private void TrackResultLocked(Dictionary<string, JsonNode?> changes)
+    {
+        var print = Text(_values, "print_stats.state");
+        var newResult = print != _resultState;
+        if (newResult)
+        {
+            _resultState = print;
+            _resultDismissed = false;
+        }
+        if (print is not ("complete" or "cancelled")) return;
+
+        // An M84 in the end G-code can arrive with the result; that isn't a dismissal
+        var motorsOff = !newResult && changes.TryGetValue("toolhead.homed_axes", out var homed)
+            && homed is JsonValue axes && axes.TryGetValue<string>(out var text) && text == "";
+        if (motorsOff || Text(_values, "idle_timeout.state") == "Idle") _resultDismissed = true;
+    }
+
     private void UpdateDerivedLocked(Dictionary<string, JsonNode?> changes)
     {
+        TrackResultLocked(changes);
         foreach (var (key, compute) in Derived)
         {
-            var value = compute(_values);
+            var value = compute(_values, _resultDismissed);
             if (value is null)
             {
                 if (_values.Remove(key)) changes[key] = null;
