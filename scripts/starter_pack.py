@@ -82,6 +82,9 @@ STATE_COLORS = {
     "error": "#FB7185",
     "complete": "#4ADE80",
     "sleep": "#A1A1AA",
+    "heating": "#FDBA74",
+    "busy": "#A78BFA",
+    "cancelled": "#A1A1AA",
 }
 ERROR_BG = "#450A0A"
 

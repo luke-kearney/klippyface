@@ -16,7 +16,7 @@ public static class FakeMoonrakerApp
 
     /// <param name="args">
     /// --profile single|quad|path.json, --extruders n, --scenario name, --port n, --host addr,
-    /// --console true|false (typed commands; on when stdin is a terminal),
+    /// --console true|false (typed commands; on when stdin is a terminal), --idle-timeout seconds,
     /// or --replay capture.jsonl [--speed 1] [--loop true] instead of a profile and scenario
     /// </param>
     /// <param name="configure">Extra service setup, e.g. a fake TimeProvider in tests.</param>
@@ -61,8 +61,11 @@ public static class FakeMoonrakerApp
 
         var app = builder.Build();
 
+        var simulation = app.Services.GetRequiredService<PrinterSimulation>();
         if (capture is not null)
-            app.Services.GetRequiredService<PrinterSimulation>().Physics = false;
+            simulation.Physics = false;
+        if (config.GetValue<double?>("idle-timeout") is { } idleTimeout)
+            simulation.IdleTimeout = TimeSpan.FromSeconds(idleTimeout);
 
         app.UseWebSockets();
 

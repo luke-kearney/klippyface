@@ -26,6 +26,9 @@ public static class SimEndpoints
                 "POST /_sim/toolchange/{n}",
                 "POST /_sim/respond              {\"msg\":\"display:node=x group=y\",\"type\":\"echo|command|error\"}",
                 "POST /_sim/klippy/restart?seconds=5",
+                "POST /_sim/klippy/shutdown?message=...",
+                "POST /_sim/busy?seconds=10            run non-print G-code (idle_timeout Printing)",
+                "POST /_sim/idle                       fire the idle timeout now",
                 "POST /_sim/disconnect",
             },
             scenarios = Scenario.All.Select(s => new { s.Name, s.Description }),
@@ -85,6 +88,19 @@ public static class SimEndpoints
             _ = hub.RestartKlippyAsync(TimeSpan.FromSeconds(seconds ?? 5));
             return Results.Accepted();
         });
+
+        sim.MapPost("/klippy/shutdown", (MoonrakerHub hub, string? message) =>
+        {
+            hub.ShutdownKlippy(message ?? "Shutdown requested");
+            return Results.NoContent();
+        });
+
+        sim.MapPost("/busy", (PrinterSimulation s, double? seconds) =>
+        {
+            s.Busy(TimeSpan.FromSeconds(seconds ?? 10));
+            return Results.NoContent();
+        });
+        sim.MapPost("/idle", (PrinterSimulation s) => Done(s.ForceIdle(), "Printing"));
 
         sim.MapPost("/disconnect", (MoonrakerHub hub) => Results.Ok(new { dropped = hub.DisconnectAll() }));
     }

@@ -154,10 +154,24 @@ The companion server connects to [Moonraker](https://github.com/Arksine/moonrake
 
 1. **Server connects** → `printer.objects.list`, then subscribes to `print_stats`, `virtual_sdcard`, `display_status`, `toolhead`, `heater_bed` and every `extruder*`
 2. **Updates arrive** (only changed fields, ~4 per second) → merged into the server's copy of the printer state
-3. **Node says hello** → server sends `moonraker_status` and a full `state` with just the keys that node's faces bind to (plus `print_stats.state`), then only changes
-4. **Node** fires `state:<print_stats.state>` triggers and redraws data values
+3. **Node says hello** → server sends `moonraker_status` and a full `state` with just the keys that node's faces bind to (plus `klippyface.state`), then only changes
+4. **Node** fires `state:<klippyface.state>` triggers and redraws data values
 5. **`RESPOND MSG="display:…"`** → the server turns it into a `display_cmd` for the named node (or all nodes)
 6. **Klipper restarts / Moonraker drops** → nodes get `moonraker_status {connected: false}`; the server resubscribes or reconnects with backoff
+
+### Printer States
+
+Klipper's own print state has no idle, no heating, and keeps "complete" until the next print, so the server works out one state for faces from `print_stats`, `idle_timeout` and `webhooks`. Map each to a group per display on the node page; a state without a group shows the display's default group.
+
+| State | When (first match wins) |
+|-------|------------------------|
+| `error` | Klipper shut down (`webhooks.state` is `shutdown`/`error`), or the print failed (`print_stats.state` = `error`) |
+| `heating` | A print has started but nothing has been extruded yet (`printing`, `filament_used` = 0) |
+| `printing` | Printing |
+| `paused` | Paused |
+| `complete` / `cancelled` | The last print's result, until Klipper's idle timeout fires (`idle_timeout.state` = `Idle`) |
+| `busy` | No print, but Klipper is running G-code: homing, macros, manual moves (`idle_timeout.state` = `Printing`) |
+| `idle` | Anything else |
 
 ### Connection Status Handling
 
@@ -167,7 +181,7 @@ Nodes fire a trigger when a link goes down, highest priority first. Map them to 
 |---------|------|
 | `wifi:disconnected` | Node lost Wi-Fi |
 | `server:disconnected` | Node can't reach the companion server |
-| `moonraker:disconnected` | Server can't reach Moonraker, or Klipper isn't ready |
+| `moonraker:disconnected` | Server can't reach Moonraker, or Klipper is starting (a Klipper shutdown is `state:error` instead) |
 
 The screen sleeps after 5 minutes without a trigger or command.
 

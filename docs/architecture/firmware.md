@@ -149,6 +149,8 @@ Stateless free function: `renderFrame(Frame, DisplayDriver, PrinterState)`
    - `sprite` → blit named bitmap with its top-left at (x, y); `size` > 1 draws each 1-bit pixel as a `size`×`size` block
    - `datavalue` → resolve the data key via `PrinterState::resolve()` (`.temperature`/`.target` → `210°C`, `…progress` 0–1 → `42.0%`, unknown → `--`), draw it centred on (x, y) at text size `size`
 
+Text goes through `toFontText()` (`FontText.cpp`) first: the 5×7 font has one glyph per byte in the CP437 layout (`cp437(true)` on the SH1106 so Adafruit GFX matches Arduino_GFX), so UTF-8 is converted to glyphs — ASCII as is, characters the font has (`°`, `±`, `µ`, `²`, arrows, common accented letters) to their glyph, anything else to `?`.
+
 ## Sprite Format
 
 ### Monochrome (1-bit, for OLEDs)
@@ -189,6 +191,12 @@ The pixel editor in the web UI draws on a `<canvas>` (in native color), converts
 
 ESP32 has 4 MB flash and ~320 KB usable RAM.
 
+## Setup Portal
+
+A node with no saved settings starts the `Klippyface-Setup` access point (open) and serves the setup page (`setup_html.h`) at `http://192.168.4.1`; DNS answers every name with that address and unknown paths redirect to `/`, so phones open it as a captive portal. The page asks for the WiFi network, the Klippyface server's address and port, and an optional display name, then saves to NVS and reboots. Holding BOOT for 3 s clears the settings; an unused portal reboots after 30 minutes.
+
+The portal runs in AP+STA mode from the start, because scanning needs station mode and switching it on mid-scan dropped phones off the access point. A scan starts with the portal; `GET /scan` returns the last results (`{ scanning, networks: [{ ssid, rssi, secure }] }`, one entry per name, strongest first) and `/scan?refresh=1` starts a new one. The page polls while `scanning` is true.
+
 ## Connection State Machine
 
 Priority-based state monitoring in `serverClientTask` (`main.cpp`):
@@ -211,9 +219,10 @@ to the companion server, replacing the old 5-minute HTTP polling:
 - **On connect:** sends `hello` with identity and `config_version`
 - **Heartbeat:** every 30s, carries `heap_free`, `uptime_s`, `rssi`, `display_count`
 - **Commands:** handles `refresh_config` (fetches config on-demand), `config_status` (version check). Both only set a pending flag; `tick()` runs one fetch for any number of requests, outside the WS callback. The fetched JSON is queued for `displayTask` as a heap `char*` (newest wins: an older queued config is evicted and freed) and parsed in place (ArduinoJson zero-copy).
-- **Printer state:** `state` messages go into `PrinterState` (`full: true` replaces everything). A change of `print_stats.state` fires `state:<value>`; a full snapshot fires it again, because the node re-announces after applying a config and its new engines need the current state.
+- **Printer state:** `state` messages go into `PrinterState` (`full: true` replaces everything). A change of `klippyface.state` (the state the server works out: idle, busy, heating, printing, paused, complete, cancelled, error) fires `state:<value>`; a full snapshot fires it again, because the node re-announces after applying a config and its new engines need the current state.
+- **Unmapped states:** a `state:*` trigger with no group on a display switches it to its default group (`AnimationEngine::onTrigger`), so e.g. the printing face doesn't stay up after a cancel.
 - **Moonraker status:** `moonraker_status { connected }` feeds the connection monitor and the `moonraker.connected` data key.
 - **Display commands:** `display_cmd { group, set?, loop? }` → `DisplayManager::directCommand()`. The server parses `RESPOND` lines and picks the node; the firmware no longer reads console output.
 - **Reconnect:** auto-reconnect at 5s interval (WebSockets library manages this)
 
-No connection groups exist by default: map the `wifi:`/`server:`/`moonraker:disconnected` triggers to a group on a display to show one. The screen sleeps (powers off) after 5 minutes without a trigger or command.
+No connection groups exist by default: map the `wifi:`/`server:`/`moonraker:disconnected` triggers to a group on a display to show one. The screens sleep (power off) after the node's `sleep_after_s` (from its config; default 300, 0 = never) without a trigger or command, but never while `klippyface.active` is true (printing, paused, heating, busy, error) and the server and Moonraker are reachable; the countdown starts when the printer goes to rest. Waking shows the current printer state's face.

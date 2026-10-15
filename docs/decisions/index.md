@@ -379,6 +379,46 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-06: Printer states for faces come from the server
+
+**Context:** Nodes fired `state:<print_stats.state>`, but Klipper's print state has no idle (`standby`), lumps heating into `printing`, keeps `complete`/`cancelled` until the next print, and doesn't report a Klipper shutdown at all (that's `webhooks.state`), which nodes showed as Moonraker offline (#36).
+
+**Decision:** The server derives `klippyface.state` from `print_stats`, `idle_timeout` and `webhooks` — error, heating (printing with nothing extruded), printing, paused, complete/cancelled until `idle_timeout` reaches `Idle`, busy (G-code running outside a print), idle — and nodes fire `state:*` from it only; raw `print_stats.state` triggers are dropped (the value stays available as a data key). A Klipper shutdown keeps the connection "up" (`KlippyShutdown`) so nodes show `error`. A `state:*` trigger with no group on a display falls back to its default group. The starter pack maps heating to the printing faces.
+
+**Consequences:** The starter faces' `state:idle` fires for the first time, and the complete face clears with Klipper's idle timeout. Anyone wanting raw Klipper states as triggers would need them added back as a separate family.
+
+---
+
+## 2026-10-15: Preheating outside a print shows heating
+
+**Context:** Watching a real printer showed that a preheat before a print (bed and nozzle targets set with no print running) left the face on idle, or on complete after an earlier print, because `print_stats` and `idle_timeout` don't change while a heater is warming up — `M140`/`M104` don't wait.
+
+**Decision:** Outside a print, `klippyface.state` is `heating` while `heater_bed` or any `extruder*` has a target set and is more than 2°C below it. It's checked after printing/paused and before complete/cancelled and busy, so it also covers a preheat for the next print and `M190`/`M109` waits. A heater holding at its target, or one with a lowered target, doesn't count.
+
+**Consequences:** The heating face also shows for a preheat, not only at the start of a print. A heater that can't reach its target keeps the face on heating.
+
+---
+
+## 2026-10-15: A finished print's result stays dismissed
+
+**Context:** On the real printer, turning the motors off (`M84`) after a print left the face on complete, because only `idle_timeout` reaching `Idle` cleared it and `M84` restarts that countdown. And because Klipper keeps `print_stats.state` = `complete` until the next print, any G-code after the timeout (homing, jogging) brought the complete face back.
+
+**Decision:** `PrinterStateStore` remembers when the current complete/cancelled result is dismissed — `idle_timeout` goes `Idle`, or `toolhead.homed_axes` goes empty in a later update than the result (motors turned off; an `M84` in the end G-code arrives with the result and doesn't count). It stays dismissed until `print_stats.state` changes. Fluidd/Mainsail's "clear file" (`SDCARD_RESET_FILE`) already resets `print_stats` to `standby`.
+
+**Consequences:** The dismissal lives in server memory: a server restart while the result is shown brings it back until the next dismissal. A cancel macro that turns the motors off in a separate step after `CANCEL_PRINT_BASE` would dismiss cancelled straight away — not yet checked on a real printer.
+
+---
+
+## 2026-10-15: Screen sleep follows the printer, with a per-node timeout
+
+**Context:** Nodes slept after 5 minutes without a trigger or command (#38). A printer state is only sent as a trigger when it changes, so a long print went dark about 5 minutes in, and the timeout couldn't be changed.
+
+**Decision:** The server sends `klippyface.active` (printing, paused, heating, busy or error) with every node's state, and each node has a `sleep_after_seconds` (default 300, 0 = never) set in the Web UI and sent in its config as `sleep_after_s`. Nodes don't sleep while the printer is active and reachable; the timeout counts from it going to rest. Which states are active is fixed on the server rather than configurable. Waking re-applies the current state's face, and the unused `screen_sleep` group switch is gone.
+
+**Consequences:** A printer left in error (e.g. shut down) keeps its displays on until Klipper restarts. Firmware older than this ignores both the field and the key and keeps its fixed 5 minutes.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations

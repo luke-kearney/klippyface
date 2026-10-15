@@ -17,7 +17,7 @@ public sealed class NodeStateRelay(
     ILogger<NodeStateRelay> log) : IPrinterStateListener
 {
     /// <summary>Drives the node's state:* triggers, so every node gets it.</summary>
-    public const string PrintStateKey = "print_stats.state";
+    public const string PrintStateKey = PrinterStateStore.DisplayStateKey;
 
     // Keys each node binds to, by MAC; reloaded on every hello (nodes re-announce after applying a config)
     private readonly ConcurrentDictionary<string, IReadOnlySet<string>> _keys = new();
@@ -115,7 +115,7 @@ public sealed class NodeStateRelay(
     /// <summary>Data keys bound by datavalue elements in any group the node's displays can show.</summary>
     private async Task<IReadOnlySet<string>> LoadBoundKeysAsync(string mac)
     {
-        var keys = new HashSet<string> { PrintStateKey };
+        var keys = new HashSet<string> { PrintStateKey, PrinterStateStore.ActiveKey };
         try
         {
             using var scope = scopes.CreateScope();

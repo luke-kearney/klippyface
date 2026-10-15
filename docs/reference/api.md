@@ -30,7 +30,7 @@ The server's one connection to Moonraker (Web UI **Printer** page).
 | GET | `/api/nodes` | List all nodes |
 | POST | `/api/nodes` | Register new node |
 | GET | `/api/nodes/{id}` | Get node + displays + assignments |
-| PUT | `/api/nodes/{id}` | Update node |
+| PUT | `/api/nodes/{id}` | Update node: `{ friendly_name, description, sleep_after_seconds? }`. `sleep_after_seconds` is 0 (never) to 86400; leaving it out keeps it, changing it pushes a new config |
 | DELETE | `/api/nodes/{id}` | Delete node + displays + assignments |
 | GET | `/api/ws/node/{mac}` | **WebSocket** — persistent channel for online tracking, heartbeat, config push and relayed printer state |
 | GET | `/api/nodes/{id}/displays` | List displays on node |
@@ -107,6 +107,7 @@ GET /api/config/node?mac=AA:BB:CC:DD:EE:01
   "node": {
     "id": "printer_face",
     "friendly_name": "Printer Face",
+    "sleep_after_s": 300,
     "displays": [
       {
         "id": "face_oled",
@@ -128,15 +129,12 @@ GET /api/config/node?mac=AA:BB:CC:DD:EE:01
         "display_id": "face_oled",
         "default_group": "idle_faces",
         "triggers": {
-          "state:printing":    "printing_faces",
-          "state:complete":    "celebration_faces",
-          "state:error":       "error_faces",
           "state:idle":        "idle_faces",
+          "state:heating":     "printing_faces",
+          "state:printing":    "printing_faces",
           "state:paused":      "paused_faces",
-          "state:waiting":     "waiting_faces",
-          "macro:print_start": "printing_faces",
-          "macro:print_end":   "celebration_faces",
-          "gcode:display:override": null
+          "state:complete":    "celebration_faces",
+          "state:error":       "error_faces"
         }
       }
     ]
@@ -190,7 +188,7 @@ with a `type` field:
 | `refresh_config` | `{}` | Admin-edited config (display/group/assignment changes) |
 | `refresh_library` | `{}` | Admin-edited library (future) |
 | `moonraker_status` | `{ connected: bool }` | After every hello, and whenever the server's Moonraker connection changes. `false` while Moonraker is unreachable or Klipper isn't ready |
-| `state` | `{ full: bool, values: { "<data key>": value } }` | After every hello (`full: true`, replaces everything), then changes only. Values are raw Moonraker values (numbers, strings, `null` = key gone). Only the keys the node's faces bind to, plus `print_stats.state` |
+| `state` | `{ full: bool, values: { "<data key>": value } }` | After every hello (`full: true`, replaces everything), then changes only. Values are raw Moonraker values (numbers, strings, `null` = key gone). Only the keys the node's faces bind to, plus `klippyface.state` and `klippyface.active` |
 | `display_cmd` | `{ group, set?, loop? }` | A Klipper `RESPOND MSG="display:…"` line addressed to this node (or to all nodes, without `node=`) |
 
 ### Connection Lifecycle
@@ -199,7 +197,7 @@ with a `type` field:
 2. Server compares against DB `LastConfigVersion` — if stale, sends `refresh_config`
 3. Server sends `moonraker_status` and a full `state` for the keys the node's faces bind to
 4. ESP fetches config via HTTP `GET /api/config/node?mac=...`, applies, re-announces with updated version (and gets a fresh `state` for the new faces)
-5. Printer changes arrive as `state` (`full: false`); `print_stats.state` changes fire `state:<value>` triggers
+5. Printer changes arrive as `state` (`full: false`); `klippyface.state` changes fire `state:<value>` triggers
 6. ESP sends `heartbeat` every 30s; server persists `LastSeen` and tracks `IsOnline`
 7. On disconnect → auto-reconnect with 5s interval, repeat from step 1
 8. No config redraw if version is unchanged from prior session
@@ -214,7 +212,7 @@ with a `type` field:
 
 ### Data Binding Keys
 
-A key is `<Klipper object>.<field>` (nested fields joined with `.`), for any object the server subscribes to: `print_stats`, `virtual_sdcard`, `display_status`, `toolhead`, `heater_bed`, `extruder*`. The node formats by the key's ending: `.temperature`/`.target` → `°C`, ending in `progress` (0–1) → `%`, otherwise the number or text as is. A key the printer doesn't have shows `--`.
+A key is `<Klipper object>.<field>` (nested fields joined with `.`), for any object the server subscribes to: `print_stats`, `virtual_sdcard`, `display_status`, `toolhead`, `idle_timeout`, `webhooks`, `heater_bed`, `extruder*`. The node formats by the key's ending: `.temperature`/`.target` → `°C`, ending in `progress` (0–1) → `%`, otherwise the number or text as is. A key the printer doesn't have shows `--`.
 
 | Key | Source | Example output |
 |-----|--------|----------------|
@@ -223,5 +221,24 @@ A key is `<Klipper object>.<field>` (nested fields joined with `.`), for any obj
 | `extruder.target` | Nozzle target | `"220°C"` |
 | `heater_bed.temperature` | Bed temp | `"60°C"` |
 | `heater_bed.target` | Bed target | `"65°C"` |
-| `print_stats.state` | `standby`, `printing`, `paused`, `complete`, `cancelled`, `error` | `"printing"` |
+| `klippyface.state` | The printer state the server works out (see [Printer States](#printer-states)); drives `state:*` triggers | `"heating"` |
+| `klippyface.active` | `true` while the state is printing, paused, heating, busy or error; nodes don't sleep their screens then | `true` |
+| `print_stats.state` | Klipper's raw print state: `standby`, `printing`, `paused`, `complete`, `cancelled`, `error` | `"printing"` |
 | `moonraker.connected` | Node-side: server and Moonraker both reachable, Klipper ready | `"Online"` / `"Offline"` |
+
+### Printer States
+
+Klipper's `print_stats.state` has no idle (it says `standby`), no heating, and keeps `complete` until the next print. The server works out `klippyface.state` from `print_stats`, `idle_timeout`, `webhooks` and the heaters, and nodes fire `state:<value>` from it:
+
+| State | When (first match wins) |
+|-------|------------------------|
+| `error` | Klipper shut down (`webhooks.state` is `shutdown`/`error`), or the print failed (`print_stats.state` = `error`) |
+| `heating` | A print has started but nothing has been extruded yet (`printing`, `filament_used` = 0) |
+| `printing` | Printing |
+| `paused` | Paused |
+| `heating` | No print running, but the bed or an extruder is more than 2°C below its target: a preheat, or an `M190`/`M109` wait |
+| `complete` / `cancelled` | The last print's result, until it's dismissed: Klipper's idle timeout fires (`idle_timeout.state` = `Idle`), the motors are turned off after the print ended (`toolhead.homed_axes` goes empty), or the file is cleared. Once dismissed it stays dismissed until the next print, through later homing or moves |
+| `busy` | No print, but Klipper is running G-code: homing, macros, manual moves (`idle_timeout.state` = `Printing`) |
+| `idle` | Anything else |
+
+A state with no group mapped on a display shows the display's default group. A Klipper shutdown keeps nodes connected (`moonraker_status` stays `true`) so they show `error` rather than `moonraker:disconnected`; a Klipper restart clears it.

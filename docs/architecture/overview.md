@@ -64,8 +64,8 @@ stable: true
   7. DisplayManager on ESP32 creates DisplayDriver instances for each physical display
   8. DisplayManager creates AnimationEngine per display, each with its own trigger→group mapping
   9. The server holds the one Moonraker WebSocket (settings on the Printer page): subscribes to print_stats, virtual_sdcard, display_status, toolhead, heater_bed and extruder*, and merges the change-only updates
- 10. On each hello the server sends the node `moonraker_status` and a full `state` with only the keys its faces bind to (+ `print_stats.state`); after that, only changed keys
- 11. The node fires `state:<print_stats.state>` triggers; DisplayManager fans them out to all AnimationEngines
+ 10. On each hello the server sends the node `moonraker_status` and a full `state` with only the keys its faces bind to (+ `klippyface.state`); after that, only changed keys
+ 11. The node fires `state:<klippyface.state>` triggers (idle, busy, heating, printing, paused, complete, cancelled, error — worked out by the server); DisplayManager fans them out to all AnimationEngines
  12. Each engine selects the right group/set/frame based on its triggers
  13. Renderer draws frames to each display's driver, resolving data values from the relayed state
  14. Klipper macros can send: RESPOND MSG="display:node=printer_face group=celebration set=win" → the server sends `display_cmd` to that node (all nodes if `node=` is left out)

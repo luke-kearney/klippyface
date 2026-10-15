@@ -38,7 +38,7 @@ private:
     DisplayManager* _display = nullptr;
     bool _connected = false;
     bool _moonrakerConnected = false;
-    String _printState;   // last print_stats.state, to fire state:* triggers on change
+    String _printerState;   // last klippyface.state, to fire state:* triggers on change
     // Set by refresh_config / stale config_status; tick() runs one fetch for any
     // number of requests, outside the WebSocket callback.
     bool _fetchPending = false;

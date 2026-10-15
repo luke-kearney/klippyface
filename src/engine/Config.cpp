@@ -87,6 +87,16 @@ static bool endsWith(const String& s, const char* suffix) {
     return s.length() >= n && strcmp(s.c_str() + s.length() - n, suffix) == 0;
 }
 
+String PrinterState::text(const String& key) const {
+    String result;
+    if (_mutex && xSemaphoreTake(_mutex, portMAX_DELAY) == pdTRUE) {
+        auto it = _values.find(key);
+        if (it != _values.end() && !it->second.isNumber) result = it->second.text;
+        xSemaphoreGive(_mutex);
+    }
+    return result;
+}
+
 String PrinterState::resolve(const String& key) const {
     if (key == "moonraker.connected") {
         return _moonrakerConnected ? "Online" : "Offline";

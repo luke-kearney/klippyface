@@ -14,6 +14,8 @@ export interface Node {
   /** Firmware build env from the node's last hello, e.g. 'esp32s3-ws-lcd169'; '' if unknown. */
   board: string
   firmwareVersion: string
+  /** Seconds without a trigger or command before the screens sleep while the printer rests; 0 = never. */
+  sleepAfterSeconds: number
   isOnline: boolean
   displays?: NodeDisplay[]
   assignments?: Assignment[]

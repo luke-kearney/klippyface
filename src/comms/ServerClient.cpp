@@ -190,15 +190,16 @@ void ServerClient::handleState(JsonObjectConst values, bool full) {
     if (!_display) return;
     _display->applyState(values, full);
 
-    // print_stats.state drives the state:* triggers. A full snapshot comes after
-    // every hello, including the one after a new config is applied, so it fires
-    // the trigger again for the freshly configured engines.
-    JsonVariantConst state = values["print_stats.state"];
+    // klippyface.state (idle, busy, heating, printing, paused, complete, cancelled,
+    // error — worked out by the server) drives the state:* triggers. A full
+    // snapshot comes after every hello, including the one after a new config is
+    // applied, so it fires the trigger again for the freshly configured engines.
+    JsonVariantConst state = values["klippyface.state"];
     if (state.is<const char*>()) {
         String next = state.as<const char*>();
-        if (full || next != _printState) {
-            _printState = next;
-            Serial.printf("[%s] Print state: %s\n", TAG, next.c_str());
+        if (full || next != _printerState) {
+            _printerState = next;
+            Serial.printf("[%s] Printer state: %s\n", TAG, next.c_str());
             _display->onStateChange("state:" + next);
         }
     }

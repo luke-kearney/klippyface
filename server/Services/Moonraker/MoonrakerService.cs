@@ -11,16 +11,21 @@ public enum MoonrakerState
     /// <summary>No Moonraker host saved yet.</summary>
     NotConfigured,
     Connecting,
-    /// <summary>Moonraker is up but Klipper isn't (starting, restarting, shut down).</summary>
+    /// <summary>Moonraker is up but Klipper isn't (starting or restarting).</summary>
     KlippyNotReady,
     Ready,
+    /// <summary>
+    /// Klipper has shut down (thermal runaway, lost MCU…) and waits for a restart.
+    /// Still connected: nodes show the error state rather than offline.
+    /// </summary>
+    KlippyShutdown,
     /// <summary>Last attempt failed; retrying after a delay.</summary>
     Disconnected,
 }
 
 public sealed record MoonrakerStatus(MoonrakerState State, string? Detail, IReadOnlyList<string> Objects)
 {
-    public bool Connected => State == MoonrakerState.Ready;
+    public bool Connected => State is MoonrakerState.Ready or MoonrakerState.KlippyShutdown;
 }
 
 /// <summary>Told about everything the printer does. Calls arrive one at a time, in order.</summary>
@@ -78,6 +83,7 @@ public sealed partial class MoonrakerService(
     /// <summary>Klipper objects displays can bind to.</summary>
     public static bool IsWanted(string obj) =>
         obj is "print_stats" or "virtual_sdcard" or "display_status" or "toolhead" or "heater_bed"
+            or "idle_timeout" or "webhooks"
         || ExtruderName().IsMatch(obj);
 
     [GeneratedRegex(@"^extruder\d*$")]
@@ -177,15 +183,24 @@ public sealed partial class MoonrakerService(
                     var changes = store.Apply(update);
                     if (changes.Count > 0)
                         await NotifyAsync(() => listener.OnStateChangedAsync(changes));
+                    if (changes.ContainsKey("webhooks.state"))
+                        await SetReadyStatusAsync(Status.Objects);
                     break;
 
                 case "notify_klippy_ready":
                     ready = await TrySubscribeAsync(rpc, ct);
                     break;
 
-                case "notify_klippy_disconnected" or "notify_klippy_shutdown":
+                case "notify_klippy_disconnected":
                     ready = false;
-                    await SetStatusAsync(MoonrakerState.KlippyNotReady, message["method"]!.GetValue<string>(), []);
+                    await SetStatusAsync(MoonrakerState.KlippyNotReady, "notify_klippy_disconnected", []);
+                    break;
+
+                case "notify_klippy_shutdown":
+                    // Klipper keeps answering while shut down, so the subscription carries on;
+                    // webhooks.state usually arrives with it, but don't depend on that
+                    await ApplyKlippyStateAsync("shutdown");
+                    await SetReadyStatusAsync(Status.Objects);
                     break;
 
                 case "notify_gcode_response" when (message["params"]?[0]) is JsonValue line:
@@ -205,7 +220,7 @@ public sealed partial class MoonrakerService(
         }
         catch (MoonrakerRpcException e)
         {
-            await SetStatusAsync(MoonrakerState.KlippyNotReady, e.Message, []);
+            await ReportNotReadyAsync(rpc, e, ct);
             return false;
         }
 
@@ -227,17 +242,60 @@ public sealed partial class MoonrakerService(
         }
         catch (MoonrakerRpcException e)
         {
-            await SetStatusAsync(MoonrakerState.KlippyNotReady, e.Message, []);
+            await ReportNotReadyAsync(rpc, e, ct);
             return false;
         }
 
         var changes = store.Replace(reply?["status"] as JsonObject ?? new JsonObject());
         log.LogInformation("Subscribed to {Count} Moonraker objects: {Objects}", objects.Count, string.Join(", ", objects));
 
-        await SetStatusAsync(MoonrakerState.Ready, null, objects);
+        await SetReadyStatusAsync(objects);
         if (changes.Count > 0)
             await NotifyAsync(() => listener.OnStateChangedAsync(changes));
         return true;
+    }
+
+    /// <summary>Ready, or KlippyShutdown while webhooks.state says Klipper has shut down.</summary>
+    private Task SetReadyStatusAsync(IReadOnlyList<string> objects)
+    {
+        var klippy = store.Snapshot(["webhooks.state"]).GetValueOrDefault("webhooks.state") is JsonValue v
+                     && v.TryGetValue<string>(out var text) ? text : null;
+        return klippy is "shutdown" or "error"
+            ? SetStatusAsync(MoonrakerState.KlippyShutdown, $"Klipper {klippy}", objects)
+            : SetStatusAsync(MoonrakerState.Ready, null, objects);
+    }
+
+    /// <summary>
+    /// Objects can't be read. If Klipper is shut down (rather than starting), say
+    /// so through webhooks.state, so nodes show the error state instead of offline.
+    /// </summary>
+    private async Task ReportNotReadyAsync(MoonrakerRpcClient rpc, MoonrakerRpcException e, CancellationToken ct)
+    {
+        string? klippy = null;
+        try
+        {
+            klippy = (await rpc.CallAsync("server.info", null, ct))?["klippy_state"]?.GetValue<string>();
+        }
+        catch (MoonrakerRpcException)
+        {
+        }
+
+        if (klippy is "shutdown" or "error")
+        {
+            await ApplyKlippyStateAsync(klippy);
+            await SetStatusAsync(MoonrakerState.KlippyShutdown, $"Klipper {klippy}", []);
+        }
+        else
+        {
+            await SetStatusAsync(MoonrakerState.KlippyNotReady, e.Message, []);
+        }
+    }
+
+    private async Task ApplyKlippyStateAsync(string state)
+    {
+        var changes = store.Apply(new JsonObject { ["webhooks"] = new JsonObject { ["state"] = state } });
+        if (changes.Count > 0)
+            await NotifyAsync(() => listener.OnStateChangedAsync(changes));
     }
 
     private async Task SetStatusAsync(MoonrakerState state, string? detail, IReadOnlyList<string> objects)

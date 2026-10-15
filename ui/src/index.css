@@ -41,6 +41,9 @@
   --state-paused: #eab308;
   --state-error: #e11d48;
   --state-complete: #16a34a;
+  --state-heating: #c2410c;
+  --state-busy: #7c3aed;
+  --state-cancelled: #71717a;
 }
 
 .dark {
@@ -74,6 +77,9 @@
   --state-paused: #facc15;
   --state-error: #fb7185;
   --state-complete: #4ade80;
+  --state-heating: #fdba74;
+  --state-busy: #a78bfa;
+  --state-cancelled: #a1a1aa;
 }
 
 @theme inline {
@@ -113,6 +119,9 @@
   --color-state-paused: var(--state-paused);
   --color-state-error: var(--state-error);
   --color-state-complete: var(--state-complete);
+  --color-state-heating: var(--state-heating);
+  --color-state-busy: var(--state-busy);
+  --color-state-cancelled: var(--state-cancelled);
 }
 
 @layer base {

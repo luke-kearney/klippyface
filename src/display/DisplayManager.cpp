@@ -241,6 +241,7 @@ bool DisplayManager::applyConfig(const NodeConfig& config) {
     }
 
     _configVersion = config.config_version;
+    _sleepAfterMs = config.sleep_after_s * 1000UL;
     _lastActivity = millis();
     _screenSaverActive = false;
 
@@ -252,21 +253,32 @@ bool DisplayManager::applyConfig(const NodeConfig& config) {
     return ok;
 }
 
+// The server says the printer is working (printing, paused, heating, busy, error).
+// Without a live connection that can't be trusted, so it doesn't hold the screens on.
+bool DisplayManager::printerActive() const {
+    return _printerState.online() && _printerState.text("klippyface.active") == "Yes";
+}
+
+void DisplayManager::wake() {
+    // Restart on the current printer state's face, not whatever the wake command maps to
+    String state = _printerState.text("klippyface.state");
+    for (auto& slot : _slots) {
+        if (slot.driver) {
+            slot.driver->powerSave(false);
+        }
+        slot.engine.resetToDefault();
+        if (!state.isEmpty()) slot.engine.onTrigger("state:" + state);
+    }
+    _screenSaverActive = false;
+    Serial.printf("[%s] Woken from screen sleep\n", TAG);
+}
+
 void DisplayManager::tickAll(uint32_t now) {
     // Phase A — Process CmdMessage queue (wake if sleeping)
     if (_cmdQueue) {
         CmdMessage cmd;
         while (xQueueReceive(_cmdQueue, &cmd, 0) == pdTRUE) {
-            if (_screenSaverActive) {
-                for (auto& slot : _slots) {
-                    if (slot.driver) {
-                        slot.driver->powerSave(false);
-                    }
-                    slot.engine.resetToDefault();
-                }
-                _screenSaverActive = false;
-                Serial.printf("[%s] Woken from screen sleep\n", TAG);
-            }
+            if (_screenSaverActive) wake();
 
             switch (cmd.type) {
                 case CmdMessage::TriggerChange:
@@ -289,17 +301,19 @@ void DisplayManager::tickAll(uint32_t now) {
         }
     }
 
-    // Phase B — Check sleep timeout
-    if (!_screenSaverActive && (now - _lastActivity >= SCREEN_SAVER_TIMEOUT)) {
+    // Phase B — Sleep after the node's timeout, counted from the printer going to rest
+    if (printerActive()) {
+        _lastActivity = now;
+        if (_screenSaverActive) wake();
+    }
+    if (!_screenSaverActive && _sleepAfterMs > 0 && (now - _lastActivity >= _sleepAfterMs)) {
         for (auto& slot : _slots) {
-            slot.engine.switchToGroup("screen_sleep");
             if (slot.driver) {
                 slot.driver->powerSave(true);
             }
         }
         _screenSaverActive = true;
-        Serial.printf("[%s] Screen sleep after %lums inactivity\n",
-                      TAG, (unsigned long)SCREEN_SAVER_TIMEOUT);
+        Serial.printf("[%s] Screen sleep after %lums inactivity\n", TAG, _sleepAfterMs);
     }
 
     // Phase C — Render (skip if sleeping)

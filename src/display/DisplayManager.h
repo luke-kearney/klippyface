@@ -64,7 +64,10 @@ private:
     unsigned long _lastActivity = 0;
     bool _screenSaverActive = false;
     uint32_t _configVersion = 0;
-    static const unsigned long SCREEN_SAVER_TIMEOUT = 300000;
+    unsigned long _sleepAfterMs = 300000;  // 0 = never; from the node config
+
+    bool printerActive() const;
+    void wake();
 
     void buildBootDisplay();
     void cleanup();

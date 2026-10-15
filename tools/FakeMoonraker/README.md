@@ -14,6 +14,7 @@ dotnet run --project tools/FakeMoonraker -- --profile quad --scenario toolchange
 | `--profile` | `single` | `single`, `quad`, or a path to a profile `.json` |
 | `--extruders` | | override the profile's extruder count, e.g. `--extruders 3` |
 | `--console` | on in a terminal | read typed commands (see below) |
+| `--idle-timeout` | `600` | seconds until Klipper's idle timeout fires after the last G-code |
 | `--scenario` | `idle` | see below |
 | `--port` | `7125` | Moonraker's default port |
 | `--host` | `0.0.0.0` | listens on the LAN so a server on another machine can reach it — allow the port through your firewall |
@@ -31,7 +32,7 @@ To use it, set the Moonraker host on the server's **Printer** page to this machi
 { "name": "quad", "extruders": 4 }
 ```
 
-Every profile has `print_stats`, `virtual_sdcard`, `display_status`, `toolhead` and `heater_bed`, plus `extruder`, `extruder1`… up to the extruder count.
+Every profile has `print_stats`, `virtual_sdcard`, `display_status`, `toolhead`, `idle_timeout`, `webhooks` and `heater_bed`, plus `extruder`, `extruder1`… up to the extruder count. `idle_timeout` behaves like Klipper's: `Printing` while a print or `busy` G-code runs, `Ready` after, `Idle` (heaters and motors off) once the idle timeout passes.
 
 ## Scenarios
 
@@ -67,7 +68,10 @@ tool <n>                  switch to tool n (T0 = extruder)
 temp <heater> <°C>        set a target: bed, extruder, extruder1, t2, ...
 set <object.field> <value>  set any field, e.g. set print_stats.message hello
 respond <text>            console line, e.g. respond display:group=win
-restart [seconds]         restart Klipper
+busy [seconds]            run non-print G-code, e.g. homing (default 10 s)
+idle                      fire the idle timeout now (heaters, motors off)
+shutdown [message]        Klipper shuts down, like a thermal runaway
+restart [seconds]         restart Klipper (also recovers from shutdown)
 disconnect                drop every client
 ```
 
@@ -84,6 +88,9 @@ curl -XPOST localhost:7125/_sim/print/pause                # also resume, cancel
 curl -XPOST localhost:7125/_sim/toolchange/1
 curl -XPOST localhost:7125/_sim/respond -H 'content-type: application/json' -d '{"msg":"display:node=desk group=win"}'
 curl -XPOST 'localhost:7125/_sim/klippy/restart?seconds=5'
+curl -XPOST 'localhost:7125/_sim/klippy/shutdown?message=Heater%20extruder%20not%20heating'
+curl -XPOST 'localhost:7125/_sim/busy?seconds=10'          # idle_timeout Printing without a print
+curl -XPOST localhost:7125/_sim/idle                        # fire the idle timeout now
 curl -XPOST localhost:7125/_sim/disconnect                 # drop every client, no close handshake
 ```
 
@@ -94,6 +101,7 @@ It follows Klipper's `webhooks.py` (`QueryStatusHelper`) and the `get_status()` 
 - `printer.objects.subscribe` replies with every requested field, then sends `notify_status_update` every 250 ms with **only the fields that changed** — nothing if nothing changed. A new subscribe replaces the client's previous one.
 - Objects the printer doesn't have are not an error: `null` fields → `{}`, named fields → each `null`, and never in later updates.
 - Print progress lives in `virtual_sdcard.progress` and `display_status.progress` (0–1). **`print_stats` has no `progress` field.**
+- A Klipper shutdown sends `notify_klippy_shutdown`, sets `webhooks.state` to `shutdown` and keeps subscriptions (Klipper still answers); only a restart recovers.
 - A Klipper restart sends `notify_klippy_disconnected`, drops every subscription and resets all objects, then sends `notify_klippy_ready`. Clients must subscribe again.
 - `RESPOND` lines arrive as `notify_gcode_response`, prefixed `echo: `, `// ` or `!! ` like Klipper's `RESPOND TYPE=`.
 

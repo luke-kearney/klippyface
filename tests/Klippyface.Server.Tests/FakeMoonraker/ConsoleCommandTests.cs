@@ -95,6 +95,53 @@ public class ConsoleCommandTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Busy_then_idle_follow_klippers_idle_timeout()
+    {
+        await _host.Console.ExecuteAsync("busy 1");
+        _host.Sim.Advance(TimeSpan.FromMilliseconds(250));
+        Assert.Equal("Printing", _host.Sim.Model.GetString("idle_timeout", "state"));
+
+        _host.Sim.Advance(TimeSpan.FromSeconds(1));
+        _host.Sim.Advance(TimeSpan.FromMilliseconds(250));
+        Assert.Equal("Ready", _host.Sim.Model.GetString("idle_timeout", "state"));
+
+        await _host.Console.ExecuteAsync("idle");
+        Assert.Equal("Idle", _host.Sim.Model.GetString("idle_timeout", "state"));
+    }
+
+    [Fact]
+    public async Task Idle_timeout_fires_after_a_print()
+    {
+        _host.Sim.IdleTimeout = TimeSpan.FromSeconds(30);
+        await _host.Console.ExecuteAsync("print 10");
+        _host.Sim.Advance(TimeSpan.FromMilliseconds(250));
+        await _host.Console.ExecuteAsync("complete");
+        _host.Sim.Advance(TimeSpan.FromMilliseconds(250));
+        Assert.Equal("Ready", _host.Sim.Model.GetString("idle_timeout", "state"));
+
+        for (var i = 0; i < 31 * 4; i++)
+            _host.Sim.Advance(TimeSpan.FromMilliseconds(250));
+
+        Assert.Equal("Idle", _host.Sim.Model.GetString("idle_timeout", "state"));
+        Assert.Equal(0, _host.Sim.Model.GetDouble("extruder", "target"));
+    }
+
+    [Fact]
+    public async Task Shutdown_keeps_clients_subscribed_until_restart()
+    {
+        await _client.SubscribeAsync(new JsonObject { ["webhooks"] = new JsonArray("state") });
+
+        await _host.Console.ExecuteAsync("shutdown MCU 'mcu' shutdown: Timer too close");
+        Assert.NotNull(await _client.NextNotificationAsync("notify_klippy_shutdown"));
+        _host.Tick();
+
+        var update = await _client.NextNotificationAsync("notify_status_update");
+        Assert.Equal("shutdown", update!["params"]![0]!["webhooks"]!["state"]!.GetValue<string>());
+        var info = await _client.CallAsync("server.info");
+        Assert.Equal("shutdown", info["result"]!["klippy_state"]!.GetValue<string>());
+    }
+
+    [Fact]
     public async Task Unknown_commands_point_to_help()
     {
         Assert.Contains("Type 'help'", await _host.Console.ExecuteAsync("frobnicate"));
