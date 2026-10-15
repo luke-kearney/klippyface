@@ -104,6 +104,46 @@ public class PrinterStateStoreTests
         Assert.Equal(expected, changes[PrinterStateStore.DisplayStateKey]!.GetValue<string>());
     }
 
+    [Theory]
+    [InlineData("standby", "Ready", 46.8, 60, 121, 120, "heating")]   // preheat: bed still warming, nozzle holding
+    [InlineData("standby", "Ready", 60.8, 60, 120, 120, "idle")]      // preheat reached temperature
+    [InlineData("standby", "Ready", 58.5, 60, 120, 120, "idle")]      // settling just under target
+    [InlineData("standby", "Printing", 30, 60, 25, 0, "heating")]     // M190 waiting
+    [InlineData("standby", "Ready", 175, 0, 58, 0, "idle")]           // cooling down, no targets
+    [InlineData("complete", "Ready", 40, 60, 25, 0, "heating")]       // preheat for the next print
+    [InlineData("complete", "Ready", 60, 60, 200, 200, "complete")]   // heaters held after a print
+    [InlineData("complete", "Idle", 25, 0, 210, 200, "idle")]         // lowering a target isn't heating
+    [InlineData("paused", "Ready", 40, 60, 150, 200, "paused")]       // reheating on resume
+    public void Display_state_shows_heaters_warming_up(
+        string print, string idle, double bed, double bedTarget, double nozzle, double nozzleTarget, string expected)
+    {
+        var status = new JsonObject
+        {
+            ["print_stats"] = new JsonObject { ["state"] = print, ["filament_used"] = 0 },
+            ["idle_timeout"] = new JsonObject { ["state"] = idle },
+            ["webhooks"] = new JsonObject { ["state"] = "ready" },
+            ["heater_bed"] = new JsonObject { ["temperature"] = bed, ["target"] = bedTarget },
+            ["extruder"] = new JsonObject { ["temperature"] = nozzle, ["target"] = nozzleTarget },
+        };
+
+        var changes = _store.Replace(status);
+
+        Assert.Equal(expected, changes[PrinterStateStore.DisplayStateKey]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void Display_state_counts_any_extruder()
+    {
+        _store.Replace(Json("""
+            {"print_stats": {"state": "standby"}, "idle_timeout": {"state": "Ready"}, "webhooks": {"state": "ready"},
+             "extruder": {"temperature": 25, "target": 0}, "extruder1": {"temperature": 25, "target": 0}}
+            """));
+
+        var changes = _store.Apply(Json("""{"extruder1": {"target": 210}}"""));
+
+        Assert.Equal("heating", changes[PrinterStateStore.DisplayStateKey]!.GetValue<string>());
+    }
+
     [Fact]
     public void Display_state_waits_for_a_print_state()
     {

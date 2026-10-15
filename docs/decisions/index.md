@@ -389,6 +389,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-15: Preheating outside a print shows heating
+
+**Context:** Watching a real printer showed that a preheat before a print (bed and nozzle targets set with no print running) left the face on idle, or on complete after an earlier print, because `print_stats` and `idle_timeout` don't change while a heater is warming up — `M140`/`M104` don't wait.
+
+**Decision:** Outside a print, `klippyface.state` is `heating` while `heater_bed` or any `extruder*` has a target set and is more than 2°C below it. It's checked after printing/paused and before complete/cancelled and busy, so it also covers a preheat for the next print and `M190`/`M109` waits. A heater holding at its target, or one with a lowered target, doesn't count.
+
+**Consequences:** The heating face also shows for a preheat, not only at the start of a print. A heater that can't reach its target keeps the face on heating.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations

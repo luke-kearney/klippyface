@@ -27,8 +27,9 @@ public sealed class PrinterStateStore
     /// <summary>
     /// One state for faces, from several Klipper objects (first match wins):
     /// error (Klipper shut down, or the print failed), heating (printing, nothing
-    /// extruded yet), printing, paused, complete/cancelled (until idle_timeout
-    /// goes Idle), busy (no print, but running G-code), idle.
+    /// extruded yet), printing, paused, heating (no print, but a heater is still
+    /// warming up), complete/cancelled (until idle_timeout goes Idle), busy (no
+    /// print, but running G-code), idle.
     /// Null until Klipper has reported a print state.
     /// </summary>
     public static string? DisplayState(IReadOnlyDictionary<string, JsonNode?> v)
@@ -45,10 +46,29 @@ public sealed class PrinterStateStore
             "printing" when Number(v, "print_stats.filament_used") <= 0 => "heating",
             "printing" => "printing",
             "paused" => "paused",
+            _ when HeaterWarmingUp(v) => "heating",
             "complete" or "cancelled" when idle != "Idle" => print,
             _ when idle == "Printing" => "busy",
             _ => "idle",
         };
+    }
+
+    /// <summary>How far below its target a heater must be to count as warming up; Klipper's M109/M190 wait to within 1°C.</summary>
+    private const double HeatingMargin = 2;
+
+    /// <summary>The bed or an extruder has a target and is more than <see cref="HeatingMargin"/> below it.</summary>
+    private static bool HeaterWarmingUp(IReadOnlyDictionary<string, JsonNode?> v)
+    {
+        foreach (var key in v.Keys)
+        {
+            if (!key.EndsWith(".target")) continue;
+            var heater = key[..^".target".Length];
+            if (heater != "heater_bed" && !heater.StartsWith("extruder")) continue;
+
+            var target = Number(v, key);
+            if (target > 0 && Number(v, $"{heater}.temperature") < target - HeatingMargin) return true;
+        }
+        return false;
     }
 
     private static string? Text(IReadOnlyDictionary<string, JsonNode?> v, string key) =>

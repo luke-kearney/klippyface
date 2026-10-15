@@ -226,7 +226,7 @@ A key is `<Klipper object>.<field>` (nested fields joined with `.`), for any obj
 
 ### Printer States
 
-Klipper's `print_stats.state` has no idle (it says `standby`), no heating, and keeps `complete` until the next print. The server works out `klippyface.state` from `print_stats`, `idle_timeout` and `webhooks`, and nodes fire `state:<value>` from it:
+Klipper's `print_stats.state` has no idle (it says `standby`), no heating, and keeps `complete` until the next print. The server works out `klippyface.state` from `print_stats`, `idle_timeout`, `webhooks` and the heaters, and nodes fire `state:<value>` from it:
 
 | State | When (first match wins) |
 |-------|------------------------|
@@ -234,6 +234,7 @@ Klipper's `print_stats.state` has no idle (it says `standby`), no heating, and k
 | `heating` | A print has started but nothing has been extruded yet (`printing`, `filament_used` = 0) |
 | `printing` | Printing |
 | `paused` | Paused |
+| `heating` | No print running, but the bed or an extruder is more than 2°C below its target: a preheat, or an `M190`/`M109` wait |
 | `complete` / `cancelled` | The last print's result, until Klipper's idle timeout fires (`idle_timeout.state` = `Idle`) |
 | `busy` | No print, but Klipper is running G-code: homing, macros, manual moves (`idle_timeout.state` = `Printing`) |
 | `idle` | Anything else |
