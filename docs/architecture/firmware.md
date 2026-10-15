@@ -149,6 +149,8 @@ Stateless free function: `renderFrame(Frame, DisplayDriver, PrinterState)`
    - `sprite` → blit named bitmap with its top-left at (x, y); `size` > 1 draws each 1-bit pixel as a `size`×`size` block
    - `datavalue` → resolve the data key via `PrinterState::resolve()` (`.temperature`/`.target` → `210°C`, `…progress` 0–1 → `42.0%`, unknown → `--`), draw it centred on (x, y) at text size `size`
 
+Text goes through `toFontText()` (`FontText.cpp`) first: the 5×7 font has one glyph per byte in the CP437 layout (`cp437(true)` on the SH1106 so Adafruit GFX matches Arduino_GFX), so UTF-8 is converted to glyphs — ASCII as is, characters the font has (`°`, `±`, `µ`, `²`, arrows, common accented letters) to their glyph, anything else to `?`.
+
 ## Sprite Format
 
 ### Monochrome (1-bit, for OLEDs)

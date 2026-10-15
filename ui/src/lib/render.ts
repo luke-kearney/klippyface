@@ -40,10 +40,37 @@ export const DATA_KEYS: { key: string; label: string; sample: string }[] = [
 ]
 const SAMPLES = new Map(DATA_KEYS.map((d) => [d.key, d.sample]))
 
-/** The string the firmware would print for an element (UTF-8 bytes, as GFX sees them). */
+/** Non-ASCII characters in the CP437 5x7 font → glyph; keep in step with GLYPHS in src/display/FontText.cpp. */
+// prettier-ignore
+const CP437_GLYPHS = new Map<number, number>([
+  [0x00a1, 0xad], [0x00a2, 0x9b], [0x00a3, 0x9c], [0x00a5, 0x9d], [0x00aa, 0xa6], [0x00ab, 0xae],
+  [0x00ac, 0xaa], [0x00b0, 0xf8], [0x00b1, 0xf1], [0x00b2, 0xfd], [0x00b5, 0xe6], [0x00b7, 0xfa],
+  [0x00ba, 0xa7], [0x00bb, 0xaf], [0x00bc, 0xac], [0x00bd, 0xab], [0x00bf, 0xa8], [0x00c4, 0x8e],
+  [0x00c5, 0x8f], [0x00c6, 0x92], [0x00c7, 0x80], [0x00c9, 0x90], [0x00d1, 0xa5], [0x00d6, 0x99],
+  [0x00dc, 0x9a], [0x00df, 0xe1], [0x00e0, 0x85], [0x00e1, 0xa0], [0x00e2, 0x83], [0x00e4, 0x84],
+  [0x00e5, 0x86], [0x00e6, 0x91], [0x00e7, 0x87], [0x00e8, 0x8a], [0x00e9, 0x82], [0x00ea, 0x88],
+  [0x00eb, 0x89], [0x00ec, 0x8d], [0x00ed, 0xa1], [0x00ee, 0x8c], [0x00ef, 0x8b], [0x00f1, 0xa4],
+  [0x00f2, 0x95], [0x00f3, 0xa2], [0x00f4, 0x93], [0x00f6, 0x94], [0x00f7, 0xf6], [0x00f9, 0x97],
+  [0x00fa, 0xa3], [0x00fb, 0x96], [0x00fc, 0x81], [0x00ff, 0x98], [0x2022, 0x07], [0x2190, 0x1b],
+  [0x2191, 0x18], [0x2192, 0x1a], [0x2193, 0x19], [0x2248, 0xf7], [0x2264, 0xf3], [0x2265, 0xf2],
+  [0x2588, 0xdb], [0x2591, 0xb0], [0x2592, 0xb1], [0x2593, 0xb2], [0x25b2, 0x1e], [0x25ba, 0x10],
+  [0x25bc, 0x1f], [0x25c4, 0x11], [0x263a, 0x01], [0x2665, 0x03],
+])
+
+/** Font glyphs for a string, as the firmware's toFontText(): ASCII as is, known characters to their glyph, else '?'. */
+export function toFontText(s: string): Uint8Array {
+  const out: number[] = []
+  for (const ch of s) {
+    const cp = ch.codePointAt(0)!
+    out.push(cp < 0x80 ? cp : (CP437_GLYPHS.get(cp) ?? 0x3f))
+  }
+  return Uint8Array.from(out)
+}
+
+/** The glyphs the firmware would print for an element. */
 export function elementText(el: Pick<FrameElement, 'type' | 'value'>): Uint8Array {
   const s = el.type === 'datavalue' ? (SAMPLES.get(el.value) ?? '?') : el.value
-  return new TextEncoder().encode(s ?? '')
+  return toFontText(s ?? '')
 }
 
 export interface Canvas {
@@ -82,11 +109,11 @@ function fillBlock(c: Canvas, x: number, y: number, s: number, rgb: RGB) {
   for (let dy = 0; dy < s; dy++) for (let dx = 0; dx < s; dx++) setPixel(c, x + dx, y + dy, rgb)
 }
 
-/** Adafruit_GFX::write() + drawChar() at text size `s`, wrap enabled, transparent bg. */
+/** Adafruit_GFX::write() + drawChar() (CP437 glyphs) at text size `s`, wrap enabled, transparent bg. */
 function drawText(c: Canvas, bytes: Uint8Array, x0: number, y0: number, rgb: RGB, s = 1) {
   let cx = x0
   let cy = y0
-  for (let ch of bytes) {
+  for (const ch of bytes) {
     if (ch === 10) {
       cx = 0
       cy += CHAR_H * s
@@ -97,7 +124,6 @@ function drawText(c: Canvas, bytes: Uint8Array, x0: number, y0: number, rgb: RGB
       cx = 0
       cy += CHAR_H * s
     }
-    if (ch >= 176) ch++ // GFX default (non-CP437) glyph offset quirk
     for (let i = 0; i < 5; i++) {
       let line = FONT_5X7[(ch & 255) * 5 + i] ?? 0
       for (let j = 0; j < 8; j++, line >>= 1) if (line & 1) fillBlock(c, cx + i * s, cy + j * s, s, rgb)
