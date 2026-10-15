@@ -57,7 +57,14 @@ public sealed class FakeMoonrakerHost : IAsyncDisposable
         return new FakeMoonrakerHost(app, time, new Uri(address));
     }
 
-    public async Task<MoonrakerTestClient> ConnectAsync() => await MoonrakerTestClient.ConnectAsync(WebSocketUrl);
+    public async Task<MoonrakerTestClient> ConnectAsync()
+    {
+        var client = await MoonrakerTestClient.ConnectAsync(WebSocketUrl);
+        // The client's handshake can finish before the hub registers the session, so a
+        // notification sent straight away could miss it; a reply means it's registered
+        await client.CallAsync("server.info");
+        return client;
+    }
 
     /// <summary>Move time on by one tick, so the simulation advances and changes are sent.</summary>
     public void Tick(int ticks = 1)
