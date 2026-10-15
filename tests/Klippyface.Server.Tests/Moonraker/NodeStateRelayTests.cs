@@ -79,7 +79,7 @@ public class NodeStateRelayTests : IAsyncLifetime
         Assert.Equal("state", sent[1]["type"]!.GetValue<string>());
         Assert.True(sent[1]["full"]!.GetValue<bool>());
         Assert.Equal(
-            ["extruder.temperature", "heater_bed.temperature", "klippyface.state", "print_stats.progress"],
+            ["extruder.temperature", "heater_bed.temperature", "klippyface.active", "klippyface.state", "print_stats.progress"],
             sent[1]["values"]!.AsObject().Select(v => v.Key).Order());
     }
 

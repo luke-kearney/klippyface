@@ -108,16 +108,37 @@ export function NodeDetailPage() {
   )
 }
 
+/** Screen sleep choices, in seconds; 0 never sleeps. */
+const SLEEP_OPTIONS: { value: number; label: string }[] = [
+  { value: 60, label: '1 minute' },
+  { value: 300, label: '5 minutes' },
+  { value: 900, label: '15 minutes' },
+  { value: 1800, label: '30 minutes' },
+  { value: 3600, label: '1 hour' },
+  { value: 0, label: 'Never' },
+]
+
+function sleepLabel(seconds: number) {
+  return SLEEP_OPTIONS.find((o) => o.value === seconds)?.label ?? `${seconds} seconds`
+}
+
 function NodeDetailsCard({ node }: { node: Node }) {
   const [name, setName] = useState(node.friendlyName)
   const [description, setDescription] = useState(node.description)
+  const [sleepAfter, setSleepAfter] = useState(node.sleepAfterSeconds)
   useEffect(() => {
     setName(node.friendlyName)
     setDescription(node.description)
-  }, [node.friendlyName, node.description])
-  const dirty = name !== node.friendlyName || description !== node.description
+    setSleepAfter(node.sleepAfterSeconds)
+  }, [node.friendlyName, node.description, node.sleepAfterSeconds])
+  const dirty = name !== node.friendlyName || description !== node.description || sleepAfter !== node.sleepAfterSeconds
+  // Keep a value set outside these choices (e.g. through the API) selectable
+  const sleepOptions = SLEEP_OPTIONS.some((o) => o.value === node.sleepAfterSeconds)
+    ? SLEEP_OPTIONS
+    : [...SLEEP_OPTIONS, { value: node.sleepAfterSeconds, label: sleepLabel(node.sleepAfterSeconds) }]
 
-  const save = useApiMutation(() => api.updateNode(node.id, { friendlyName: name.trim(), description }), {
+  const save = useApiMutation(
+    () => api.updateNode(node.id, { friendlyName: name.trim(), description, sleepAfterSeconds: sleepAfter }), {
     invalidate: [keys.nodes],
     success: 'Saved',
   })
@@ -140,6 +161,20 @@ function NodeDetailsCard({ node }: { node: Node }) {
           </Field>
           <Field label="Description">
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+          </Field>
+          <Field label="Screen sleep" hint="Turns the screens off after this long without a state change while the printer is idle or finished. They stay on while printing, paused, heating, busy or in error.">
+            <Select value={String(sleepAfter)} onValueChange={(v) => setSleepAfter(Number(v))}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {sleepOptions.map((o) => (
+                  <SelectItem key={o.value} value={String(o.value)}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
           <Button type="submit" variant={dirty ? "default" : "secondary"} disabled={!dirty || save.isPending} className="justify-self-start">
             <Save /> {dirty ? 'Save' : 'Saved'}

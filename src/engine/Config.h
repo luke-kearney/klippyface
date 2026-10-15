@@ -60,6 +60,12 @@ public:
     // Display string for a binding key: "210°C", "42.0%", "--" when unknown
     String resolve(const String& key) const;
 
+    // A text value as sent ("printing"; booleans read "Yes"/"No"); empty when unknown or numeric
+    String text(const String& key) const;
+
+    // Server and Moonraker both reachable, Klipper ready
+    bool online() const { return _moonrakerConnected; }
+
     // Bumped on every change, so the renderer only re-resolves values when it moves
     uint32_t version() const { return _version.load(); }
 
@@ -149,6 +155,7 @@ struct NodeConfig {
     uint32_t                                config_version  = 1;
     String                                  node_id;
     String                                  friendly_name;
+    uint32_t                                sleep_after_s   = 300;  // 0 = never
     std::vector<DisplaySlotConfig>          displays;
     std::map<String, Group>                 library_groups;
     std::map<String, SpriteInfo>            sprites;

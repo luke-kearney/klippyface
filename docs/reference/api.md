@@ -30,7 +30,7 @@ The server's one connection to Moonraker (Web UI **Printer** page).
 | GET | `/api/nodes` | List all nodes |
 | POST | `/api/nodes` | Register new node |
 | GET | `/api/nodes/{id}` | Get node + displays + assignments |
-| PUT | `/api/nodes/{id}` | Update node |
+| PUT | `/api/nodes/{id}` | Update node: `{ friendly_name, description, sleep_after_seconds? }`. `sleep_after_seconds` is 0 (never) to 86400; leaving it out keeps it, changing it pushes a new config |
 | DELETE | `/api/nodes/{id}` | Delete node + displays + assignments |
 | GET | `/api/ws/node/{mac}` | **WebSocket** — persistent channel for online tracking, heartbeat, config push and relayed printer state |
 | GET | `/api/nodes/{id}/displays` | List displays on node |
@@ -107,6 +107,7 @@ GET /api/config/node?mac=AA:BB:CC:DD:EE:01
   "node": {
     "id": "printer_face",
     "friendly_name": "Printer Face",
+    "sleep_after_s": 300,
     "displays": [
       {
         "id": "face_oled",
@@ -187,7 +188,7 @@ with a `type` field:
 | `refresh_config` | `{}` | Admin-edited config (display/group/assignment changes) |
 | `refresh_library` | `{}` | Admin-edited library (future) |
 | `moonraker_status` | `{ connected: bool }` | After every hello, and whenever the server's Moonraker connection changes. `false` while Moonraker is unreachable or Klipper isn't ready |
-| `state` | `{ full: bool, values: { "<data key>": value } }` | After every hello (`full: true`, replaces everything), then changes only. Values are raw Moonraker values (numbers, strings, `null` = key gone). Only the keys the node's faces bind to, plus `klippyface.state` |
+| `state` | `{ full: bool, values: { "<data key>": value } }` | After every hello (`full: true`, replaces everything), then changes only. Values are raw Moonraker values (numbers, strings, `null` = key gone). Only the keys the node's faces bind to, plus `klippyface.state` and `klippyface.active` |
 | `display_cmd` | `{ group, set?, loop? }` | A Klipper `RESPOND MSG="display:…"` line addressed to this node (or to all nodes, without `node=`) |
 
 ### Connection Lifecycle
@@ -221,6 +222,7 @@ A key is `<Klipper object>.<field>` (nested fields joined with `.`), for any obj
 | `heater_bed.temperature` | Bed temp | `"60°C"` |
 | `heater_bed.target` | Bed target | `"65°C"` |
 | `klippyface.state` | The printer state the server works out (see [Printer States](#printer-states)); drives `state:*` triggers | `"heating"` |
+| `klippyface.active` | `true` while the state is printing, paused, heating, busy or error; nodes don't sleep their screens then | `true` |
 | `print_stats.state` | Klipper's raw print state: `standby`, `printing`, `paused`, `complete`, `cancelled`, `error` | `"printing"` |
 | `moonraker.connected` | Node-side: server and Moonraker both reachable, Klipper ready | `"Online"` / `"Offline"` |
 

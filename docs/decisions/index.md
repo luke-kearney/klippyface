@@ -409,6 +409,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-15: Screen sleep follows the printer, with a per-node timeout
+
+**Context:** Nodes slept after 5 minutes without a trigger or command (#38). A printer state is only sent as a trigger when it changes, so a long print went dark about 5 minutes in, and the timeout couldn't be changed.
+
+**Decision:** The server sends `klippyface.active` (printing, paused, heating, busy or error) with every node's state, and each node has a `sleep_after_seconds` (default 300, 0 = never) set in the Web UI and sent in its config as `sleep_after_s`. Nodes don't sleep while the printer is active and reachable; the timeout counts from it going to rest. Which states are active is fixed on the server rather than configurable. Waking re-applies the current state's face, and the unused `screen_sleep` group switch is gone.
+
+**Consequences:** A printer left in error (e.g. shut down) keeps its displays on until Klipper restarts. Firmware older than this ignores both the field and the key and keeps its fixed 5 minutes.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations

@@ -32,6 +32,7 @@ CREATE TABLE nodes (
     last_config_version INTEGER NOT NULL DEFAULT 0,      -- bumped on admin edits
     board               TEXT NOT NULL DEFAULT '',        -- firmware build env from hello, e.g. esp32s3-ws-lcd169
     firmware_version    TEXT NOT NULL DEFAULT '',        -- fw_version from hello
+    sleep_after_seconds INTEGER NOT NULL DEFAULT 300,    -- screen sleep while the printer rests; 0 = never
     created_at          TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );

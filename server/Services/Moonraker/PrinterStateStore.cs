@@ -12,6 +12,9 @@ public sealed class PrinterStateStore
     /// <summary>What nodes fire state:* triggers from; see <see cref="DisplayState"/>.</summary>
     public const string DisplayStateKey = "klippyface.state";
 
+    /// <summary>True while the printer is working (see <see cref="IsActive"/>); nodes don't sleep their screens then.</summary>
+    public const string ActiveKey = "klippyface.active";
+
     /// <summary>
     /// Keys the server works out itself. print_stats has no progress field in
     /// Klipper, but faces have always bound to "print_stats.progress"; it follows
@@ -22,7 +25,12 @@ public sealed class PrinterStateStore
         ("print_stats.progress", (v, _) =>
             v.GetValueOrDefault("display_status.progress") ?? v.GetValueOrDefault("virtual_sdcard.progress")),
         (DisplayStateKey, (v, resultDismissed) => DisplayState(v, resultDismissed)),
+        (ActiveKey, (v, resultDismissed) =>
+            DisplayState(v, resultDismissed) is { } state ? JsonValue.Create(IsActive(state)) : null),
     ];
+
+    /// <summary>Printing, paused, heating, busy or error; idle, complete and cancelled are resting.</summary>
+    public static bool IsActive(string state) => state is "printing" or "paused" or "heating" or "busy" or "error";
 
     /// <summary>
     /// One state for faces, from several Klipper objects (first match wins):

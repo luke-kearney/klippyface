@@ -17,6 +17,9 @@ public class Node
     public string Board { get; set; } = string.Empty;
     public string FirmwareVersion { get; set; } = string.Empty;
 
+    /// <summary>Seconds without a trigger or command before the screens sleep while the printer rests; 0 = never.</summary>
+    public int SleepAfterSeconds { get; set; } = 300;
+
     public bool IsOnline => LastSeen.HasValue && (DateTime.UtcNow - LastSeen.Value).TotalSeconds < 90;
 
     public ICollection<NodeDisplay> Displays { get; set; } = new List<NodeDisplay>();

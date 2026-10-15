@@ -115,7 +115,7 @@ public sealed class NodeStateRelay(
     /// <summary>Data keys bound by datavalue elements in any group the node's displays can show.</summary>
     private async Task<IReadOnlySet<string>> LoadBoundKeysAsync(string mac)
     {
-        var keys = new HashSet<string> { PrintStateKey };
+        var keys = new HashSet<string> { PrintStateKey, PrinterStateStore.ActiveKey };
         try
         {
             using var scope = scopes.CreateScope();

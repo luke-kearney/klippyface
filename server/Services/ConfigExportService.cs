@@ -165,6 +165,7 @@ public class ConfigExportService
             {
                 ["id"] = node.Id,
                 ["friendly_name"] = node.FriendlyName,
+                ["sleep_after_s"] = node.SleepAfterSeconds,
                 ["displays"] = displaysJson,
                 ["assignments"] = assignmentsJson,
             },

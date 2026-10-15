@@ -191,12 +191,36 @@ public class PrinterStateStoreTests
         Assert.Equal("idle", State(_store.Apply(Json("""{"idle_timeout": {"state": "Ready"}}"""))));
     }
 
+    [Theory]
+    [InlineData("printing", 12.5, "Printing", "ready", true)]   // printing
+    [InlineData("printing", 0, "Printing", "ready", true)]      // heating
+    [InlineData("paused", 12.5, "Ready", "ready", true)]
+    [InlineData("standby", 0, "Printing", "ready", true)]       // busy
+    [InlineData("standby", 0, "Idle", "shutdown", true)]        // error
+    [InlineData("standby", 0, "Ready", "ready", false)]         // idle
+    [InlineData("complete", 900, "Ready", "ready", false)]
+    [InlineData("cancelled", 40, "Ready", "ready", false)]
+    public void Active_follows_the_display_state(string print, double filament, string idle, string klippy, bool expected)
+    {
+        var status = new JsonObject
+        {
+            ["print_stats"] = new JsonObject { ["state"] = print, ["filament_used"] = filament },
+            ["idle_timeout"] = new JsonObject { ["state"] = idle },
+            ["webhooks"] = new JsonObject { ["state"] = klippy },
+        };
+
+        var changes = _store.Replace(status);
+
+        Assert.Equal(expected, changes[PrinterStateStore.ActiveKey]!.GetValue<bool>());
+    }
+
     [Fact]
     public void Display_state_waits_for_a_print_state()
     {
         var changes = _store.Replace(Json("""{"idle_timeout": {"state": "Idle"}}"""));
 
         Assert.False(changes.ContainsKey(PrinterStateStore.DisplayStateKey));
+        Assert.False(changes.ContainsKey(PrinterStateStore.ActiveKey));
     }
 
     private static JsonObject Json(string text) => JsonNode.Parse(text)!.AsObject();

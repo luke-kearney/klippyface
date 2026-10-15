@@ -217,4 +217,4 @@ to the companion server, replacing the old 5-minute HTTP polling:
 - **Display commands:** `display_cmd { group, set?, loop? }` → `DisplayManager::directCommand()`. The server parses `RESPOND` lines and picks the node; the firmware no longer reads console output.
 - **Reconnect:** auto-reconnect at 5s interval (WebSockets library manages this)
 
-No connection groups exist by default: map the `wifi:`/`server:`/`moonraker:disconnected` triggers to a group on a display to show one. The screen sleeps (powers off) after 5 minutes without a trigger or command.
+No connection groups exist by default: map the `wifi:`/`server:`/`moonraker:disconnected` triggers to a group on a display to show one. The screens sleep (power off) after the node's `sleep_after_s` (from its config; default 300, 0 = never) without a trigger or command, but never while `klippyface.active` is true (printing, paused, heating, busy, error) and the server and Moonraker are reachable; the countdown starts when the printer goes to rest. Waking shows the current printer state's face.

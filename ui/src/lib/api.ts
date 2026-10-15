@@ -81,7 +81,7 @@ export const api = {
   getNodes: () => get<Node[]>('/api/nodes'),
   getNode: (id: string) => get<Node>(`/api/nodes/${id}`),
   createNode: (d: NodeInput) => post<Node>('/api/nodes', d),
-  updateNode: (id: string, d: Pick<Node, 'friendlyName' | 'description'>) => put<Node>(`/api/nodes/${id}`, d),
+  updateNode: (id: string, d: Pick<Node, 'friendlyName' | 'description' | 'sleepAfterSeconds'>) => put<Node>(`/api/nodes/${id}`, d),
   deleteNode: (id: string) => del(`/api/nodes/${id}`),
 
   // Displays
