@@ -10,34 +10,53 @@ namespace FakeMoonraker.Protocol;
 /// Speaks Moonraker's JSON-RPC to every connected client: answers requests,
 /// sends each subscriber only the fields that changed, and pushes notifications.
 /// </summary>
-public sealed class MoonrakerHub(PrinterSimulation sim, TimeProvider time, ILogger<MoonrakerHub> log)
+public sealed class MoonrakerHub
 {
     private const int MethodNotFound = -32601;
     private const int ParseError = -32700;
     private const int InvalidArgument = 400;
     private const int KlippyNotReady = 503;
 
+    private readonly PrinterSimulation _sim;
+    private readonly FakeSpoolman _spoolman;
+    private readonly TimeProvider _time;
+    private readonly ILogger<MoonrakerHub> _log;
     private readonly ConcurrentDictionary<int, ClientSession> _sessions = new();
-    private readonly long _started = time.GetTimestamp();
+    private readonly long _started;
     // Keeps subscribe replies and status updates in order for each client
     private readonly Lock _gate = new();
     private int _nextId;
     private volatile bool _klippyReady = true;
 
-    private PrinterModel Model => sim.Model;
+    public MoonrakerHub(PrinterSimulation sim, FakeSpoolman spoolman, TimeProvider time, ILogger<MoonrakerHub> log)
+    {
+        _sim = sim;
+        _spoolman = spoolman;
+        _time = time;
+        _log = log;
+        _started = time.GetTimestamp();
+        // What Moonraker sends when SET_ACTIVE_SPOOL (or a tool change macro) picks a spool
+        spoolman.ActiveChanged += id =>
+        {
+            foreach (var session in _sessions.Values)
+                session.Send(Notification("notify_active_spool_set", new JsonObject { ["spool_id"] = id }));
+        };
+    }
+
+    private PrinterModel Model => _sim.Model;
 
     public bool KlippyReady => _klippyReady;
 
     public int ClientCount => _sessions.Count;
 
     /// <summary>Klipper's eventtime: a monotonic clock in seconds.</summary>
-    public double EventTime => Math.Round(1000 + time.GetElapsedTime(_started).TotalSeconds, 6);
+    public double EventTime => Math.Round(1000 + _time.GetElapsedTime(_started).TotalSeconds, 6);
 
     public async Task HandleAsync(WebSocket socket, CancellationToken ct)
     {
         var session = new ClientSession(Interlocked.Increment(ref _nextId), socket);
         _sessions[session.Id] = session;
-        log.LogInformation("Client {Id} connected", session.Id);
+        _log.LogInformation("Client {Id} connected", session.Id);
 
         try
         {
@@ -46,7 +65,7 @@ public sealed class MoonrakerHub(PrinterSimulation sim, TimeProvider time, ILogg
         finally
         {
             _sessions.TryRemove(session.Id, out _);
-            log.LogInformation("Client {Id} disconnected", session.Id);
+            _log.LogInformation("Client {Id} disconnected", session.Id);
         }
     }
 
@@ -71,7 +90,7 @@ public sealed class MoonrakerHub(PrinterSimulation sim, TimeProvider time, ILogg
         var id = request["id"]?.DeepClone();
         var method = request["method"]?.GetValue<string>() ?? "";
         var parameters = request["params"] as JsonObject ?? new JsonObject();
-        log.LogDebug("Client {Id} → {Method}", session.Id, method);
+        _log.LogDebug("Client {Id} → {Method}", session.Id, method);
 
         // Subscribe is answered inside the lock so no update can overtake the reply
         if (method == "printer.objects.subscribe")
@@ -91,6 +110,16 @@ public sealed class MoonrakerHub(PrinterSimulation sim, TimeProvider time, ILogg
                 ["objects"] = new JsonArray(Model.ObjectNames.Select(n => (JsonNode)n).ToArray()),
             }),
             "printer.objects.query" => Query(parameters),
+            "server.spoolman.get_spool_id" when _spoolman.Enabled =>
+                Result(new JsonObject { ["spool_id"] = _spoolman.ActiveId }),
+            "server.spoolman.post_spool_id" when _spoolman.Enabled => SetSpool(parameters),
+            "server.spoolman.status" when _spoolman.Enabled => Result(new JsonObject
+            {
+                ["spoolman_connected"] = _spoolman.Reachable,
+                ["pending_reports"] = new JsonArray(),
+                ["spool_id"] = _spoolman.ActiveId,
+            }),
+            "server.spoolman.proxy" when _spoolman.Enabled => SpoolmanProxy(parameters),
             _ => Failure(MethodNotFound, "Method not found"),
         });
     }
@@ -127,6 +156,45 @@ public sealed class MoonrakerHub(PrinterSimulation sim, TimeProvider time, ILogg
         var snapshot = Model.Snapshot();
         var status = Status(requested, Resolve(requested, snapshot), snapshot);
         return Result(new JsonObject { ["eventtime"] = EventTime, ["status"] = status });
+    }
+
+    private Outcome SetSpool(JsonObject parameters)
+    {
+        int? id = parameters["spool_id"] is JsonValue v && v.TryGetValue<int>(out var n) ? n : null;
+        return _spoolman.SetActive(id)
+            ? Result(new JsonObject { ["spool_id"] = id })
+            : Failure(InvalidArgument, $"Spool {id} not found");
+    }
+
+    /// <summary>
+    /// Moonraker's pass-through to Spoolman. Only GET /v1/spool/{id} is faked. With
+    /// use_v2_response the reply is { response, error }; Spoolman being down is an error, not a failure.
+    /// </summary>
+    private Outcome SpoolmanProxy(JsonObject parameters)
+    {
+        var v2 = parameters["use_v2_response"]?.GetValue<bool>() ?? false;
+        var path = parameters["path"]?.GetValue<string>() ?? "";
+        var method = parameters["request_method"]?.GetValue<string>() ?? "";
+
+        JsonObject? spool = null;
+        (int Status, string Message)? error = null;
+        if (!_spoolman.Reachable)
+            error = (503, "Spoolman server not available");
+        else if (method != "GET" || !path.StartsWith("/v1/spool/") || !int.TryParse(path["/v1/spool/".Length..], out var id))
+            error = (404, $"Not faked: {method} {path}");
+        else if ((spool = _spoolman.Spool(id)) is null)
+            error = (404, $"No spool with ID {id} found.");
+
+        if (!v2)
+            return error is { } e ? Failure(e.Status, e.Message) : Result(spool!);
+        return Result(new JsonObject
+        {
+            ["response"] = spool,
+            ["response_headers"] = new JsonObject(),
+            ["error"] = error is { } err
+                ? new JsonObject { ["status_code"] = err.Status, ["message"] = err.Message }
+                : null,
+        });
     }
 
     /// <summary>params.objects as object → requested fields (null = all).</summary>
@@ -180,7 +248,9 @@ public sealed class MoonrakerHub(PrinterSimulation sim, TimeProvider time, ILogg
     {
         ["klippy_connected"] = true,
         ["klippy_state"] = KlippyState,
-        ["components"] = new JsonArray("websockets", "klippy_apis"),
+        ["components"] = _spoolman.Enabled
+            ? new JsonArray("websockets", "klippy_apis", "spoolman")
+            : new JsonArray("websockets", "klippy_apis"),
         ["failed_components"] = new JsonArray(),
         ["registered_directories"] = new JsonArray("gcodes", "config"),
         ["warnings"] = new JsonArray(),
@@ -270,16 +340,16 @@ public sealed class MoonrakerHub(PrinterSimulation sim, TimeProvider time, ILogg
                 session.Send(Notification("notify_klippy_disconnected"));
             }
         }
-        sim.Reset(profile);
-        log.LogInformation("Klippy restarting ({Seconds}s) as '{Profile}' ({Extruders} extruder(s))",
+        _sim.Reset(profile);
+        _log.LogInformation("Klippy restarting ({Seconds}s) as '{Profile}' ({Extruders} extruder(s))",
             downtime.TotalSeconds, Model.Profile.Name, Model.Profile.Extruders);
 
-        await Task.Delay(downtime, time, ct);
+        await Task.Delay(downtime, _time, ct);
 
         _klippyReady = true;
         foreach (var session in _sessions.Values)
             session.Send(Notification("notify_klippy_ready"));
-        log.LogInformation("Klippy ready");
+        _log.LogInformation("Klippy ready");
     }
 
     /// <summary>
@@ -289,10 +359,10 @@ public sealed class MoonrakerHub(PrinterSimulation sim, TimeProvider time, ILogg
     /// </summary>
     public void ShutdownKlippy(string message)
     {
-        sim.Shutdown(message);
+        _sim.Shutdown(message);
         foreach (var session in _sessions.Values)
             session.Send(Notification("notify_klippy_shutdown"));
-        log.LogWarning("Klippy shut down: {Message}", message);
+        _log.LogWarning("Klippy shut down: {Message}", message);
     }
 
     /// <summary>Drop every connection without a close handshake.</summary>
@@ -301,7 +371,7 @@ public sealed class MoonrakerHub(PrinterSimulation sim, TimeProvider time, ILogg
         var sessions = _sessions.Values.ToList();
         foreach (var session in sessions)
             session.Abort();
-        log.LogInformation("Dropped {Count} client(s)", sessions.Count);
+        _log.LogInformation("Dropped {Count} client(s)", sessions.Count);
         return sessions.Count;
     }
 

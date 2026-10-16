@@ -119,6 +119,9 @@ String PrinterState::resolve(const String& key) const {
     char buf[24];
     if (endsWith(key, ".temperature") || endsWith(key, ".target")) {
         snprintf(buf, sizeof(buf), "%.0f°C", value.number);
+    } else if (endsWith(key, "_weight")) {
+        // Spoolman weights, in grams
+        snprintf(buf, sizeof(buf), "%.0fg", value.number);
     } else if (endsWith(key, "progress")) {
         // Klipper reports progress as 0–1
         snprintf(buf, sizeof(buf), "%.1f%%", value.number * 100.0f);

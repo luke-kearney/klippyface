@@ -129,7 +129,34 @@ public sealed class PrinterStateStore
             var changes = new Dictionary<string, JsonNode?>();
             foreach (var key in _values.Keys.Except(incoming.Keys).ToList())
             {
-                if (IsDerived(key)) continue;
+                if (IsDerived(key) || IsOtherSource(key)) continue;
+                _values.Remove(key);
+                changes[key] = null;
+            }
+            foreach (var (key, value) in incoming)
+                SetLocked(key, value, changes);
+            UpdateDerivedLocked(changes);
+            return changes;
+        }
+    }
+
+    /// <summary>
+    /// Set every key under <paramref name="root"/> ("spool" → "spool.name", ...) from
+    /// somewhere other than Klipper's objects, e.g. Spoolman. Keys under it that
+    /// aren't in <paramref name="values"/> go away; a Klipper resubscribe leaves them be.
+    /// </summary>
+    public IReadOnlyDictionary<string, JsonNode?> ReplaceSource(string root, JsonObject? values)
+    {
+        var incoming = new Dictionary<string, JsonNode?>();
+        Flatten(new JsonObject { [root] = values?.DeepClone() ?? new JsonObject() }, null, incoming);
+        var prefix = root + ".";
+
+        lock (_lock)
+        {
+            _otherSources.Add(prefix);
+            var changes = new Dictionary<string, JsonNode?>();
+            foreach (var key in _values.Keys.Where(k => k.StartsWith(prefix) && !incoming.ContainsKey(k)).ToList())
+            {
                 _values.Remove(key);
                 changes[key] = null;
             }
@@ -226,6 +253,11 @@ public sealed class PrinterStateStore
     }
 
     private static bool IsDerived(string key) => Derived.Any(d => d.Key == key);
+
+    // Key prefixes set through ReplaceSource ("spool.")
+    private readonly HashSet<string> _otherSources = [];
+
+    private bool IsOtherSource(string key) => _otherSources.Any(key.StartsWith);
 
     /// <summary>{"print_stats": {"info": {"current_layer": 3}}} → "print_stats.info.current_layer": 3. Arrays stay whole.</summary>
     private static void Flatten(JsonObject obj, string? prefix, Dictionary<string, JsonNode?> into)

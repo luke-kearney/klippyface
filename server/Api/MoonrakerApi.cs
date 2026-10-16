@@ -53,7 +53,7 @@ public static class MoonrakerApi
 
         // What the editor offers for data values on this printer
         moonraker.MapGet("/data-keys", (MoonrakerService service, PrinterStateStore store) =>
-            Results.Ok(DataKeyCatalog.Build(service.Status.Objects, store.All())));
+            Results.Ok(DataKeyCatalog.Build(service.Status.Objects, store.All(), service.SpoolmanAvailable)));
 
         return app;
     }

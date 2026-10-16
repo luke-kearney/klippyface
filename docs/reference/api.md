@@ -235,6 +235,12 @@ A key is `<Klipper object>.<field>` (nested fields joined with `.`), for any obj
 | `heater_bed.target` | Bed target | `"65°C"` |
 | `klippyface.state` | The printer state the server works out (see [Printer States](#printer-states)); drives `state:*` triggers | `"heating"` |
 | `klippyface.active` | `true` while the state is printing, paused, heating, busy or error; nodes don't sleep their screens then | `true` |
+| `spool.name` | The active Spoolman spool's filament name (falls back to its material). Filament keys come from Moonraker's `[spoolman]` integration and are gone when no spool is active | `"Galaxy Black"` |
+| `spool.material` | Its material | `"PLA"` |
+| `spool.vendor` | Its vendor | `"Prusament"` |
+| `spool.color` | Its colour as `#RRGGBB` (the first colour of a multi-colour filament) | `"#1B1B1B"` |
+| `spool.remaining_weight` | Grams left, rounded; keys ending `_weight` are shown with `g`. Refreshed every 60 s | `"743g"` |
+| `spool.id` | The Spoolman spool id | `"1"` |
 | `print_stats.state` | Klipper's raw print state: `standby`, `printing`, `paused`, `complete`, `cancelled`, `error` | `"printing"` |
 | `moonraker.connected` | Node-side: server and Moonraker both reachable, Klipper ready | `"Online"` / `"Offline"` |
 

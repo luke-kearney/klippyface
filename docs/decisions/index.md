@@ -439,6 +439,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-16: Loaded filament from Spoolman, through Moonraker
+
+**Context:** #23 asked for the loaded filament on the faces, with the data source undecided.
+
+**Decision:** Use Moonraker's `[spoolman]` integration over the existing Moonraker connection: the active spool id from `server.spoolman.get_spool_id`, details through `server.spoolman.proxy`. The server exposes them as `spool.*` keys (name, material, vendor, colour, remaining weight, id), re-read when the active spool changes and every 60 s. No separate Spoolman URL to configure.
+
+**Consequences:** Only Spoolman is supported for now; other filament trackers would need their own source. Remaining weight lags printing by up to a minute plus Moonraker's own reporting interval.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations

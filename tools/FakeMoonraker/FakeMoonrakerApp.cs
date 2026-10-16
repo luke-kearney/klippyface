@@ -17,6 +17,7 @@ public static class FakeMoonrakerApp
     /// <param name="args">
     /// --profile single|quad|path.json, --extruders n, --scenario name, --port n, --host addr,
     /// --console true|false (typed commands; on when stdin is a terminal), --idle-timeout seconds,
+    /// --spoolman false (no [spoolman] in Moonraker),
     /// or --replay capture.jsonl [--speed 1] [--loop true] instead of a profile and scenario
     /// </param>
     /// <param name="configure">Extra service setup, e.g. a fake TimeProvider in tests.</param>
@@ -51,6 +52,7 @@ public static class FakeMoonrakerApp
             return model;
         });
         builder.Services.AddSingleton<PrinterSimulation>();
+        builder.Services.AddSingleton<FakeSpoolman>();
         builder.Services.AddSingleton<MoonrakerHub>();
         builder.Services.AddHostedService<SimulationTicker>();
         builder.Services.AddHostedService<ScenarioRunner>();
@@ -64,6 +66,7 @@ public static class FakeMoonrakerApp
         var simulation = app.Services.GetRequiredService<PrinterSimulation>();
         if (capture is not null)
             simulation.Physics = false;
+        app.Services.GetRequiredService<FakeSpoolman>().Enabled = config.GetValue("spoolman", true);
         if (config.GetValue<double?>("idle-timeout") is { } idleTimeout)
             simulation.IdleTimeout = TimeSpan.FromSeconds(idleTimeout);
 

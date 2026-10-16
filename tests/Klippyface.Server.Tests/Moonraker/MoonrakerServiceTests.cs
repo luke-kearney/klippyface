@@ -27,6 +27,7 @@ public class MoonrakerServiceTests : IAsyncLifetime
             {
                 RetryDelays = [TimeSpan.FromMilliseconds(100)],
                 KlippyRetry = TimeSpan.FromMilliseconds(200),
+                SpoolmanRefresh = TimeSpan.FromMilliseconds(300),
             },
             NullLogger<MoonrakerService>.Instance);
     }
@@ -111,6 +112,88 @@ public class MoonrakerServiceTests : IAsyncLifetime
 
         var changes = await _listener.WaitForChangeAsync(PrinterStateStore.ToolKey, v => v?.GetValue<string>() == "T2");
         Assert.Equal(230, changes[PrinterStateStore.NozzleTargetKey]!.GetValue<double>());
+    }
+
+    [Fact]
+    public async Task Active_spool_becomes_filament_keys()
+    {
+        await StartAsync();
+
+        var changes = await _listener.WaitForChangeAsync("spool.name", v => v?.GetValue<string>() == "Galaxy Black");
+        Assert.Equal("PLA", changes["spool.material"]!.GetValue<string>());
+        Assert.Equal("Prusament", changes["spool.vendor"]!.GetValue<string>());
+        Assert.Equal("#1B1B1B", changes["spool.color"]!.GetValue<string>());
+        Assert.Equal(743, changes["spool.remaining_weight"]!.GetValue<double>());
+        Assert.Equal(1, changes["spool.id"]!.GetValue<int>());
+        Assert.True(_service.SpoolmanAvailable);
+    }
+
+    [Fact]
+    public async Task Changing_the_active_spool_updates_the_keys()
+    {
+        await StartAsync();
+        await _listener.WaitForChangeAsync("spool.id", v => v?.GetValue<int>() == 1);
+
+        await _fake.PostAsync("/_sim/spool/3");
+        var changes = await _listener.WaitForChangeAsync("spool.id", v => v?.GetValue<int>() == 3);
+        Assert.Equal("Sunset Orange", changes["spool.name"]!.GetValue<string>());
+
+        // No spool: the keys go away, so faces show --
+        await _fake.PostAsync("/_sim/spool/0");
+        changes = await _listener.WaitForChangeAsync("spool.id", v => v is null);
+        Assert.Contains("spool.name", changes.Keys);
+        Assert.Empty(_store.Snapshot(["spool.name"]));
+    }
+
+    [Fact]
+    public async Task Remaining_weight_is_refreshed_while_it_prints()
+    {
+        await StartAsync();
+        await _listener.WaitForChangeAsync("spool.id", v => v?.GetValue<int>() == 1);
+
+        await _fake.PostAsync("/_sim/spool/1/use?grams=100.4");
+
+        await _listener.WaitForChangeAsync("spool.remaining_weight", v => v?.GetValue<double>() == 642);
+    }
+
+    [Fact]
+    public async Task Spoolman_down_keeps_the_last_known_filament()
+    {
+        await StartAsync();
+        await _listener.WaitForChangeAsync("spool.name", v => v?.GetValue<string>() == "Galaxy Black");
+
+        _fake.Spoolman.Reachable = false;
+        await _fake.PostAsync("/_sim/spool/1/use?grams=50");
+        await Task.Delay(800, TestContext.Current.CancellationToken);   // a couple of refreshes
+
+        Assert.Equal("Galaxy Black", _store.Snapshot(["spool.name"])["spool.name"]!.GetValue<string>());
+        Assert.Equal(743, _store.Snapshot(["spool.remaining_weight"])["spool.remaining_weight"]!.GetValue<double>());
+    }
+
+    [Fact]
+    public async Task Filament_keys_survive_a_klipper_restart()
+    {
+        await StartAsync();
+        await _listener.WaitForChangeAsync("spool.name", v => v?.GetValue<string>() == "Galaxy Black");
+
+        await _fake.PostAsync("/_sim/klippy/restart?seconds=1");
+        await _listener.WaitForStatusAsync(MoonrakerState.KlippyNotReady);
+        _fake.Time.Advance(TimeSpan.FromSeconds(1));
+        await _listener.WaitForStatusAsync(MoonrakerState.Ready);
+
+        Assert.Equal("Galaxy Black", _store.Snapshot(["spool.name"])["spool.name"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Without_spoolman_there_are_no_filament_keys()
+    {
+        _fake.Spoolman.Enabled = false;
+        await StartAsync();
+        await _listener.WaitForStatusAsync(MoonrakerState.Ready);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
+
+        Assert.False(_service.SpoolmanAvailable);
+        Assert.DoesNotContain(_store.All().Keys, k => k.StartsWith("spool."));
     }
 
     [Fact]

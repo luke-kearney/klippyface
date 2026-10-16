@@ -45,11 +45,25 @@ const SAMPLES = new Map<string, string>([
   ['moonraker.connected', 'Online'],
 ])
 
+/** Sample filament for "spool.<field>" (and per-tool "spool.toolN.<field>") keys. */
+const SPOOL_SAMPLES: Record<string, string> = {
+  name: 'Sunset Orange',
+  material: 'PLA',
+  vendor: 'eSun',
+  color: '#FF6A13',
+  remaining_weight: '742g',
+  id: '3',
+}
+
 /** Preview value for a data key, formatted like PrinterState::resolve. */
 export function sampleValue(key: string): string {
   const known = SAMPLES.get(key)
   if (known) return known
-  if (key.endsWith('.temperature') || key.endsWith('.target')) return key.startsWith('heater_bed') ? '60°C' : '215°C'
+  if (key.startsWith('spool.')) {
+    const sample = SPOOL_SAMPLES[key.slice(key.lastIndexOf('.') + 1)]
+    if (sample) return sample
+  }  if (key.endsWith('.temperature') || key.endsWith('.target')) return key.startsWith('heater_bed') ? '60°C' : '215°C'
+  if (key.endsWith('_weight')) return '742g'
   if (key.endsWith('progress')) return '42.0%'
   return '?'
 }
