@@ -35,7 +35,31 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 6. **Web UI** provides full visual management — node registry, sprite pixel editor, animation preview, preset scheduling
 7. **Admin edits** (displays, groups, animations) automatically bump `LastConfigVersion` and push `refresh_config` to all connected nodes in real-time
 
-## Quick Start
+## Installing a Release
+
+Download the server and firmware for your device from [GitHub Releases](https://github.com/luke-kearney/klippyface/releases). The server builds are self-contained: no .NET install needed. The server listens on port 5000, and nodes on your network connect to it there.
+
+Run the server from inside its folder: the database (`klippyface.db`), Web UI (`wwwroot`) and `appsettings.json` are found relative to the working directory.
+
+### Linux (x64 / arm64)
+
+```bash
+tar -xzf klippyface-server-<version>-linux-x64.tar.gz
+cd klippyface-server-<version>-linux-x64
+./Klippyface.Server
+# → http://localhost:5000
+```
+
+### Windows (x64)
+
+1. Unzip `klippyface-server-<version>-win-x64.zip` and open the `klippyface-server-<version>-win-x64` folder
+2. Run `Klippyface.Server.exe` (double-clicking it from the folder starts it in the right place). The executable is unsigned, so SmartScreen may warn: choose **More info → Run anyway**
+3. When Windows Firewall asks, allow access on **private networks**. Nodes can't connect until it's allowed
+4. Open http://localhost:5000
+
+Closing the console window stops the server.
+
+## Quick Start (Development)
 
 ### Firmware (ESP32)
 
