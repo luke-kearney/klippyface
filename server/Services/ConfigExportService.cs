@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Klippyface.Server.Data;
+using Klippyface.Server.Models;
 
 namespace Klippyface.Server.Services;
 
@@ -18,7 +19,7 @@ public class ConfigExportService
         var node = await _db.Nodes
             .Include(n => n.Displays.OrderBy(d => d.SortOrder))
             .Include(n => n.Assignments)
-            .FirstOrDefaultAsync(n => n.MacAddress == macAddress);
+            .FirstOrDefaultAsync(n => n.MacAddress == macAddress && n.Status == NodeStatus.Accepted);
 
         if (node is null) return null;
 

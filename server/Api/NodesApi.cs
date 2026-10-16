@@ -15,13 +15,13 @@ public static class NodesApi
     public static WebApplication MapNodesApi(this WebApplication app)
     {
         app.MapGet("/api/ws/node/{id}", async (HttpContext ctx, string id, NodeStatusService statusService,
-            NodeStateRelay relay, IServiceScopeFactory scopeFactory) =>
+            NodeStateRelay relay, IServiceScopeFactory scopeFactory, ILogger<NodeRegistry> log) =>
         {
             if (!ctx.WebSockets.IsWebSocketRequest)
                 return Results.BadRequest("Expected a WebSocket request");
 
             var ws = await ctx.WebSockets.AcceptWebSocketAsync();
-            await HandleNodeWebSocket(ws, id, statusService, relay, scopeFactory);
+            await HandleNodeWebSocket(ws, id, statusService, relay, scopeFactory, log);
             return Results.Empty;
         });
 
@@ -30,12 +30,25 @@ public static class NodesApi
         nodes.MapGet("/", async (KlippyfaceDbContext db) =>
             await db.Nodes.OrderBy(n => n.FriendlyName).ToListAsync());
 
-        nodes.MapPost("/", async (KlippyfaceDbContext db, Node node) =>
+        nodes.MapPost("/", async (KlippyfaceDbContext db, NodeRegistry registry, Node node) =>
         {
-            if (await db.Nodes.AnyAsync(n => n.MacAddress == node.MacAddress))
-                return Results.Conflict($"Node with MAC {node.MacAddress} already exists");
+            if (NodeRegistry.NormalizeMac(node.MacAddress) is not { } mac)
+                return Results.BadRequest("Expected a MAC address like AA:BB:CC:DD:EE:FF");
+            node.MacAddress = mac;
+
+            var existing = await db.Nodes.Include(n => n.Displays).FirstOrDefaultAsync(n => n.MacAddress == mac);
+            if (existing is { Status: NodeStatus.Pending })
+            {
+                // Adding a node that's already waiting accepts it
+                if (!string.IsNullOrWhiteSpace(node.Description)) existing.Description = node.Description;
+                await registry.AcceptAsync(existing, node.FriendlyName, DefaultPresetFor(existing));
+                return Results.Ok(existing);
+            }
+            if (existing is not null)
+                return Results.Conflict($"Node with MAC {mac} already exists");
 
             node.Id = Guid.NewGuid().ToString();
+            node.Status = NodeStatus.Accepted;
             node.CreatedAt = DateTime.UtcNow;
             node.UpdatedAt = DateTime.UtcNow;
             db.Nodes.Add(node);
@@ -70,15 +83,34 @@ public static class NodesApi
             return Results.Ok(node);
         });
 
-        nodes.MapDelete("/{id}", async (KlippyfaceDbContext db, string id) =>
+        nodes.MapPost("/{id}/accept", async (KlippyfaceDbContext db, NodeRegistry registry, string id, NodeAccept input) =>
+        {
+            var node = await db.Nodes.Include(n => n.Displays).FirstOrDefaultAsync(n => n.Id == id);
+            if (node is null) return Results.NotFound();
+            if (node.Status != NodeStatus.Pending) return Results.Conflict("Node is already accepted");
+
+            BoardPreset? preset;
+            if (input.PresetId is null) preset = DefaultPresetFor(node);
+            else if (input.PresetId == "") preset = null;
+            else if (BoardPresets.Find(input.PresetId) is { } p) preset = p;
+            else return Results.BadRequest($"Unknown board preset {input.PresetId}");
+
+            await registry.AcceptAsync(node, input.FriendlyName, preset);
+            return Results.Ok(node);
+        });
+
+        // Rejecting a pending node is deleting it; one still powered on comes back as pending
+        nodes.MapDelete("/{id}", async (KlippyfaceDbContext db, NodeRegistry registry, string id) =>
         {
             var node = await db.Nodes.FindAsync(id);
             if (node is null) return Results.NotFound();
 
-            db.Nodes.Remove(node);
-            await db.SaveChangesAsync();
+            await registry.RemoveAsync(node);
             return Results.NoContent();
         });
+
+        nodes.MapDelete("/pending", async (NodeRegistry registry) =>
+            Results.Ok(new { Removed = await registry.ClearPendingAsync() }));
 
         var displays = nodes.MapGroup("/{nodeId}/displays");
 
@@ -94,16 +126,13 @@ public static class NodesApi
             return Results.Ok(result);
         });
 
-        displays.MapPost("/", async (KlippyfaceDbContext db, string nodeId, NodeDisplay display, NodePublisher publisher, StarterPackService starterPack) =>
+        displays.MapPost("/", async (KlippyfaceDbContext db, string nodeId, NodeDisplay display, NodePublisher publisher, NodeRegistry registry) =>
         {
             var node = await db.Nodes.FindAsync(nodeId);
             if (node is null) return Results.NotFound("Node not found");
 
-            display.Id = Guid.NewGuid().ToString();
             display.NodeId = nodeId;
-            db.NodeDisplays.Add(display);
-            // New displays start with each printer state mapped to its starter face
-            db.Assignments.Add(await starterPack.DefaultAssignmentAsync(nodeId, display));
+            await registry.AddDisplayAsync(display);
             await db.SaveChangesAsync();
             await publisher.RefreshNodeAsync(nodeId);
             return Results.Created($"/api/nodes/{nodeId}/displays/{display.Id}", display);
@@ -205,28 +234,43 @@ public static class NodesApi
         return app;
     }
 
-    private static async Task HandleNodeWebSocket(WebSocket ws, string macAddress, NodeStatusService statusService,
-                                                  NodeStateRelay relay, IServiceScopeFactory scopeFactory)
+    /// <summary>A board with one display option starts with it, unless the node already has displays.</summary>
+    private static BoardPreset? DefaultPresetFor(Node node) =>
+        node.Displays.Count == 0 ? BoardPresets.DefaultFor(node.Board) : null;
+
+    // Refusals repeat every few seconds while a node retries; warn at most this often
+    private static readonly TimeSpan RefusalLogInterval = TimeSpan.FromMinutes(1);
+    private static long _lastRefusalLogTicks;
+
+    private static async Task HandleNodeWebSocket(WebSocket ws, string path, NodeStatusService statusService,
+                                                  NodeStateRelay relay, IServiceScopeFactory scopeFactory, ILogger log)
     {
         var buffer = new byte[4096];
 
-        // Look up node by MAC to get the DB GUID Id
+        if (NodeRegistry.NormalizeMac(path) is not { } macAddress)
+        {
+            await ws.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Invalid MAC address", CancellationToken.None);
+            return;
+        }
+
+        // Look up node by MAC to get the DB GUID Id; an unknown MAC is added as pending
         string dbNodeId;
-        uint serverVersion;
+        bool pending, created;
         using (var scope = scopeFactory.CreateScope())
         {
-            var db = scope.ServiceProvider.GetRequiredService<KlippyfaceDbContext>();
-            var nodeRecord = await db.Nodes.FirstOrDefaultAsync(n => n.MacAddress == macAddress);
+            var registry = scope.ServiceProvider.GetRequiredService<NodeRegistry>();
+            var (nodeRecord, isNew) = await registry.ConnectAsync(macAddress);
             if (nodeRecord is null)
             {
-                await ws.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Unknown node", CancellationToken.None);
+                WarnRefused(log, macAddress);
+                await ws.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Too many pending nodes", CancellationToken.None);
                 return;
             }
             dbNodeId = nodeRecord.Id;
-            serverVersion = nodeRecord.LastConfigVersion;
+            pending = nodeRecord.Status == NodeStatus.Pending;
+            created = isNew;
+            statusService.Register(macAddress, ws, nodeRecord.LastConfigVersion, pending);
         }
-
-        statusService.Register(macAddress, ws, serverVersion);
 
         try
         {
@@ -236,7 +280,9 @@ public static class NodesApi
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
                     statusService.Unregister(macAddress, ws);
-                    await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                    // Already closed if the server started it (node deleted)
+                    if (ws.State == WebSocketState.CloseReceived)
+                        await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                     return;
                 }
 
@@ -252,10 +298,32 @@ public static class NodesApi
                 {
                     case "hello":
                     {
+                        // Read fresh: the node may have been accepted or reconfigured since it connected
+                        var node = await PersistHelloAsync(scopeFactory, dbNodeId, msg, log);
+                        if (node is null) break;
+
+                        if (node.Status == NodeStatus.Pending)
+                        {
+                            if (created)
+                            {
+                                log.LogInformation("New node {Mac} ({Board}, firmware {Firmware}) is waiting to be accepted on the Nodes page",
+                                    macAddress, node.Board is "" ? "unknown board" : node.Board,
+                                    node.FirmwareVersion is "" ? "unknown" : node.FirmwareVersion);
+                                created = false;
+                            }
+                            // Pending nodes get no config, refresh or printer state
+                            break;
+                        }
+                        if (pending)
+                        {
+                            statusService.Accept(macAddress);
+                            pending = false;
+                        }
+
                         var configVersion = msg["config_version"]?.GetValue<uint>() ?? 0;
                         statusService.UpdateConfigVersion(macAddress, configVersion);
 
-                        if (configVersion < serverVersion || configVersion == 0)
+                        if (configVersion < node.LastConfigVersion || configVersion == 0)
                         {
                             await statusService.SendToNodeAsync(macAddress, new JsonObject
                             {
@@ -270,9 +338,6 @@ public static class NodesApi
                                 ["up_to_date"] = true,
                             });
                         }
-
-                        await PersistHelloAsync(scopeFactory, dbNodeId,
-                            msg["board"]?.GetValue<string>(), msg["fw_version"]?.GetValue<string>());
 
                         // Printer state for the faces this node shows; nodes re-announce
                         // after applying a config, so the key set follows config changes
@@ -297,26 +362,32 @@ public static class NodesApi
         }
     }
 
-    // Older firmware doesn't send `board`; keep what we have rather than blanking it.
-    private static async Task PersistHelloAsync(IServiceScopeFactory scopeFactory, string dbNodeId,
-                                                string? board, string? firmwareVersion)
+    private static void WarnRefused(ILogger log, string mac)
+    {
+        var now = DateTime.UtcNow.Ticks;
+        var last = Interlocked.Read(ref _lastRefusalLogTicks);
+        if (now - last < RefusalLogInterval.Ticks || Interlocked.CompareExchange(ref _lastRefusalLogTicks, now, last) != last)
+            return;
+        log.LogWarning("Refused new node {Mac}: {Max} nodes are already waiting to be accepted. Accept or clear them on the Nodes page",
+            mac, NodeRegistry.MaxPending);
+    }
+
+    private static async Task<Node?> PersistHelloAsync(IServiceScopeFactory scopeFactory, string dbNodeId,
+                                                       JsonObject hello, ILogger log)
     {
         try
         {
             using var scope = scopeFactory.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<KlippyfaceDbContext>();
-            var node = await db.Nodes.FindAsync(dbNodeId);
-            if (node is null) return;
-            node.LastSeen = DateTime.UtcNow;
-            if (!string.IsNullOrEmpty(board)) node.Board = board;
-            if (!string.IsNullOrEmpty(firmwareVersion)) node.FirmwareVersion = firmwareVersion;
-            await db.SaveChangesAsync();
+            var registry = scope.ServiceProvider.GetRequiredService<NodeRegistry>();
+            return await registry.HelloAsync(dbNodeId, hello["board"]?.GetValue<string>(),
+                hello["fw_version"]?.GetValue<string>(), hello["friendly_name"]?.GetValue<string>());
         }
-        catch
+        catch (Exception ex)
         {
+            log.LogWarning(ex, "Saving hello from node {Node} failed", dbNodeId);
+            return null;
         }
     }
-
     private static async Task PersistLastSeenAsync(IServiceScopeFactory scopeFactory, string dbNodeId)
     {
         try

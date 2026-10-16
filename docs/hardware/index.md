@@ -4,7 +4,7 @@ This section documents the physical hardware that has been tested and confirmed
 working with Klippyface — including wiring, bus configuration, performance notes,
 and known quirks.
 
-Known board + display combinations are available as **board presets** in the Web UI's display dialog (`ui/src/lib/boards.ts`). Nodes report their firmware board in the WebSocket `hello`, so a new display on a Waveshare S3 board starts from its preset automatically.
+Known board + display combinations are available as **board presets** in the Web UI's display dialog (`server/Data/BoardPresets.cs`, served at `GET /api/boards/presets`). Nodes report their firmware board in the WebSocket `hello`, so a new display on a Waveshare S3 board starts from its preset automatically, and accepting a new Waveshare S3 node adds its display.
 
 | Category | Index | Verified |
 |----------|-------|----------|

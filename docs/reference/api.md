@@ -27,11 +27,13 @@ The server's one connection to Moonraker (Web UI **Printer** page).
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| GET | `/api/nodes` | List all nodes |
-| POST | `/api/nodes` | Register new node |
+| GET | `/api/nodes` | List all nodes. `status` is `accepted` or `pending` |
+| POST | `/api/nodes` | Register a node by MAC: `{ mac_address, friendly_name, description }`. The MAC is normalised to `AA:BB:CC:DD:EE:FF` (`400` if it isn't one). If that MAC is already pending, it's accepted instead (`200`); `409` if it's already accepted |
+| POST | `/api/nodes/{id}/accept` | Accept a pending node: `{ friendly_name?, preset_id? }`. `preset_id` adds a display from that board preset, `""` adds none, leaving it out adds the preset for the node's board when it has exactly one. Sends the node `refresh_config` straight away. `409` if already accepted |
+| DELETE | `/api/nodes/pending` | Remove every pending node: `{ removed }`. Boards still on reconnect and come back as pending |
 | GET | `/api/nodes/{id}` | Get node + displays + assignments |
 | PUT | `/api/nodes/{id}` | Update node: `{ friendly_name, description, sleep_after_seconds? }`. `sleep_after_seconds` is 0 (never) to 86400; leaving it out keeps it, changing it pushes a new config |
-| DELETE | `/api/nodes/{id}` | Delete node + displays + assignments |
+| DELETE | `/api/nodes/{id}` | Delete node + displays + assignments and close its WebSocket. Also how a pending node is rejected; a board still on reconnects and comes back as pending |
 | GET | `/api/ws/node/{mac}` | **WebSocket** — persistent channel for online tracking, heartbeat, config push and relayed printer state |
 | GET | `/api/nodes/{id}/displays` | List displays on node |
 | POST | `/api/nodes/{id}/displays` | Add display to node (gets a default assignment mapping each printer state to the starter group sized for it; a sized pack is imported on demand) |
@@ -40,6 +42,12 @@ The server's one connection to Moonraker (Web UI **Printer** page).
 | DELETE | `/api/nodes/{id}/displays/{did}` | Remove display |
 | GET | `/api/nodes/{id}/displays/{did}/assignment` | Get a display's assignment |
 | PUT | `/api/nodes/{id}/displays/{did}/assignment` | Set assignment (triggers + default group) |
+
+## Board Endpoints
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/boards/presets` | Known board + display combinations: `[{ id, label, board, driver_type, bus_type, width, height, rotation, bus_config }]`. `board` matches a node's reported `board`; `bus_config` is JSON, as on a display |
 
 ## Library Endpoints
 
@@ -193,7 +201,7 @@ with a `type` field:
 
 ### Connection Lifecycle
 
-1. ESP connects → sends `hello` with `config_version`
+1. ESP connects → sends `hello` with `config_version`. A path that isn't a MAC is closed with `Invalid MAC address`. An unknown MAC is added as a pending node: the socket stays open but the server sends nothing until it's accepted (then `refresh_config`). With 10 nodes already pending, a new MAC is closed with `Too many pending nodes`
 2. Server compares against DB `LastConfigVersion` — if stale, sends `refresh_config`
 3. Server sends `moonraker_status` and a full `state` for the keys the node's faces bind to
 4. ESP fetches config via HTTP `GET /api/config/node?mac=...`, applies, re-announces with updated version (and gets a fresh `state` for the new faces)

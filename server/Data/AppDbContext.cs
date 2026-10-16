@@ -24,6 +24,7 @@ public class KlippyfaceDbContext : DbContext
         modelBuilder.Entity<Node>(entity =>
         {
             entity.HasIndex(e => e.MacAddress).IsUnique();
+            entity.Property(e => e.Status).HasConversion<string>();
         });
 
         modelBuilder.Entity<NodeDisplay>(entity =>

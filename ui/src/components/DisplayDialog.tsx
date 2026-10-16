@@ -13,10 +13,10 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Field } from '@/components/common'
-import { keys, useApiMutation } from '@/hooks/queries'
+import { keys, useApiMutation, useBoardPresets } from '@/hooks/queries'
 import { api } from '@/lib/api'
-import { BOARD_PRESETS, defaultPresetFor, type BoardPreset } from '@/lib/boards'
-import type { NodeDisplay } from '@/lib/types'
+import { defaultPresetFor, presetBusConfig } from '@/lib/boards'
+import type { BoardPreset, NodeDisplay } from '@/lib/types'
 
 const DRIVERS = [
   { value: 'sh1106', label: 'SH1106 OLED', bus: 'i2c', w: 128, h: 64 },
@@ -107,6 +107,7 @@ export function DisplayDialog({
   const [height, setHeight] = useState(64)
   const [rotation, setRotation] = useState(0)
   const [presetId, setPresetId] = useState('custom')
+  const { data: presets = [] } = useBoardPresets()
 
   function applyPreset(p: BoardPreset) {
     setPresetId(p.id)
@@ -115,7 +116,7 @@ export function DisplayDialog({
     setWidth(p.width)
     setHeight(p.height)
     setRotation(p.rotation)
-    setPins({ ...p.busConfig })
+    setPins(presetBusConfig(p))
     setLabel((l) => l || (p.driverType === 'gc9a01' ? 'Round face' : 'Face'))
   }
 
@@ -129,7 +130,7 @@ export function DisplayDialog({
     setRotation(display?.rotation ?? 0)
     setPresetId('custom')
     // New display on a node whose board we know: start from its preset
-    const suggested = !display ? defaultPresetFor(board) : undefined
+    const suggested = !display ? defaultPresetFor(presets, board) : undefined
     if (suggested) applyPreset(suggested)
   }
 
@@ -204,7 +205,7 @@ export function DisplayDialog({
             <Select
               value={presetId}
               onValueChange={(v) => {
-                const p = BOARD_PRESETS.find((x) => x.id === v)
+                const p = presets.find((x) => x.id === v)
                 if (p) applyPreset(p)
                 else setPresetId('custom')
               }}
@@ -214,7 +215,7 @@ export function DisplayDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="custom">Custom</SelectItem>
-                {BOARD_PRESETS.map((p) => (
+                {presets.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.label}
                     {p.board === board && <span className="text-muted-foreground"> · this board</span>}

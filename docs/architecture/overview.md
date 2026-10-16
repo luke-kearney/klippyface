@@ -59,6 +59,7 @@ stable: true
   2. If NOT configured → start Captive Portal AP mode (phone setup)
   3. If configured → connect to WiFi
   4. ESP32 opens WebSocket to `/api/ws/node/{mac}` on companion server; sends `hello` with `config_version`
+     An unknown MAC is added as a pending node (up to 10 waiting): it stays connected but gets no config, state or commands until accepted on the Nodes page, which sends `refresh_config`
   5. Server compares version — if stale, sends `refresh_config`; ESP32 fetches full config via `GET /api/config/node?mac=...` (on-demand, no polling); if up-to-date, sends `config_status { up_to_date: true }`
   6. Server registers node as online; ESP32 sends `heartbeat` every 30s
   7. DisplayManager on ESP32 creates DisplayDriver instances for each physical display

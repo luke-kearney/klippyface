@@ -223,6 +223,10 @@ namespace Klippyface.Server.Data.Migrations
                     b.Property<int>("SleepAfterSeconds")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 

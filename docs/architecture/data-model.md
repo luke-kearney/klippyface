@@ -28,6 +28,7 @@ CREATE TABLE nodes (
     mac_address         TEXT NOT NULL UNIQUE,
     friendly_name       TEXT NOT NULL DEFAULT '',
     description         TEXT NOT NULL DEFAULT '',
+    status              TEXT NOT NULL DEFAULT 'Accepted', -- 'Pending' for unknown MACs that connected, until accepted
     last_seen           TEXT,                            -- set by WS heartbeat
     last_config_version INTEGER NOT NULL DEFAULT 0,      -- bumped on admin edits
     board               TEXT NOT NULL DEFAULT '',        -- firmware build env from hello, e.g. esp32s3-ws-lcd169
