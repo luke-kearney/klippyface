@@ -49,4 +49,23 @@ public class DataKeyCatalogTests
         Assert.Contains(filament, k => k.Key == "spool.color");
         Assert.Contains(filament, k => k.Key == "spool.remaining_weight");
     }
+
+    [Fact]
+    public void Tools_with_a_spool_get_filament_keys()
+    {
+        var values = new Dictionary<string, JsonNode?>
+        {
+            ["gcode_macro T0.spool_id"] = 1,
+            ["gcode_macro T1.spool_id"] = 2,
+            ["gcode_macro T2.spool_id"] = null,   // nothing loaded
+        };
+
+        var keys = DataKeyCatalog.Build(["extruder", "extruder1", "extruder2"], values, spoolman: true);
+
+        var tools = keys.Where(k => k.Group == "Tool filament").Select(k => k.Key).ToList();
+        Assert.Contains("spool.tool0.name", tools);
+        Assert.Contains("spool.tool1.color", tools);
+        Assert.DoesNotContain(tools, k => k.StartsWith("spool.tool2."));
+        Assert.Contains(keys, k => k.Key == "spool.tool1.name" && k.Label == "T1 filament");
+    }
 }

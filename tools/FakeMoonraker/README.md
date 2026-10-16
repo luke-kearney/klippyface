@@ -29,7 +29,7 @@ To use it, set the Moonraker host on the server's **Printer** page to this machi
 `profiles/*.json` sets which printer the fake pretends to be:
 
 ```json
-{ "name": "quad", "extruders": 4 }
+{ "name": "quad", "extruders": 4, "tool_macros": true }
 ```
 
 Every profile has `print_stats`, `virtual_sdcard`, `display_status`, `toolhead`, `idle_timeout`, `webhooks` and `heater_bed`, plus `extruder`, `extruder1`… up to the extruder count. `idle_timeout` behaves like Klipper's: `Printing` while a print or `busy` G-code runs, `Ready` after, `Idle` (heaters and motors off) once the idle timeout passes.
@@ -102,7 +102,7 @@ curl -XPOST 'localhost:7125/_sim/spoolman?reachable=false' # Spoolman down, Moon
 
 ## Spoolman
 
-Moonraker's `[spoolman]` component is faked with four spools (1 Galaxy Black PLA, 2 Arctic White PETG, 3 Sunset Orange PLA, 4 Ocean Blue TPU), spool 1 active. It answers `server.spoolman.get_spool_id`, `post_spool_id`, `status` and `proxy` (only `GET /v1/spool/{id}`), and sends `notify_active_spool_set` when the active spool changes. `--spoolman false` leaves it out, as if Moonraker had no `[spoolman]` section: those methods are then `Method not found`.
+Moonraker's `[spoolman]` component is faked with four spools (1 Galaxy Black PLA, 2 Arctic White PETG, 3 Sunset Orange PLA, 4 Ocean Blue TPU), spool 1 active. It answers `server.spoolman.get_spool_id`, `post_spool_id`, `status` and `proxy` (only `GET /v1/spool/{id}`), and sends `notify_active_spool_set` when the active spool changes. In the `quad` profile (`"tool_macros": true`) each tool has a `gcode_macro T<n>` with `spool_id` = n + 1, and switching tools makes that spool active, like a `T<n>` macro calling `SET_ACTIVE_SPOOL`. Load another spool into a tool with `curl -XPOST localhost:7125/_sim/state -d '{"gcode_macro T1":{"spool_id":4}}' -H 'content-type: application/json'`. `--spoolman false` leaves it out, as if Moonraker had no `[spoolman]` section: those methods are then `Method not found`.
 
 ## How faithful is it?
 

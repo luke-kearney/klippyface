@@ -447,6 +447,8 @@ This is the consolidated, append-only record of significant design decisions. En
 
 **Consequences:** Only Spoolman is supported for now; other filament trackers would need their own source. Remaining weight lags printing by up to a minute plus Moonraker's own reporting interval.
 
+Per-tool spools follow Moonraker's documented multi-tool setup: a `spool_id` variable on each `T<n>` macro, read as `spool.tool<n>.*`. Other setups (Happy Hare, AFC) aren't read; that and the whole multi-tool path are tested against the fake Moonraker only, not hardware.
+
 ---
 
 ## 2026-10-16: Elements can take their colour from a data key

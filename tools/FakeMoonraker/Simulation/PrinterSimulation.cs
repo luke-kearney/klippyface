@@ -6,7 +6,7 @@ namespace FakeMoonraker.Simulation;
 /// Moves the printer along: heaters ease towards their targets, a print job
 /// heats up and then advances. All results are written into the model.
 /// </summary>
-public sealed class PrinterSimulation(PrinterModel model)
+public sealed class PrinterSimulation(PrinterModel model, FakeSpoolman spoolman)
 {
     public const double Ambient = 22.0;
     public const double PrintTemp = 215.0;
@@ -305,6 +305,11 @@ public sealed class PrinterSimulation(PrinterModel model)
             var previous = ActiveExtruder;
             var next = PrinterProfile.ExtruderName(index);
             model.Set("toolhead", "extruder", next);
+
+            // The T<n> macro's SET_ACTIVE_SPOOL ID={spool_id}
+            if (model.Profile.ToolMacros && model.Get(PrinterProfile.ToolMacroName(index), "spool_id") is JsonValue spool
+                && spool.TryGetValue<int>(out var spoolId))
+                spoolman.SetActive(spoolId);
 
             if (_job is not null && previous != next)
             {

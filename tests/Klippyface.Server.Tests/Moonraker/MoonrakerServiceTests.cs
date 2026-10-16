@@ -50,7 +50,8 @@ public class MoonrakerServiceTests : IAsyncLifetime
 
         Assert.Equal(
             ["print_stats", "virtual_sdcard", "display_status", "toolhead", "idle_timeout", "webhooks",
-             "heater_bed", "extruder", "extruder1", "extruder2", "extruder3"],
+             "heater_bed", "extruder", "extruder1", "extruder2", "extruder3",
+             "gcode_macro T0", "gcode_macro T1", "gcode_macro T2", "gcode_macro T3"],
             status.Objects);
         Assert.Equal("standby", _store.Snapshot(["print_stats.state"])["print_stats.state"]!.GetValue<string>());
         Assert.True(_store.Snapshot(["extruder3.temperature"]).ContainsKey("extruder3.temperature"));
@@ -182,6 +183,44 @@ public class MoonrakerServiceTests : IAsyncLifetime
         await _listener.WaitForStatusAsync(MoonrakerState.Ready);
 
         Assert.Equal("Galaxy Black", _store.Snapshot(["spool.name"])["spool.name"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Each_tool_shows_the_spool_its_macro_holds()
+    {
+        await StartAsync();
+
+        var changes = await _listener.WaitForChangeAsync("spool.tool3.name", v => v?.GetValue<string>() == "Ocean Blue");
+        Assert.Equal("Galaxy Black", changes["spool.tool0.name"]!.GetValue<string>());
+        Assert.Equal("#FF6A13", changes["spool.tool2.color"]!.GetValue<string>());
+        Assert.Equal(122, changes["spool.tool3.remaining_weight"]!.GetValue<double>());
+    }
+
+    [Fact]
+    public async Task A_tool_change_makes_its_spool_active()
+    {
+        await StartAsync();
+        await _listener.WaitForChangeAsync("spool.tool2.name", v => v is not null);
+
+        await _fake.PostAsync("/_sim/toolchange/2");
+        _fake.Tick();
+
+        var changes = await _listener.WaitForChangeAsync("spool.id", v => v?.GetValue<int>() == 3);
+        Assert.Equal("Sunset Orange", changes["spool.name"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Loading_another_spool_into_a_tool_updates_it()
+    {
+        await StartAsync();
+        await _listener.WaitForChangeAsync("spool.tool1.name", v => v?.GetValue<string>() == "Arctic White");
+
+        // SET_GCODE_VARIABLE MACRO=T1 VARIABLE=spool_id VALUE=4
+        await _fake.PostAsync("/_sim/state", new JsonObject { ["gcode_macro T1"] = new JsonObject { ["spool_id"] = 4 } });
+        _fake.Tick();
+
+        var changes = await _listener.WaitForChangeAsync("spool.tool1.name", v => v?.GetValue<string>() == "Ocean Blue");
+        Assert.Equal(4, changes["spool.tool1.id"]!.GetValue<int>());
     }
 
     [Fact]

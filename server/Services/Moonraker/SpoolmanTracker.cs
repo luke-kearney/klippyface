@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 namespace Klippyface.Server.Services.Moonraker;
 
@@ -8,10 +9,12 @@ public delegate Task<JsonNode?> MoonrakerCall(string method, JsonObject? paramet
 
 /// <summary>
 /// The filament loaded, from Moonraker's Spoolman integration: the active spool's
-/// details as "spool.*" data keys. Moonraker only knows the spool id; the details
-/// come from Spoolman through Moonraker's proxy, cached by id.
+/// details as "spool.*" data keys, and each tool's as "spool.tool&lt;n&gt;.*". Moonraker
+/// only knows the active spool id; a tool's spool id is the spool_id variable of its
+/// T&lt;n&gt; macro (Moonraker's documented multi-tool setup). The details come from
+/// Spoolman through Moonraker's proxy, cached by id.
 /// </summary>
-public sealed class SpoolmanTracker(PrinterStateStore store, ILogger log)
+public sealed partial class SpoolmanTracker(PrinterStateStore store, ILogger log)
 {
     /// <summary>Data keys are "spool.name", "spool.material", ...</summary>
     public const string Root = "spool";
@@ -21,6 +24,29 @@ public sealed class SpoolmanTracker(PrinterStateStore store, ILogger log)
 
     private readonly Dictionary<int, JsonObject> _spools = new();
 
+    [GeneratedRegex(@"^gcode_macro T(\d+)$")]
+    private static partial Regex ToolMacro();
+
+    /// <summary>A T&lt;n&gt; tool change macro, whose spool_id variable says which spool that tool holds.</summary>
+    public static bool IsToolMacro(string obj) => ToolMacro().IsMatch(obj);
+
+    /// <summary>"gcode_macro T1.spool_id": a tool's spool, as a data key.</summary>
+    public static bool IsToolSpoolKey(string key) =>
+        key.EndsWith(".spool_id") && IsToolMacro(key[..^".spool_id".Length]);
+
+    /// <summary>Tool number → spool id, from the T&lt;n&gt; macros' spool_id variables.</summary>
+    public static SortedDictionary<int, int> ToolSpools(IReadOnlyDictionary<string, JsonNode?> values)
+    {
+        var tools = new SortedDictionary<int, int>();
+        foreach (var (key, value) in values)
+        {
+            if (!IsToolSpoolKey(key)) continue;
+            var tool = int.Parse(ToolMacro().Match(key[..^".spool_id".Length]).Groups[1].Value);
+            if (SpoolId(value) is { } id) tools[tool] = id;
+        }
+        return tools;
+    }
+
     /// <summary>Moonraker has the spoolman component. Assumed until it says otherwise.</summary>
     public bool Enabled { get; private set; } = true;
 
@@ -28,9 +54,9 @@ public sealed class SpoolmanTracker(PrinterStateStore store, ILogger log)
     public bool Available { get; private set; }
 
     /// <summary>
-    /// Read the active spool and update the "spool.*" keys. <paramref name="refresh"/>
-    /// re-fetches spool details (remaining weight changes as it prints); otherwise
-    /// cached details are reused. Returns the keys that changed.
+    /// Read the active spool and each tool's, and update the "spool.*" keys.
+    /// <paramref name="refresh"/> re-fetches spool details (remaining weight changes
+    /// as it prints); otherwise cached details are reused. Returns the keys that changed.
     /// </summary>
     public async Task<IReadOnlyDictionary<string, JsonNode?>> SyncAsync(MoonrakerCall call, bool refresh, CancellationToken ct)
     {
@@ -55,11 +81,19 @@ public sealed class SpoolmanTracker(PrinterStateStore store, ILogger log)
             return new Dictionary<string, JsonNode?>();
         }
 
-        if (active is not { } id)
-            return store.ReplaceSource(Root, null);
+        // Each spool is fetched at most once per sync, even if it's both active and in a tool
+        var fetched = new Dictionary<int, JsonObject?>();
+        async Task<JsonObject> KeysFor(int id)
+        {
+            if (!fetched.TryGetValue(id, out var spool))
+                fetched[id] = spool = await SpoolAsync(call, id, refresh, ct);
+            return Keys(id, spool);
+        }
 
-        var spool = await SpoolAsync(call, id, refresh, ct);
-        return store.ReplaceSource(Root, Keys(id, spool));
+        var keys = active is { } activeId ? await KeysFor(activeId) : new JsonObject();
+        foreach (var (tool, id) in ToolSpools(store.All()))
+            keys[$"tool{tool}"] = await KeysFor(id);
+        return store.ReplaceSource(Root, keys.Count > 0 ? keys : null);
     }
 
     /// <summary>Spool details, from the cache unless missing or <paramref name="refresh"/>. Null if Spoolman can't be reached.</summary>

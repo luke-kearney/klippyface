@@ -1,4 +1,5 @@
 {
   "name": "quad",
-  "extruders": 4
+  "extruders": 4,
+  "tool_macros": true
 }

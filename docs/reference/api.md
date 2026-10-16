@@ -244,6 +244,7 @@ A key is `<Klipper object>.<field>` (nested fields joined with `.`), for any obj
 | `spool.color` | Its colour as `#RRGGBB` (the first colour of a multi-colour filament) | `"#1B1B1B"` |
 | `spool.remaining_weight` | Grams left, rounded; keys ending `_weight` are shown with `g`. Refreshed every 60 s | `"743g"` |
 | `spool.id` | The Spoolman spool id | `"1"` |
+| `spool.toolN.name`, `.material`, `.vendor`, `.color`, `.remaining_weight`, `.id` | The spool in tool N, from the `spool_id` variable of its `T<N>` macro (Moonraker's multi-tool Spoolman setup: `variable_spool_id`, set with `SET_GCODE_VARIABLE`, and `SET_ACTIVE_SPOOL` in the macro). Only for tools whose macro has a spool | `"Ocean Blue"` |
 | `print_stats.state` | Klipper's raw print state: `standby`, `printing`, `paused`, `complete`, `cancelled`, `error` | `"printing"` |
 | `moonraker.connected` | Node-side: server and Moonraker both reachable, Klipper ready | `"Online"` / `"Offline"` |
 

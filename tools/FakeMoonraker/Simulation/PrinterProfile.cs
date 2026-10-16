@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace FakeMoonraker.Simulation;
 
@@ -7,6 +8,16 @@ public sealed record PrinterProfile
 {
     public string Name { get; init; } = "single";
     public int Extruders { get; init; } = 1;
+
+    /// <summary>
+    /// T0..Tn macros with a spool_id variable (spools 1, 2, ...), as in Moonraker's
+    /// multi-tool Spoolman setup. Tool changes then set the active spool.
+    /// </summary>
+    [JsonPropertyName("tool_macros")]
+    public bool ToolMacros { get; init; }
+
+    /// <summary>The macro object for a tool, e.g. "gcode_macro T1".</summary>
+    public static string ToolMacroName(int index) => $"gcode_macro T{index}";
 
     /// <summary>Klipper object names: "extruder", then "extruder1".."extruderN-1".</summary>
     public IEnumerable<string> ExtruderNames =>

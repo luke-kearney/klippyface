@@ -87,11 +87,12 @@ public sealed partial class MoonrakerService(
         lock (_lock) _reconnect.Cancel();
     }
 
-    /// <summary>Klipper objects displays can bind to.</summary>
+    /// <summary>Klipper objects displays can bind to, plus the T&lt;n&gt; macros that hold each tool's spool.</summary>
     public static bool IsWanted(string obj) =>
         obj is "print_stats" or "virtual_sdcard" or "display_status" or "toolhead" or "heater_bed"
             or "idle_timeout" or "webhooks"
-        || ExtruderName().IsMatch(obj);
+        || ExtruderName().IsMatch(obj)
+        || SpoolmanTracker.IsToolMacro(obj);
 
     [GeneratedRegex(@"^extruder\d*$")]
     private static partial Regex ExtruderName();
@@ -208,6 +209,9 @@ public sealed partial class MoonrakerService(
                     var changes = store.Apply(update);
                     if (changes.Count > 0)
                         await NotifyAsync(() => listener.OnStateChangedAsync(changes));
+                    // A tool's spool changed (SET_GCODE_VARIABLE MACRO=T1 VARIABLE=spool_id ...)
+                    if (changes.Keys.Any(SpoolmanTracker.IsToolSpoolKey))
+                        await SyncSpoolsAsync(rpc, spoolman, refresh: false, ct);
                     if (changes.ContainsKey("webhooks.state"))
                         await SetReadyStatusAsync(Status.Objects);
                     break;

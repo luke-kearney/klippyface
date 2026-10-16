@@ -8,7 +8,8 @@ public sealed record DataKey(string Key, string Label, string Group);
 /// <summary>
 /// The data keys worth offering for this printer: the common ones, a key per tool
 /// when it has more than one extruder, and the loaded filament when Moonraker has
-/// Spoolman. Faces can bind any key; this is only what the editor lists.
+/// Spoolman (per tool too, for tools whose T&lt;n&gt; macro has a spool_id). Faces can
+/// bind any key; this is only what the editor lists.
 /// </summary>
 public static class DataKeyCatalog
 {
@@ -21,6 +22,14 @@ public static class DataKeyCatalog
         ("color", "Colour"),
         ("remaining_weight", "Remaining"),
         ("id", "Spool ID"),
+    ];
+
+    private static readonly (string Field, string Label)[] ToolSpoolFields =
+    [
+        ("name", "filament"),
+        ("material", "material"),
+        ("color", "colour"),
+        ("remaining_weight", "remaining"),
     ];
 
     public static IReadOnlyList<DataKey> Build(IReadOnlyList<string> objects, IReadOnlyDictionary<string, JsonNode?> values,
@@ -56,6 +65,12 @@ public static class DataKeyCatalog
         {
             foreach (var (field, label) in SpoolFields)
                 keys.Add(new($"{SpoolmanTracker.Root}.{field}", label, "Filament"));
+
+            foreach (var tool in SpoolmanTracker.ToolSpools(values).Keys)
+            {
+                foreach (var (field, label) in ToolSpoolFields)
+                    keys.Add(new($"{SpoolmanTracker.Root}.tool{tool}.{field}", $"T{tool} {label}", "Tool filament"));
+            }
         }
 
         keys.Add(new("heater_bed.temperature", "Bed temp", "Bed"));
