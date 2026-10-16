@@ -117,6 +117,8 @@ export interface FrameElement {
   value: string
   label: string
   color: string
+  /** Data key whose '#RRGGBB' value colours the element instead, e.g. 'spool.color'; '' = always `color`. */
+  colorKey?: string
   x: number
   y: number
   /** Font scale for text/data values, pixel scale for sprites (1–8). */

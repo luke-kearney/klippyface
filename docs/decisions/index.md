@@ -449,6 +449,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-16: Elements can take their colour from a data key
+
+**Context:** The filament colour (#23) is a value, but elements had only a fixed `color`, and data values draw as text.
+
+**Decision:** Any element can have a `color_key` (e.g. `spool.color`) whose `#RRGGBB` value colours it, with `color` as the fallback. Sprites are 1-bit masks drawn in their element's colour, so a spool sprite in the filament colour needs nothing else; the starter pack gains an `icon_spool` sprite. Monochrome panels ignore the key. The key is a separate field rather than a special `color` value, so older firmware just sees the fixed colour.
+
+**Consequences:** Needs new firmware to show; older firmware draws the fallback colour. A colour key is sent to the node like a bound data key.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations

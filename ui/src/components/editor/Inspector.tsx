@@ -22,9 +22,19 @@ export const TYPE_META = {
 
 const SWATCHES = ['#FFFFFF', '#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#00C7BE', '#007AFF', '#AF52DE']
 
-function ColorField({ value, onChange, mono }: { value: string; onChange: (v: string) => void; mono: boolean }) {
+function ColorField({
+  value,
+  onChange,
+  mono,
+  label = 'Colour',
+}: {
+  value: string
+  onChange: (v: string) => void
+  mono: boolean
+  label?: string
+}) {
   return (
-    <Field label="Colour" hint={mono ? 'Monochrome panel: any non-black colour lights the pixel.' : undefined}>
+    <Field label={label} hint={mono ? 'Monochrome panel: any non-black colour lights the pixel.' : undefined}>
       <div className="flex items-center gap-2">
         <input
           type="color"
@@ -81,6 +91,48 @@ function DataKeySelect({ value, onChange }: { value: string; onChange: (v: strin
     </Select>
   )
 }
+
+/** Fixed colour, or a colour from the printer such as the loaded filament's. */
+function ElementColorField({ element, onChange, mono }: { element: FrameElement; onChange: (patch: Partial<FrameElement>) => void; mono: boolean }) {
+  const { data } = useDataKeys()
+  const colorKeys = (data ?? COMMON_DATA_KEYS).filter((k) => k.key.endsWith('.color'))
+  const current = element.colorKey ?? ''
+  if (current && !colorKeys.some((k) => k.key === current)) colorKeys.push({ key: current, label: current, group: 'Other' })
+
+  return (
+    <>
+      {colorKeys.length > 0 && (
+        <Field
+          label="Colour from"
+          hint={
+            current
+              ? mono
+                ? 'Monochrome panel: the filament colour only matters on colour displays.'
+                : 'Drawn in that colour (preview: a sample). The colour below is used while there is none, and by older firmware.'
+              : undefined
+          }
+        >
+          <Select value={current || FIXED_COLOR} onValueChange={(v) => onChange({ colorKey: v === FIXED_COLOR ? '' : v })}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={FIXED_COLOR}>Fixed colour</SelectItem>
+              {colorKeys.map((k) => (
+                <SelectItem key={k.key} value={k.key}>
+                  {k.group} · {k.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      )}
+      <ColorField value={element.color || '#FFFFFF'} onChange={(color) => onChange({ color })} mono={mono} label={current ? 'Fallback colour' : 'Colour'} />
+    </>
+  )
+}
+
+const FIXED_COLOR = 'fixed'
 
 const NumberInput = ({ value, onChange }: { value: number; onChange: (v: number) => void }) => (
   <Input type="number" value={value} onChange={(e) => onChange(parseInt(e.target.value) || 0)} className="font-mono" />
@@ -190,7 +242,7 @@ export function ElementInspector({
           <NumberInput value={element.y} onChange={(y) => onChange({ y })} />
         </Field>
       </div>
-      <ColorField value={element.color || '#FFFFFF'} onChange={(color) => onChange({ color })} mono={isMono(driverType)} />
+      <ElementColorField element={element} onChange={onChange} mono={isMono(driverType)} />
       <p className="text-xs text-muted-foreground">
         Drag on the canvas, or use arrow keys to nudge (Shift = 8px). Delete removes, Ctrl+D duplicates.
       </p>

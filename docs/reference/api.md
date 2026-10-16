@@ -160,7 +160,8 @@ GET /api/config/node?mac=AA:BB:CC:DD:EE:01
               {
                 "duration_ms": 3000, "bg_color": "#000000",
                 "elements": [
-                  { "type": "text", "value": "zzz", "x": 64, "y": 32, "color": "#FFFFFF", "size": 1 }
+                  { "type": "text", "value": "zzz", "x": 64, "y": 32, "color": "#FFFFFF", "size": 1 },
+                  { "type": "sprite", "value": "icon_spool", "x": 4, "y": 4, "color": "#FFFFFF", "color_key": "spool.color", "size": 1 }
                 ]
               }
             ]
@@ -218,6 +219,8 @@ with a `type` field:
 | `text` | Draws static text string. Color from `color` field. |
 | `sprite` | Draws a named sprite from `sprites` dict at `(x, y)`. |
 | `datavalue` | Resolves a data binding key from the relayed printer state, formats the value, and draws it centred on `(x, y)`. |
+
+Any element can also have `color_key`: a data key whose value is a `#RRGGBB` colour (e.g. `spool.color`). On a colour panel the element is drawn in that colour, and redrawn when it changes; `color` is used while the key has no colour, on monochrome panels, and by firmware without colour keys. The key is sent to the node like a bound data key. Left out of the config when unset.
 
 ### Data Binding Keys
 

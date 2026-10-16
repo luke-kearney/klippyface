@@ -3,7 +3,16 @@
 
 static const char* TAG = "RENDER";
 
-static void renderTextElement(const FrameElement& element, DisplayDriver& display) {
+// The element's colour, or the colour its color_key reads (e.g. the loaded filament's).
+// Monochrome panels keep the fixed colour: a black filament would switch the pixels off.
+static uint32_t elementColor(const FrameElement& element, const PrinterState* state,
+                             const DisplayDriver& display) {
+    if (element.colorKey.length() == 0 || !state || !display.isColor()) return element.color;
+    return state->color(element.colorKey, element.color);
+}
+
+static void renderTextElement(const FrameElement& element, DisplayDriver& display,
+                              const PrinterState* state) {
     std::string glyphs = toFontText(element.value.c_str());
     const char* text = glyphs.c_str();
     size_t len = glyphs.length();
@@ -17,7 +26,7 @@ static void renderTextElement(const FrameElement& element, DisplayDriver& displa
     // Text wider than the panel wraps onto more lines: keep it in every band
     if (textW <= display.width() && !display.rowsVisible(cy, textH)) return;
 
-    display.setTextColor(element.color);
+    display.setTextColor(elementColor(element, state, display));
     display.setTextSize(element.size);
     display.setCursor(cx, cy);
     display.print(text);
@@ -43,14 +52,15 @@ static void renderDataValueElement(const FrameElement& element, DisplayDriver& d
     // Text wider than the panel wraps onto more lines: keep it in every band
     if (textW <= display.width() && !display.rowsVisible(cy, textH)) return;
 
-    display.setTextColor(element.color);
+    display.setTextColor(elementColor(element, state, display));
     display.setTextSize(element.size);
     display.setCursor(cx, cy);
     display.print(text);
 }
 
 static void renderSpriteElement(const FrameElement& element, DisplayDriver& display,
-                                 const std::map<String, Sprite>* sprites) {
+                                 const std::map<String, Sprite>* sprites,
+                                 const PrinterState* state) {
     if (!sprites) {
         Serial.printf("[%s] No sprite map available for '%s'\n",
                       TAG, element.value.c_str());
@@ -65,6 +75,7 @@ static void renderSpriteElement(const FrameElement& element, DisplayDriver& disp
     }
 
     const Sprite& sprite = it->second;
+    uint32_t color = elementColor(element, state, display);
     if (!display.rowsVisible(element.y, sprite.height * element.size)) return;
     size_t stride = (sprite.width + 7) / 8;
     bool oneBit = sprite.byteSize() == stride * sprite.height;
@@ -75,7 +86,7 @@ static void renderSpriteElement(const FrameElement& element, DisplayDriver& disp
         for (int16_t py = 0; py < sprite.height; py++) {
             for (int16_t px = 0; px < sprite.width; px++) {
                 if (data[py * stride + px / 8] & (0x80 >> (px % 8)))
-                    display.fillRect(element.x + px * s, element.y + py * s, s, s, element.color);
+                    display.fillRect(element.x + px * s, element.y + py * s, s, s, color);
             }
         }
         return;
@@ -83,7 +94,7 @@ static void renderSpriteElement(const FrameElement& element, DisplayDriver& disp
     display.drawBitmap(element.x, element.y,
                        sprite.rawData(), sprite.byteSize(),
                        sprite.width, sprite.height,
-                       element.color);
+                       color);
 }
 
 void renderFrame(const Frame& frame, DisplayDriver& display,
@@ -94,11 +105,11 @@ void renderFrame(const Frame& frame, DisplayDriver& display,
     for (const auto& element : frame.elements) {
         switch (element.type) {
             case FrameElement::Text:
-                renderTextElement(element, display);
+                renderTextElement(element, display, state);
                 break;
 
             case FrameElement::Sprite:
-                renderSpriteElement(element, display, sprites);
+                renderSpriteElement(element, display, sprites, state);
                 break;
 
             case FrameElement::DataValue:

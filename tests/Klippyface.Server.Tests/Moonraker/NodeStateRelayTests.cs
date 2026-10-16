@@ -101,6 +101,25 @@ public class NodeStateRelayTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Keys_that_colour_elements_are_sent_too()
+    {
+        using (var scope = _services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<KlippyfaceDbContext>();
+            var frame = await db.Frames.FirstAsync(f => f.Set.GroupId == "idle");
+            db.FrameElements.Add(new FrameElement { FrameId = frame.Id, Type = "sprite", Value = "spool", ColorKey = "spool.color" });
+            await db.SaveChangesAsync();
+        }
+        _store.ReplaceSource("spool", new JsonObject { ["color"] = "#FF6A13", ["vendor"] = "eSun" });
+
+        await _relay.OnNodeHelloAsync(Shelf);
+
+        var values = _sockets[Shelf].Messages[1]["values"]!.AsObject();
+        Assert.Equal("#FF6A13", values["spool.color"]!.GetValue<string>());
+        Assert.False(values.ContainsKey("spool.vendor"));
+    }
+
+    [Fact]
     public async Task Connection_changes_go_to_every_node()
     {
         await _relay.OnStatusChangedAsync(new MoonrakerStatus(MoonrakerState.Ready, null, []));

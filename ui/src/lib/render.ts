@@ -189,7 +189,8 @@ export function renderFrame(
     c.rgba[i * 4 + 3] = 255
   }
   for (const el of frame.elements ?? []) {
-    const rgb = toPanel(el.color || '#FFFFFF', mono)
+    // Monochrome panels keep the fixed colour (Renderer.cpp)
+    const rgb = toPanel(mono ? el.color || '#FFFFFF' : elementColor(el), mono)
     const k = sizeOf(el)
     if (el.type === 'sprite') {
       const s = sprites.get(el.value)
@@ -202,6 +203,12 @@ export function renderFrame(
       drawText(c, bytes, el.x - Math.trunc((bytes.length * CHAR_W * k) / 2), el.y - Math.trunc((CHAR_H * k) / 2), rgb, k)
     }
   }
+}
+
+/** The element's colour, or the sample colour its key reads, as Renderer.cpp's elementColor(). */
+export function elementColor(el: Pick<FrameElement, 'color' | 'colorKey'>): string {
+  const keyed = el.colorKey ? sampleValue(el.colorKey) : ''
+  return /^#[0-9a-f]{6}$/i.test(keyed) ? keyed : el.color || '#FFFFFF'
 }
 
 /** Paint a rendered canvas onto a 2D context at integer scale. */

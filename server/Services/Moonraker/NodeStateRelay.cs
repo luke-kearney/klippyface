@@ -112,7 +112,7 @@ public sealed class NodeStateRelay(
             .ToList();
     }
 
-    /// <summary>Data keys bound by datavalue elements in any group the node's displays can show.</summary>
+    /// <summary>Data keys bound by datavalue elements, or colouring elements, in any group the node's displays can show.</summary>
     private async Task<IReadOnlySet<string>> LoadBoundKeysAsync(string mac)
     {
         var keys = new HashSet<string> { PrintStateKey, PrinterStateStore.ActiveKey };
@@ -142,6 +142,12 @@ public sealed class NodeStateRelay(
             keys.UnionWith(await db.FrameElements
                 .Where(e => e.Type == "datavalue" && groupIds.Contains(e.Frame.Set.GroupId))
                 .Select(e => e.Value)
+                .Distinct()
+                .ToListAsync());
+            // Elements coloured by a key (e.g. the filament colour)
+            keys.UnionWith(await db.FrameElements
+                .Where(e => e.ColorKey != "" && groupIds.Contains(e.Frame.Set.GroupId))
+                .Select(e => e.ColorKey)
                 .Distinct()
                 .ToListAsync());
         }

@@ -234,6 +234,7 @@ void ConfigDeserializer::parseElement(JsonObject& elJson, FrameElement& outEl) {
     } else {
         outEl.color = 0xFFFFFF;
     }
+    outEl.colorKey = elJson["color_key"] | "";
 }
 
 void ConfigDeserializer::parseSprite(JsonObject& spriteJson, SpriteInfo& outSprite, const String& spriteId) {

@@ -97,6 +97,16 @@ String PrinterState::text(const String& key) const {
     return result;
 }
 
+uint32_t PrinterState::color(const String& key, uint32_t fallback) const {
+    String hex = text(key);
+    if (hex.startsWith("#")) hex.remove(0, 1);
+    if (hex.length() != 6) return fallback;
+    for (size_t i = 0; i < 6; i++) {
+        if (!isxdigit((unsigned char)hex[i])) return fallback;
+    }
+    return (uint32_t)strtoul(hex.c_str(), nullptr, 16);
+}
+
 String PrinterState::resolve(const String& key) const {
     if (key == "moonraker.connected") {
         return _moonrakerConnected ? "Online" : "Offline";

@@ -122,7 +122,16 @@ export function SetEditorPage() {
   }
 
   const duplicateElement = (el: FrameElement) =>
-    addElement({ type: el.type, value: el.value, label: el.label, color: el.color, x: el.x + 4, y: el.y + 4, size: el.size })
+    addElement({
+      type: el.type,
+      value: el.value,
+      label: el.label,
+      color: el.color,
+      colorKey: el.colorKey,
+      x: el.x + 4,
+      y: el.y + 4,
+      size: el.size,
+    })
 
   const moveLayer = (el: FrameElement, dir: -1 | 1) => {
     if (!frame) return
