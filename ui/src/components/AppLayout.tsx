@@ -3,6 +3,7 @@ import { Cpu, Image, Layers, Moon, Printer } from 'lucide-react'
 import { useNodes } from '@/hooks/queries'
 import { cn } from '@/lib/utils'
 import { StatusDot } from '@/components/common'
+import { Badge } from '@/components/ui/badge'
 import { KlippyfaceMark, KlippyfaceWordmark } from '@/components/Logo'
 
 const NAV = [
@@ -16,7 +17,9 @@ const NAV = [
 ] as const
 
 export function AppLayout() {
-  const { data: nodes } = useNodes()
+  const { data: allNodes } = useNodes()
+  const nodes = allNodes?.filter((n) => n.status !== 'pending')
+  const pending = (allNodes?.length ?? 0) - (nodes?.length ?? 0)
   const online = nodes?.filter((n) => n.isOnline).length ?? 0
 
   return (
@@ -50,6 +53,7 @@ export function AppLayout() {
               >
                 <item.icon className="size-4" />
                 {item.label}
+                {item.to === '/nodes' && <PendingBadge count={pending} />}
               </NavLink>
             ),
           )}
@@ -90,6 +94,7 @@ export function AppLayout() {
             >
               <item.icon className="size-4" />
               {item.label}
+              {item.to === '/nodes' && <PendingBadge count={pending} />}
             </NavLink>
           ))}
         </nav>
@@ -98,5 +103,15 @@ export function AppLayout() {
         </main>
       </div>
     </div>
+  )
+}
+
+/** Nodes waiting to be accepted. */
+function PendingBadge({ count }: { count: number }) {
+  if (count === 0) return null
+  return (
+    <Badge className="ml-auto h-5 min-w-5 px-1.5 tabular-nums" title={`${count} node${count === 1 ? '' : 's'} waiting to be accepted`}>
+      {count}
+    </Badge>
   )
 }

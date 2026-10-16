@@ -8,6 +8,9 @@ public class Node
     public string MacAddress { get; set; } = string.Empty;
     public string FriendlyName { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+
+    /// <summary>Unknown MACs that connect are added as pending and get nothing until accepted.</summary>
+    public NodeStatus Status { get; set; } = NodeStatus.Accepted;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastSeen { get; set; }
@@ -28,4 +31,11 @@ public class Node
 
     [JsonIgnore]
     public ICollection<NodePreset> NodePresets { get; set; } = new List<NodePreset>();
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter<NodeStatus>))]
+public enum NodeStatus
+{
+    [JsonStringEnumMemberName("accepted")] Accepted,
+    [JsonStringEnumMemberName("pending")] Pending,
 }

@@ -419,6 +419,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-16: Unknown nodes register themselves as pending; board presets move to the server
+
+**Context:** A new board only connected once its MAC had been typed in on the Nodes page; the server closed the socket of any unknown MAC (#43). The MAC had to be read off the serial console or setup portal. Board presets lived only in the Web UI, so the server couldn't give a new node a display.
+
+**Decision:** An unknown MAC that connects is added as a `Pending` node. Its socket stays open (so it shows online) but it gets no config, `refresh_config`, printer state or display commands until it's accepted from the Nodes page, which sends `refresh_config` straight away. Reject is a plain delete: a board that's still on reconnects and is pending again, rather than being remembered as blocked. At most 10 nodes can be pending; further new MACs are refused (warning logged at most once a minute) until some are accepted or cleared with **Clear pending**, and paths that aren't a MAC are refused outright, since the endpoint has no authentication. Board presets are defined on the server (`BoardPresets.cs`, `GET /api/boards/presets`), and accepting a node can add a display from one; a board with exactly one preset (the Waveshare S3 boards) gets it by default.
+
+**Consequences:** Anything on the LAN can add up to 10 pending rows. Existing nodes migrate as `Accepted`. Deleting an accepted node now closes its socket, so if it's still on it comes back as pending instead of staying connected to a deleted record. No firmware change: a pending node just never hears back after its hello.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations

@@ -14,6 +14,7 @@ builder.Services.AddDbContext<KlippyfaceDbContext>(options =>
 builder.Services.AddScoped<ConfigExportService>();
 builder.Services.AddScoped<StarterPackService>();
 builder.Services.AddScoped<NodePublisher>();
+builder.Services.AddScoped<NodeRegistry>();
 builder.Services.AddSingleton<NodeStatusService>();
 builder.Services.AddHostedService<PendingPublishSweeper>();
 
@@ -82,6 +83,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapNodesApi();
+app.MapBoardsApi();
 app.MapLibraryApi();
 app.MapSpritesApi();
 app.MapPresetsApi();

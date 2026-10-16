@@ -8,6 +8,7 @@ import type { Sprite } from '@/lib/types'
 export const keys = {
   nodes: ['nodes'] as const,
   node: (id: string) => ['nodes', id] as const,
+  boardPresets: ['boards', 'presets'] as const,
   groups: ['groups'] as const,
   group: (id: string) => ['groups', id] as const,
   sprites: ['sprites'] as const,
@@ -21,6 +22,10 @@ export const useNodes = () =>
 
 export const useNode = (id: string) =>
   useQuery({ queryKey: keys.node(id), queryFn: () => api.getNode(id), refetchInterval: 10_000 })
+
+/** Fixed for the life of the server. */
+export const useBoardPresets = () =>
+  useQuery({ queryKey: keys.boardPresets, queryFn: api.getBoardPresets, staleTime: Infinity })
 
 export const useGroups = () => useQuery({ queryKey: keys.groups, queryFn: api.getGroups })
 
