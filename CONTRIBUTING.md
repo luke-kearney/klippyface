@@ -291,6 +291,7 @@ Firmware builds from the matching `v<VERSION>` tag report the plain version (`0.
    - `klippyface-firmware-X.Y.Z-<env>.bin` — app image for updating a flashed board, one per board env (`esp32dev`, `esp32s3-ws-lcd169`, `esp32s3-ws-lcd128`)
    - `klippyface-firmware-X.Y.Z-<env>-full.bin` — full image for a blank board (`esptool write-flash 0x0 <file>`)
    - `klippyface-server-X.Y.Z-linux-{arm64,x64}.tar.gz` — self-contained server with the Web UI in `wwwroot`
+   - `klippyface-server-X.Y.Z-win-x64.zip` — the same for Windows
 
 **Dev builds:** every push to `develop` replaces the rolling `dev` pre-release with the same artifacts, named `X.Y.Z-dev.<sha>`, except that only the classic `esp32dev` firmware is built. The firmware reports `X.Y.Z+g<sha>`.
 

@@ -139,9 +139,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rid: [linux-arm64, linux-x64]
+        rid: [linux-arm64, linux-x64, win-x64]
     env:
       VERSION: ${{ needs.version.outputs.version }}
+      RID: ${{ matrix.rid }}
     steps:
       - uses: actions/checkout@v4
 
@@ -163,14 +164,18 @@ jobs:
 
       - name: Publish server
         run: |
-          dotnet publish server -c Release -r ${{ matrix.rid }} --self-contained \
-            -o "publish/klippyface-server-$VERSION-${{ matrix.rid }}"
+          dotnet publish server -c Release -r "$RID" --self-contained \
+            -o "publish/klippyface-server-$VERSION-$RID"
 
+      # zip for Windows, tar.gz elsewhere; both unpack into one named folder
       - name: Package server
         run: |
+          name="klippyface-server-$VERSION-$RID"
           mkdir -p dist
-          tar -czf "dist/klippyface-server-$VERSION-${{ matrix.rid }}.tar.gz" \
-            -C publish "klippyface-server-$VERSION-${{ matrix.rid }}"
+          case "$RID" in
+            win-*) (cd publish && zip -qr "../dist/$name.zip" "$name") ;;
+            *)     tar -czf "dist/$name.tar.gz" -C publish "$name" ;;
+          esac
 
       - uses: actions/upload-artifact@v4
         with:
