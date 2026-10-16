@@ -15,7 +15,7 @@ import { ElementInspector, FrameInspector, TYPE_META } from '@/components/editor
 import { SpriteThumb } from '@/components/SpriteThumb'
 import { useSpriteBitmaps, useSprites } from '@/hooks/queries'
 import { useSetDocument, type SetDocument } from '@/hooks/useSetDocument'
-import { DATA_KEYS } from '@/lib/render'
+import { COMMON_DATA_KEYS } from '@/lib/render'
 import { groupByFolder } from '@/lib/sprite'
 import type { FrameElement } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -315,7 +315,7 @@ export function SetEditorPage() {
                   variant="outline"
                   size="sm"
                   className="justify-start"
-                  onClick={() => addElement({ type: 'datavalue', value: DATA_KEYS[0].key })}
+                  onClick={() => addElement({ type: 'datavalue', value: COMMON_DATA_KEYS[0].key })}
                   disabled={playing}
                 >
                   <TYPE_META.datavalue.icon /> Printer value

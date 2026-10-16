@@ -429,6 +429,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-16: Active-tool nozzle keys; the editor's data keys come from the server
+
+**Context:** Faces could only show `extruder.*`, and the editor offered a fixed list with no other tools (#22). On a toolchanger or IDEX the useful number is the tool in use.
+
+**Decision:** The server derives `klippyface.nozzle.temperature`/`.target` and `klippyface.tool` from `toolhead.extruder`, beside its other `klippyface.*` keys; the firmware formats them by key ending, so it needs no change. The editor's key list comes from `GET /api/moonraker/data-keys`, which adds `extruderN.*` per tool only when Moonraker reports more than one extruder. The starter faces use the nozzle key.
+
+**Consequences:** Existing libraries keep `extruder.temperature` (still valid; the starter pack only imports into an empty library). Multi-tool behaviour is tested against the fake Moonraker's `quad` profile, not on hardware.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations

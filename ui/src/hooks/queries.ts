@@ -9,6 +9,7 @@ export const keys = {
   nodes: ['nodes'] as const,
   node: (id: string) => ['nodes', id] as const,
   boardPresets: ['boards', 'presets'] as const,
+  dataKeys: ['moonraker', 'data-keys'] as const,
   groups: ['groups'] as const,
   group: (id: string) => ['groups', id] as const,
   sprites: ['sprites'] as const,
@@ -26,6 +27,9 @@ export const useNode = (id: string) =>
 /** Fixed for the life of the server. */
 export const useBoardPresets = () =>
   useQuery({ queryKey: keys.boardPresets, queryFn: api.getBoardPresets, staleTime: Infinity })
+
+/** Follows the printer (extruders found, Spoolman), so it's refreshed now and then. */
+export const useDataKeys = () => useQuery({ queryKey: keys.dataKeys, queryFn: api.getDataKeys, staleTime: 60_000 })
 
 export const useGroups = () => useQuery({ queryKey: keys.groups, queryFn: api.getGroups })
 

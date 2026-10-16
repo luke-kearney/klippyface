@@ -1,6 +1,7 @@
 import type {
   Assignment,
   BoardPreset,
+  DataKey,
   Frame,
   FrameElement,
   Group,
@@ -89,6 +90,8 @@ export const api = {
   acceptNode: (id: string, d: { friendlyName?: string; presetId?: string }) => post<Node>(`/api/nodes/${id}/accept`, d),
   clearPendingNodes: () => request<{ removed: number }>('DELETE', '/api/nodes/pending'),
   getBoardPresets: () => get<BoardPreset[]>('/api/boards/presets'),
+  /** Data keys for the editor: the common ones, plus per-tool keys on multi-tool printers. */
+  getDataKeys: () => get<DataKey[]>('/api/moonraker/data-keys'),
 
   // Displays
   createDisplay: (nodeId: string, d: DisplayInput) => post<NodeDisplay>(`/api/nodes/${nodeId}/displays`, d),

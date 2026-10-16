@@ -15,6 +15,13 @@ public sealed class PrinterStateStore
     /// <summary>True while the printer is working (see <see cref="IsActive"/>); nodes don't sleep their screens then.</summary>
     public const string ActiveKey = "klippyface.active";
 
+    /// <summary>The active tool, "T0" for extruder, "T1" for extruder1…; from toolhead.extruder.</summary>
+    public const string ToolKey = "klippyface.tool";
+
+    /// <summary>The active tool's nozzle, so faces follow tool changes on multi-tool printers.</summary>
+    public const string NozzleTemperatureKey = "klippyface.nozzle.temperature";
+    public const string NozzleTargetKey = "klippyface.nozzle.target";
+
     /// <summary>
     /// Keys the server works out itself. print_stats has no progress field in
     /// Klipper, but faces have always bound to "print_stats.progress"; it follows
@@ -27,7 +34,23 @@ public sealed class PrinterStateStore
         (DisplayStateKey, (v, resultDismissed) => DisplayState(v, resultDismissed)),
         (ActiveKey, (v, resultDismissed) =>
             DisplayState(v, resultDismissed) is { } state ? JsonValue.Create(IsActive(state)) : null),
+        (ToolKey, (v, _) => ToolIndex(ActiveExtruder(v)) is { } tool ? JsonValue.Create($"T{tool}") : null),
+        (NozzleTemperatureKey, (v, _) => v.GetValueOrDefault($"{ActiveExtruder(v)}.temperature")),
+        (NozzleTargetKey, (v, _) => v.GetValueOrDefault($"{ActiveExtruder(v)}.target")),
     ];
+
+    /// <summary>
+    /// The extruder in use. Single-extruder printers always report "extruder"; a
+    /// toolchanger with no tool picked up reports "".
+    /// </summary>
+    private static string ActiveExtruder(IReadOnlyDictionary<string, JsonNode?> v) =>
+        Text(v, "toolhead.extruder") ?? "extruder";
+
+    /// <summary>0 for "extruder", n for "extruder&lt;n&gt;", null for anything else.</summary>
+    public static int? ToolIndex(string extruder) =>
+        extruder == "extruder" ? 0
+        : extruder.StartsWith("extruder") && int.TryParse(extruder["extruder".Length..], out var n) && n > 0 ? n
+        : null;
 
     /// <summary>Printing, paused, heating, busy or error; idle, complete and cancelled are resting.</summary>
     public static bool IsActive(string state) => state is "printing" or "paused" or "heating" or "busy" or "error";

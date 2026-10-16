@@ -51,6 +51,10 @@ public static class MoonrakerApi
                 .OrderBy(kv => kv.Key, StringComparer.Ordinal)
                 .Select(kv => KeyValuePair.Create(kv.Key, kv.Value)))));
 
+        // What the editor offers for data values on this printer
+        moonraker.MapGet("/data-keys", (MoonrakerService service, PrinterStateStore store) =>
+            Results.Ok(DataKeyCatalog.Build(service.Status.Objects, store.All())));
+
         return app;
     }
 

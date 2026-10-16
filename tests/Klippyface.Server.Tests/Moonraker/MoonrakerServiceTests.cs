@@ -100,6 +100,20 @@ public class MoonrakerServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Nozzle_keys_follow_a_tool_change()
+    {
+        await StartAsync();
+        await _listener.WaitForStatusAsync(MoonrakerState.Ready);
+
+        await _fake.PostAsync("/_sim/state", new JsonObject { ["extruder2"] = new JsonObject { ["target"] = 230 } });
+        await _fake.PostAsync("/_sim/toolchange/2");
+        _fake.Tick();
+
+        var changes = await _listener.WaitForChangeAsync(PrinterStateStore.ToolKey, v => v?.GetValue<string>() == "T2");
+        Assert.Equal(230, changes[PrinterStateStore.NozzleTargetKey]!.GetValue<double>());
+    }
+
+    [Fact]
     public async Task Klipper_shutdown_is_an_error_not_offline()
     {
         await StartAsync();

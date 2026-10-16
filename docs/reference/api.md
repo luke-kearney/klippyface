@@ -21,6 +21,7 @@ The server's one connection to Moonraker (Web UI **Printer** page).
 |--------|-------|-------------|
 | GET | `/api/moonraker` | Settings and live status: `{ host, port, use_tls, has_api_key, status: { state, detail?, connected, objects[] } }`. `state` is `NotConfigured`, `Connecting`, `KlippyNotReady`, `Ready` or `Disconnected` |
 | PUT | `/api/moonraker` | Save `{ host, port, use_tls, api_key? }` and reconnect. `api_key` omitted keeps the saved key, `""` clears it. `400` for a URL instead of a host, or a bad port |
+| GET | `/api/moonraker/data-keys` | Data keys the editor offers for this printer: `[{ key, label, group }]`. The common keys, plus `klippyface.tool` and `extruderN.*` per tool when Moonraker reports more than one extruder. Faces can bind any key |
 | GET | `/api/moonraker/state` | Every value the server has, flattened to data keys (`{ "extruder.temperature": 210.5, ... }`) |
 
 ## Node Endpoints
@@ -225,8 +226,11 @@ A key is `<Klipper object>.<field>` (nested fields joined with `.`), for any obj
 | Key | Source | Example output |
 |-----|--------|----------------|
 | `print_stats.progress` | Print progress. Klipper's `print_stats` has no progress field; the server fills this from `display_status.progress` (M73), falling back to `virtual_sdcard.progress` | `"73.0%"` |
-| `extruder.temperature` | Nozzle temp | `"210°C"` |
-| `extruder.target` | Nozzle target | `"220°C"` |
+| `klippyface.nozzle.temperature` | The active tool's nozzle temp (follows `toolhead.extruder`; the only nozzle on a single-extruder printer). Used by the starter faces | `"210°C"` |
+| `klippyface.nozzle.target` | The active tool's nozzle target | `"220°C"` |
+| `klippyface.tool` | The active tool: `T0` for `extruder`, `T1` for `extruder1`… Gone while a toolchanger holds no tool | `"T1"` |
+| `extruder.temperature`, `extruderN.temperature` | A specific tool's nozzle temp (`extruder` = T0, `extruder1` = T1…) | `"210°C"` |
+| `extruder.target`, `extruderN.target` | A specific tool's nozzle target | `"220°C"` |
 | `heater_bed.temperature` | Bed temp | `"60°C"` |
 | `heater_bed.target` | Bed target | `"65°C"` |
 | `klippyface.state` | The printer state the server works out (see [Printer States](#printer-states)); drives `state:*` triggers | `"heating"` |

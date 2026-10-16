@@ -25,6 +25,14 @@ export interface Node {
 
 export type NodeStatus = 'accepted' | 'pending'
 
+/** A data key the editor offers for this printer (GET /api/moonraker/data-keys). */
+export interface DataKey {
+  key: string
+  label: string
+  /** Heading it's listed under, e.g. 'Nozzle', 'Tools'. */
+  group: string
+}
+
 /** A known board + display combination, served by the server. */
 export interface BoardPreset {
   id: string

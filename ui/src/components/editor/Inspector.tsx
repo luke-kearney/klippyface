@@ -8,9 +8,10 @@ import { Slider } from '@/components/ui/slider'
 import { Textarea } from '@/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Field } from '@/components/common'
-import { DATA_KEYS, isMono } from '@/lib/render'
+import { useDataKeys } from '@/hooks/queries'
+import { COMMON_DATA_KEYS, isMono, sampleValue } from '@/lib/render'
 import { groupByFolder } from '@/lib/sprite'
-import type { Frame, FrameElement, Set, Sprite } from '@/lib/types'
+import type { DataKey, Frame, FrameElement, Set, Sprite } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 export const TYPE_META = {
@@ -47,6 +48,37 @@ function ColorField({ value, onChange, mono }: { value: string; onChange: (v: st
         </div>
       )}
     </Field>
+  )
+}
+
+/** Keys grouped by heading, in the order the server lists them; `current` is kept even if this printer doesn't offer it. */
+function groupDataKeys(list: DataKey[], current: string): [string, DataKey[]][] {
+  const all = list.some((k) => k.key === current) || !current ? list : [...list, { key: current, label: current, group: 'Other' }]
+  const groups = new Map<string, DataKey[]>()
+  for (const k of all) groups.set(k.group, [...(groups.get(k.group) ?? []), k])
+  return [...groups]
+}
+
+function DataKeySelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { data } = useDataKeys()
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Choose value" />
+      </SelectTrigger>
+      <SelectContent>
+        {groupDataKeys(data ?? COMMON_DATA_KEYS, value).map(([group, list]) => (
+          <SelectGroup key={group}>
+            <SelectLabel>{group}</SelectLabel>
+            {list.map((d) => (
+              <SelectItem key={d.key} value={d.key}>
+                {d.label} <span className="font-mono text-xs text-muted-foreground">{sampleValue(d.key)}</span>
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }
 
@@ -126,18 +158,7 @@ export function ElementInspector({
       )}
       {element.type === 'datavalue' && (
         <Field label="Printer value" hint="Preview shows sample data. Centred on X/Y.">
-          <Select value={element.value} onValueChange={(v) => onChange({ value: v })}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Choose value" />
-            </SelectTrigger>
-            <SelectContent>
-              {DATA_KEYS.map((d) => (
-                <SelectItem key={d.key} value={d.key}>
-                  {d.label} <span className="font-mono text-xs text-muted-foreground">{d.sample}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <DataKeySelect value={element.value} onChange={(value) => onChange({ value })} />
         </Field>
       )}
 
