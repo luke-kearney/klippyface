@@ -31,7 +31,7 @@ ui/
     ├── index.css                # Tailwind + theme tokens, brand palette, fonts
     ├── lib/
     │   ├── api.ts               # Typed REST client; snake_case ↔ camelCase key conversion
-    │   ├── boards.ts            # Board presets for the display dialog (driver, size, pins)
+    │   ├── boards.ts            # Helpers for the board presets served by GET /api/boards/presets
     │   ├── types.ts             # Mirrors server/Models
     │   ├── render.ts            # Software renderer mirroring firmware Renderer.cpp
     │   ├── utils.ts             # cn() class merging

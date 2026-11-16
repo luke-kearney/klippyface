@@ -81,6 +81,8 @@ jobs:
     needs: version
     runs-on: ubuntu-latest
     strategy:
+      # One board failing shouldn't hide whether the others build
+      fail-fast: false
       matrix:
         include: ${{ fromJSON(needs.version.outputs.targets) }}
     env:
@@ -139,9 +141,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rid: [linux-arm64, linux-x64]
+        rid: [linux-arm64, linux-x64, win-x64]
     env:
       VERSION: ${{ needs.version.outputs.version }}
+      RID: ${{ matrix.rid }}
     steps:
       - uses: actions/checkout@v4
 
@@ -163,24 +166,86 @@ jobs:
 
       - name: Publish server
         run: |
-          dotnet publish server -c Release -r ${{ matrix.rid }} --self-contained \
-            -o "publish/klippyface-server-$VERSION-${{ matrix.rid }}"
+          dotnet publish server -c Release -r "$RID" --self-contained \
+            -o "publish/klippyface-server-$VERSION-$RID"
 
+      # zip for Windows, tar.gz elsewhere; both unpack into one named folder
       - name: Package server
         run: |
+          name="klippyface-server-$VERSION-$RID"
           mkdir -p dist
-          tar -czf "dist/klippyface-server-$VERSION-${{ matrix.rid }}.tar.gz" \
-            -C publish "klippyface-server-$VERSION-${{ matrix.rid }}"
+          case "$RID" in
+            win-*) (cd publish && zip -qr "../dist/$name.zip" "$name") ;;
+            *)     tar -czf "dist/$name.tar.gz" -C publish "$name" ;;
+          esac
 
       - uses: actions/upload-artifact@v4
         with:
           name: server-${{ matrix.rid }}
           path: dist/*
 
+  # Multi-arch server image on GHCR: X.Y.Z + latest for production, dev for
+  # develop. Manual runs build it without pushing. The UI and server build
+  # once on the runner's platform; only the final stage is per architecture.
+  image:
+    name: Server image
+    needs: version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      CHANNEL: ${{ needs.version.outputs.channel }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: tags
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/klippyface-server"
+          case "$CHANNEL" in
+            prod) tags="$image:$VERSION,$image:latest" ;;
+            dev)  tags="$image:dev" ;;
+            *)    tags="$image:build" ;;
+          esac
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+          echo "push=$([ "$CHANNEL" = none ] && echo false || echo true)" >> "$GITHUB_OUTPUT"
+          echo "Image tags: $tags"
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - if: steps.tags.outputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - uses: docker/build-push-action@v6
+        env:
+          # The action otherwise uploads a .dockerbuild record as a run artifact
+          DOCKER_BUILD_RECORD_UPLOAD: false
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ steps.tags.outputs.push == 'true' }}
+          tags: ${{ steps.tags.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ env.VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.description=Klippyface companion server with the Web UI
+            org.opencontainers.image.licenses=MIT
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   publish:
     name: Publish ${{ needs.version.outputs.channel }} release
     if: needs.version.outputs.channel != 'none'
-    needs: [version, firmware, server]
+    needs: [version, firmware, server, image]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -190,15 +255,27 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
-      # Only for docs/releases/<version>.md, the hand-written notes
+      # Only for docs/releases/<version>.md (the hand-written notes) and the compose file
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: docs/releases
+          sparse-checkout: |
+            docs/releases
+            docker
 
+      # Only our own artifacts: actions may add others (e.g. Docker build records)
       - uses: actions/download-artifact@v4
         with:
           path: dist
+          pattern: "{firmware,server}-*"
           merge-multiple: true
+
+      # The compose file users download; dev pre-releases point it at the dev image
+      - name: Add compose file
+        run: |
+          tag=latest
+          [ "$CHANNEL" = dev ] && tag=dev
+          sed "s|klippyface-server:latest|klippyface-server:$tag|" docker/docker-compose.yml > dist/docker-compose.yml
+          grep -q "klippyface-server:$tag" dist/docker-compose.yml
 
       # docs/releases/<version>.md, if present, goes above the generated notes
       - name: Publish production release

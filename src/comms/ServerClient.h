@@ -18,8 +18,12 @@ public:
     ~ServerClient();
 
     bool begin(const String& host, uint16_t port, bool useTls = false);
+    // Reconnect to a different server (found by discovery); no-op if unchanged
+    void retarget(const String& host, uint16_t port, bool useTls);
     void tick();
     void disconnect();
+    // How long the socket has been down; 0 while connected
+    unsigned long offlineMs() const { return _connected ? 0 : millis() - _lastOnline; }
 
     void setConfigQueue(QueueHandle_t q) { _configQueue = q; }
     void setConfigVersion(uint32_t version) { _configVersion = version; }
@@ -44,6 +48,7 @@ private:
     bool _fetchPending = false;
 
     unsigned long _lastHeartbeat = 0;
+    unsigned long _lastOnline = 0;
     static const unsigned long HEARTBEAT_INTERVAL = 30000;
 
     String _nodeId;

@@ -1,0 +1,35 @@
+# Klippyface server. In the folder holding this file:
+#   docker compose up -d                          start (pulls the image)
+#   docker compose pull && docker compose up -d   upgrade
+# Web UI on http://<this machine>:5000. Data lives in the klippyface-data volume.
+# To build from a checkout instead, see docker-compose.build.yml.
+
+name: klippyface
+
+services:
+  klippyface:
+    image: ghcr.io/luke-kearney/klippyface-server:latest
+    container_name: klippyface
+    restart: unless-stopped
+
+    # Host networking lets nodes find the server over mDNS (discovery doesn't
+    # leave Docker's bridge network) and puts the server on port 5000 directly.
+    network_mode: host
+
+    volumes:
+      - klippyface-data:/data
+
+    # environment:
+    #   # Name shown when nodes and mDNS browsers look for servers (default Klippyface-<host>)
+    #   Klippyface__Discovery__InstanceName: Klippyface-garage
+
+    # Without host networking (e.g. Docker Desktop on Mac or Windows): remove
+    # network_mode above and use the lines below instead. Discovery can't work
+    # there, so nodes need the server's address typed into their setup page.
+    # ports:
+    #   - "5000:5000"
+    # environment:
+    #   Klippyface__Discovery__Enabled: "false"
+
+volumes:
+  klippyface-data:

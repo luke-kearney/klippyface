@@ -35,7 +35,43 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 6. **Web UI** provides full visual management — node registry, sprite pixel editor, animation preview, preset scheduling
 7. **Admin edits** (displays, groups, animations) automatically bump `LastConfigVersion` and push `refresh_config` to all connected nodes in real-time
 
-## Quick Start
+## Installing a Release
+
+Download the server and firmware for your device from [GitHub Releases](https://github.com/luke-kearney/klippyface/releases). The server builds are self-contained: no .NET install needed. The server listens on port 5000, and nodes on your network connect to it there.
+
+The server can be started from any folder; it keeps its database (`klippyface.db`) next to its own files unless `KLIPPYFACE_DATA_DIR` is set. Nodes find it on their own over mDNS when their server address is left blank in the setup page.
+
+### Docker (Linux x64 / arm64)
+
+Download `docker-compose.yml` from the release into an empty folder, then in that folder:
+
+```bash
+docker compose up -d
+# → http://<this machine>:5000
+docker compose pull && docker compose up -d   # upgrade later
+```
+
+It uses host networking so nodes can discover the server. On Docker Desktop (Mac/Windows) see the comments in the file: discovery doesn't work there, so nodes need the server address typed in.
+
+### Linux (x64 / arm64)
+
+```bash
+tar -xzf klippyface-server-<version>-linux-x64.tar.gz
+cd klippyface-server-<version>-linux-x64
+./Klippyface.Server
+# → http://localhost:5000
+```
+
+### Windows (x64)
+
+1. Unzip `klippyface-server-<version>-win-x64.zip` and open the `klippyface-server-<version>-win-x64` folder
+2. Run `Klippyface.Server.exe` (double-clicking it from the folder starts it in the right place). The executable is unsigned, so SmartScreen may warn: choose **More info → Run anyway**
+3. When Windows Firewall asks, allow access on **private networks**. Nodes can't connect until it's allowed
+4. Open http://localhost:5000
+
+Closing the console window stops the server.
+
+## Quick Start (Development)
 
 ### Firmware (ESP32)
 
@@ -140,8 +176,9 @@ klippyface/
 │   └── config/              # NVS settings storage
 ├── server/                  # .NET 10 companion server
 ├── ui/                      # Web UI source (Vite project)
-├── docker/
-│   └── Dockerfile
+├── docker/                  # Server image + compose (see docs/architecture/server.md)
+│   ├── Dockerfile
+│   └── docker-compose.yml
 └── scripts/
     └── xbm-convert.py
 ```

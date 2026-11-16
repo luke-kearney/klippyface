@@ -193,7 +193,7 @@ ESP32 has 4 MB flash and ~320 KB usable RAM.
 
 ## Setup Portal
 
-A node with no saved settings starts the `Klippyface-Setup` access point (open) and serves the setup page (`setup_html.h`) at `http://192.168.4.1`; DNS answers every name with that address and unknown paths redirect to `/`, so phones open it as a captive portal. The page asks for the WiFi network, the Klippyface server's address and port, and an optional display name, then saves to NVS and reboots. Holding BOOT for 3 s clears the settings; an unused portal reboots after 30 minutes.
+A node with no saved settings starts the `Klippyface-Setup` access point (open) and serves the setup page (`setup_html.h`) at `http://192.168.4.1`; DNS answers every name with that address and unknown paths redirect to `/`, so phones open it as a captive portal. The page asks for the WiFi network, the Klippyface server's address and port (optional: blank means find it over mDNS), and an optional display name, then saves to NVS and reboots. Holding BOOT for 3 s clears the settings; an unused portal reboots after 30 minutes.
 
 The portal runs in AP+STA mode from the start, because scanning needs station mode and switching it on mid-scan dropped phones off the access point. A scan starts with the portal; `GET /scan` returns the last results (`{ scanning, networks: [{ ssid, rssi, secure }] }`, one entry per name, strongest first) and `/scan?refresh=1` starts a new one. The page polls while `scanning` is true.
 
@@ -224,5 +224,15 @@ to the companion server, replacing the old 5-minute HTTP polling:
 - **Moonraker status:** `moonraker_status { connected }` feeds the connection monitor and the `moonraker.connected` data key.
 - **Display commands:** `display_cmd { group, set?, loop? }` → `DisplayManager::directCommand()`. The server parses `RESPOND` lines and picks the node; the firmware no longer reads console output.
 - **Reconnect:** auto-reconnect at 5s interval (WebSockets library manages this)
+- **Config fetch:** uses the host/port/TLS the socket is on, not the saved address, so it follows a discovered server
+
+## Server Discovery (ServerDiscovery)
+
+`src/comms/ServerDiscovery.h/.cpp` finds the server over mDNS (`_klippyface._tcp`, see the API reference's Discovery section) with the core's `ESPmDNS`; the node announces itself as `klippyface-<last 6 MAC hex>.local`. A lookup blocks for up to ~3 s and takes the first answer with an IPv4 address, reading `tls` from TXT. `serverClientTask` uses it in two places:
+
+- **No saved address** (left blank in the setup portal): look every 5 s until a server answers, then connect.
+- **Server unreachable for 30 s:** look again at most every 30 s and `ServerClient::retarget()` to the answer if it differs, which covers a server whose IP changed. A saved address that works is never overridden.
+
+The discovered address is never saved; it's looked up again on each boot.
 
 No connection groups exist by default: map the `wifi:`/`server:`/`moonraker:disconnected` triggers to a group on a display to show one. The screens sleep (power off) after the node's `sleep_after_s` (from its config; default 300, 0 = never) without a trigger or command, but never while `klippyface.active` is true (printing, paused, heating, busy, error) and the server and Moonraker are reachable; the countdown starts when the printer goes to rest. Waking shows the current printer state's face.
