@@ -67,7 +67,7 @@ Use this on Firefox or Safari, or if the flasher can't open the port.
 5. Set the address to **`0x0`**, choose the `-full.bin`, and click **Program**
 6. When it's done, unplug the board and plug it back in, then set up WiFi as in step 4
 
-To update a board that already runs Klippyface later, use the flasher again without erasing, or flash the plain `.bin` (no `-full`) by hand: settings are kept.
+To update a board that already runs Klippyface later, either use the flasher again (it resets the board's settings, so enter WiFi again when it asks; the server still knows the board, so there's nothing to accept) or flash the plain `.bin` (no `-full`) by hand at `0x10000`, which keeps the settings.
 
 ## 4. Connect the display to WiFi (if the flasher didn't)
 
