@@ -191,6 +191,15 @@ The pixel editor in the web UI draws on a `<canvas>` (in native color), converts
 
 ESP32 has 4 MB flash and ~320 KB usable RAM.
 
+## Improv Wi-Fi (ImprovSerial)
+
+`src/wifi/ImprovSerial.h/.cpp` speaks [Improv Wi-Fi over serial](https://www.improv-wifi.com/serial/) so the browser flasher (ESP Web Tools, `flasher/`) can set WiFi over USB straight after installing. `improvTask` (core 0, priority 2, started in `setup()` before the provisioning check) runs on every boot, provisioned or not, and polls `Serial` every 20 ms. Bytes that aren't an Improv packet are dropped, so ordinary logging carries on around it; outgoing packets are written in a single `Serial.write` (plus a newline) so another task's log line can't land inside one.
+
+- **Current state:** `ready` (0x02), or `provisioned` (0x04) with an empty result once provisioned and on WiFi
+- **Device info:** `Klippyface`, the firmware version, `ESP32` / `ESP32-S3`, and the display name (or `Klippyface-<last 6 MAC hex>`)
+- **Scan:** up to 20 networks (deduplicated, no hidden ones) as `[ssid, rssi, YES|NO]`, then an empty result. If the setup portal is mid-scan it waits for that scan instead
+- **WiFi settings:** `provisioning`, then a test connect (15 s). Success saves the credentials, marks the node provisioned, replies `provisioned` and reboots after 1.5 s into the normal boot path. The server address isn't touched: blank on a fresh board, so it discovers the server. Failure replies error 0x03 (unable to connect) and goes back to `ready`, reconnecting to the old WiFi if there was one, or just keeping the setup access point up
+
 ## Setup Portal
 
 A node with no saved settings starts the `Klippyface-Setup` access point (open) and serves the setup page (`setup_html.h`) at `http://192.168.4.1`; DNS answers every name with that address and unknown paths redirect to `/`, so phones open it as a captive portal. The page asks for the WiFi network, the Klippyface server's address and port (optional: blank means find it over mDNS), and an optional display name, then saves to NVS and reboots. Holding BOOT for 3 s clears the settings; an unused portal reboots after 30 minutes.
