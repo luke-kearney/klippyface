@@ -6,6 +6,7 @@
 #include "wifi/WifiManager.h"
 #include "display/DisplayManager.h"
 #include "comms/ServerClient.h"
+#include "comms/ServerDiscovery.h"
 #include "engine/ConfigDeserializer.h"
 #include "wifi/CaptivePortal.h"
 #include "KlippyfaceVersion.h"
@@ -49,6 +50,9 @@ void wifiTask(void *pvParameters) {
     }
 }
 
+static const unsigned long DISCOVERY_RETRY_MS = 5000;
+static const unsigned long REDISCOVER_AFTER_MS = 30000;
+
 // -------------------------------------------------------------------
 // Server Client Task (Core 0) — WebSocket to the companion server, which
 // also relays printer state from Moonraker
@@ -65,7 +69,21 @@ void serverClientTask(void *pvParameters) {
     String host = Settings::getServerHost();
     uint16_t port = Settings::getServerPort();
     bool svUseTls = Settings::getServerUseTls();
+
+    // No saved address: look for the server over mDNS until one answers. The
+    // result isn't saved, so a server that moves is found again on next boot.
+    if (host.length() == 0) {
+        Serial.println("[MAIN] No server address saved — looking for one");
+        DiscoveredServer found;
+        while (!ServerDiscovery::find(found)) {
+            vTaskDelay(pdMS_TO_TICKS(DISCOVERY_RETRY_MS));
+        }
+        host = found.host;
+        port = found.port;
+        svUseTls = found.useTls;
+    }
     serverClient.begin(host, port, svUseTls);
+    unsigned long lastDiscovery = millis();
 
     enum ConnMonitor : uint8_t {
         CONN_ONLINE,
@@ -77,6 +95,17 @@ void serverClientTask(void *pvParameters) {
 
     for (;;) {
         serverClient.tick();
+
+        // Server unreachable for a while: it may have a new IP, so look again
+        if (WiFi.isConnected() && serverClient.offlineMs() > REDISCOVER_AFTER_MS
+                && millis() - lastDiscovery > REDISCOVER_AFTER_MS) {
+            lastDiscovery = millis();
+            Serial.println("[MAIN] Server unreachable — looking for it");
+            DiscoveredServer found;
+            if (ServerDiscovery::find(found)) {
+                serverClient.retarget(found.host, found.port, found.useTls);
+            }
+        }
 
         // Connection state monitor — priority: WiFi > server > Moonraker > online
         ConnMonitor newConn;

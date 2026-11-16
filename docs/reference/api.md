@@ -203,6 +203,8 @@ The library also adds `txtvers=1`. Config (`appsettings.json`):
 
 `Interfaces` lists interface names to advertise on, replacing the automatic filter. Nothing is advertised when the server only listens on loopback, or no interface qualifies; both are logged as warnings. Check from Linux with `avahi-browse -rt _klippyface._tcp`.
 
+Nodes look the service up when the setup portal's server address was left blank, and again whenever the server has been unreachable for 30 s (switching only if the answer differs). They use the SRV port, the first IPv4 address and TXT `tls`; `path` is informational for now, as the firmware builds the path itself.
+
 Limits: mDNS stays on one network segment (no VLANs, guest WiFi or routed subnets), and in Docker it needs `network_mode: host` and an `InstanceName` (the default host is the container ID). Nodes with a typed-in address don't need it.
 
 ## WebSocket Protocol (`/api/ws/node/{mac}`)

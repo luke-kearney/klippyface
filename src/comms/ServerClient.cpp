@@ -45,8 +45,18 @@ bool ServerClient::begin(const String& host, uint16_t port, bool useTls) {
 
     _ws.onEvent(onWSEvent);
     _ws.setReconnectInterval(5000);
+    _lastOnline = millis();
 
     return true;
+}
+
+void ServerClient::retarget(const String& host, uint16_t port, bool useTls) {
+    if (host == _host && port == _port && useTls == _useTls) return;
+
+    Serial.printf("[%s] Switching server from %s:%u to %s:%u\n",
+                  TAG, _host.c_str(), _port, host.c_str(), port);
+    disconnect();
+    begin(host, port, useTls);
 }
 
 void ServerClient::tick() {
@@ -58,6 +68,8 @@ void ServerClient::tick() {
         _fetchPending = false;
         fetchAndQueueConfig();
     }
+
+    if (_connected) _lastOnline = millis();
 
     if (_connected && millis() - _lastHeartbeat > HEARTBEAT_INTERVAL) {
         sendHeartbeat();
@@ -224,12 +236,10 @@ void ServerClient::fetchAndQueueConfig() {
 
     ConfigFetcher fetcher;
     String mac = Settings::getNodeMac();
-    String host = Settings::getServerHost();
-    uint16_t port = Settings::getServerPort();
-    bool svUseTls = Settings::getServerUseTls();
     bool svTlsVerify = Settings::getServerTlsVerify();
 
-    String json = fetcher.fetchConfig(host, port, svUseTls, svTlsVerify, mac);
+    // The server this socket is on, which may be a discovered one rather than the saved address
+    String json = fetcher.fetchConfig(_host, _port, _useTls, svTlsVerify, mac);
 
     if (json.length() == 0) {
         Serial.printf("[%s] Config fetch failed\n", TAG);
