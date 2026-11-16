@@ -76,7 +76,7 @@
   <h2>1. Pick your board</h2>
   <div class="boards" id="boards">
     <label class="board">
-      <input type="radio" name="board" value="esp32s3-ws-lcd169" checked>
+      <input type="radio" name="board" value="esp32s3-ws-lcd169">
       <div><strong>Waveshare ESP32-S3-Touch-LCD-1.69</strong><span>ST7789V2 240×280. Untested on hardware: please report on <a href="https://github.com/luke-kearney/klippyface/issues/21">#21</a></span></div>
     </label>
     <label class="board">
@@ -93,7 +93,8 @@
   <h2>2. Plug it in and install</h2>
   <p>Connect the board with a USB data cable, then click Install and pick its serial port. Choose <strong>erase</strong> when asked on a first install.</p>
   <div class="install">
-    <esp-web-install-button id="install" manifest="manifest-esp32s3-ws-lcd169.json">
+    <p id="pick-first" class="muted">Pick your board above first.</p>
+    <esp-web-install-button id="install" hidden>
       <button slot="activate">Install</button>
       <div slot="unsupported" class="note">This browser can't flash boards. Use <strong>Chrome</strong> or <strong>Edge</strong> on a desktop or laptop, or flash the <code>-full.bin</code> from the <a href="https://github.com/luke-kearney/klippyface/releases/latest">release</a> by hand (see the guide).</div>
       <div slot="not-allowed" class="note">Flashing needs a secure page (https). Open this flasher at <a href="https://luke-kearney.github.io/klippyface/">luke-kearney.github.io/klippyface</a>.</div>
@@ -102,8 +103,7 @@
 
   <h2>3. Then</h2>
   <ol>
-    <li>Unplug the board and plug it back in (or power it anywhere)</li>
-    <li>On your phone, join <strong>Klippyface-Setup</strong>, enter your WiFi and leave <strong>Server address</strong> blank</li>
+    <li>After installing, the flasher offers to <strong>connect the board to WiFi</strong>: pick your network and enter its password. (Skipped it? On your phone, join <strong>Klippyface-Setup</strong> instead, enter your WiFi and leave <strong>Server address</strong> blank.)</li>
     <li>In the Klippyface web UI, open <strong>Nodes</strong> and <strong>Accept</strong> the board under Pending</li>
   </ol>
   <p style="margin-top:16px">Full walkthrough and troubleshooting: <a href="https://github.com/luke-kearney/klippyface/blob/master/docs/getting-started.md">Getting Started</a>.</p>
@@ -113,7 +113,10 @@
   const manifestFor = (env) => `manifest-${env}.json`;
 
   document.getElementById('boards').addEventListener('change', (e) => {
-    if (e.target.name === 'board') button.manifest = manifestFor(e.target.value);
+    if (e.target.name !== 'board') return;
+    button.manifest = manifestFor(e.target.value);
+    button.hidden = false;
+    document.getElementById('pick-first').hidden = true;
   });
 
   fetch(manifestFor('esp32dev'))
