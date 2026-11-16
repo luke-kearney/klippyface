@@ -7,10 +7,24 @@ using Klippyface.Server.Services;
 using Klippyface.Server.Services.Discovery;
 using Klippyface.Server.Services.Moonraker;
 
-var builder = WebApplication.CreateBuilder(args);
+// An explicit --contentRoot wins; otherwise find wwwroot so a release runs from any folder
+var webOptions = new WebApplicationOptions { Args = args };
+if (!args.Any(a => a.StartsWith("--contentRoot", StringComparison.OrdinalIgnoreCase)))
+{
+    webOptions = new WebApplicationOptions
+    {
+        Args = args,
+        ContentRootPath = ServerPaths.ContentRoot(Directory.GetCurrentDirectory(), AppContext.BaseDirectory, Directory.Exists),
+    };
+}
+var builder = WebApplication.CreateBuilder(webOptions);
 
-builder.Services.AddDbContext<KlippyfaceDbContext>(options =>
-    options.UseSqlite("Data Source=klippyface.db"));
+var dataDir = builder.Configuration[ServerPaths.DataDirVariable];
+if (!string.IsNullOrWhiteSpace(dataDir)) Directory.CreateDirectory(dataDir);
+var connectionString = ServerPaths.ConnectionString(
+    builder.Configuration.GetConnectionString(ServerPaths.ConnectionStringName), dataDir, builder.Environment.ContentRootPath);
+
+builder.Services.AddDbContext<KlippyfaceDbContext>(db => db.UseSqlite(connectionString));
 
 builder.Services.AddScoped<ConfigExportService>();
 builder.Services.AddScoped<StarterPackService>();
@@ -75,6 +89,7 @@ app.UseStaticFiles();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<KlippyfaceDbContext>();
+    app.Logger.LogInformation("Database: {ConnectionString}", connectionString);
     db.Database.Migrate();
 
     // First run: give an empty library the built-in faces
