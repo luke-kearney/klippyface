@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Klippyface.Server.Data;
 using Klippyface.Server.Api;
 using Klippyface.Server.Services;
+using Klippyface.Server.Services.Discovery;
 using Klippyface.Server.Services.Moonraker;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +18,10 @@ builder.Services.AddScoped<NodePublisher>();
 builder.Services.AddScoped<NodeRegistry>();
 builder.Services.AddSingleton<NodeStatusService>();
 builder.Services.AddHostedService<PendingPublishSweeper>();
+
+// mDNS advertisement so nodes find the server without a typed-in address
+builder.Services.Configure<DiscoveryOptions>(builder.Configuration.GetSection("Klippyface:Discovery"));
+builder.Services.AddHostedService<DiscoveryAdvertiser>();
 
 // One Moonraker connection for the whole server; nodes get printer state through it
 builder.Services.AddSingleton<PrinterStateStore>();

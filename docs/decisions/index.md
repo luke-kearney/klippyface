@@ -429,6 +429,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-11-16: The server advertises itself over mDNS
+
+**Context:** A node only finds the server through an address typed into the setup portal. A wrong address, an `https://` address, or a server that later gets a new IP from DHCP leaves the node with a black screen and nothing on it to say why (discussion #14, #46). Together with pending nodes, discovery means a new node needs only WiFi details.
+
+**Decision:** The server advertises `_klippyface._tcp` over mDNS/DNS-SD with the `Makaretu.Dns.Multicast.New` library, using the port and TLS setting Kestrel actually listens on and TXT records `ver`, `tls` and `path` (see the API reference). The instance is `Klippyface-<host>` unless configured. Only IPv4 addresses on physical interfaces are advertised, so Docker bridges and VPNs on the same machine don't send nodes to an unreachable address. A UDP broadcast beacon was the alternative: no dependency, but not a standard, no `.local` name, and a broadcast per interface on multi-homed hosts. The library's last release is from 2024; it's small and isolated behind `DiscoveryAdvertiser`, so it can be swapped for a beacon or a hand-written responder if it stops working.
+
+**Consequences:** Works next to Avahi and systemd-resolved on the same host (checked on CachyOS with both running). Doesn't cross VLANs or routed subnets, and needs host networking in Docker, so the manual address stays. Advertised addresses are read once at startup; a server whose own IP changes needs a restart to advertise the new one. Firmware support (query when no address is set, re-query after failed connects) is still to do under #46.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations

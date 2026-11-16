@@ -175,6 +175,36 @@ GET /api/config/node?mac=AA:BB:CC:DD:EE:01
 }
 ```
 
+## Discovery (mDNS)
+
+The server advertises itself over mDNS/DNS-SD so nodes can find it without a typed-in address (#46). It starts once Kestrel is listening and sends goodbye packets on shutdown.
+
+| Field | Value |
+|-------|-------|
+| Service type | `_klippyface._tcp.local` |
+| Instance name | `Klippyface-<host>` (e.g. `Klippyface-nuc`), or `Klippyface:Discovery:InstanceName`; cut to 63 bytes |
+| Port (SRV) | The port Kestrel listens on. Plain HTTP is preferred when both HTTP and HTTPS are bound |
+| Addresses (A) | IPv4 only, from interfaces that are up, excluding loopback, tunnels and container/VM/VPN interfaces (`docker*`, `br-*`, `veth*`, `virbr*`, `tailscale*`, `wg*`, …) |
+| TXT `ver` | Server version, `X.Y.Z` |
+| TXT `tls` | `1` if the advertised port is HTTPS, else `0` |
+| TXT `path` | `/api/ws/node` — the node WebSocket, with `/{mac}` appended |
+
+The library also adds `txtvers=1`. Config (`appsettings.json`):
+
+```json
+"Klippyface": {
+  "Discovery": {
+    "Enabled": true,
+    "InstanceName": "",
+    "Interfaces": []
+  }
+}
+```
+
+`Interfaces` lists interface names to advertise on, replacing the automatic filter. Nothing is advertised when the server only listens on loopback, or no interface qualifies; both are logged as warnings. Check from Linux with `avahi-browse -rt _klippyface._tcp`.
+
+Limits: mDNS stays on one network segment (no VLANs, guest WiFi or routed subnets), and in Docker it needs `network_mode: host` and an `InstanceName` (the default host is the container ID). Nodes with a typed-in address don't need it.
+
 ## WebSocket Protocol (`/api/ws/node/{mac}`)
 
 The ESP32 maintains a persistent WebSocket to the companion server for online tracking,

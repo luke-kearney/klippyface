@@ -14,7 +14,7 @@ stable: true
 server/
 ├── Klippyface.Server.csproj
 ├── Program.cs                    # Minimal API, DI, CORS, static files
-├── appsettings.json              # URLs, CORS config
+├── appsettings.json              # URLs, discovery, CORS config
 ├── Data/
 │   ├── AppDbContext.cs           # EF Core + SQLite
 │   ├── BoardPresets.cs           # Known board + display combinations (pins mirror docs/hardware/)
@@ -50,6 +50,10 @@ server/
     ├── NodePublisher.cs          # Mark groups pending; publish = bump + refresh affected nodes
     ├── PendingPublishSweeper.cs  # Background: publish groups idle for 60 s
     ├── NodeStatusService.cs      # Track online/offline, last seen; per-socket send lock, coalesced refresh_config; pending sockets get no broadcasts
+    ├── Discovery/
+    │   ├── DiscoveryAdvertiser.cs    # Hosted: mDNS advertisement of _klippyface._tcp once Kestrel is listening; goodbye on shutdown
+    │   ├── DiscoveryProfile.cs       # Pure: endpoint from listen addresses, instance name, interface filter, TXT records
+    │   └── DiscoveryOptions.cs       # Klippyface:Discovery (Enabled, InstanceName, Interfaces)
     └── Moonraker/
         ├── MoonrakerService.cs       # Background: the one Moonraker connection (list, subscribe, resubscribe, reconnect)
         ├── MoonrakerRpcClient.cs     # JSON-RPC over WebSocket: requests ↔ replies, notifications in order
