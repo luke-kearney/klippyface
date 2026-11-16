@@ -239,7 +239,7 @@ All code is in the global namespace. The `KLIPPYFACE_` prefix in header guards i
 **Format:**
 
 ```
-<subject line — ≤50 chars, imperative mood, capitalised, no trailing period>
+<verb>: <subject — ≤72 chars in total, lowercase, imperative, no trailing period>
 
 <body — wrap at 72 chars, explain what changed and why>
 ```
@@ -247,7 +247,7 @@ All code is in the global namespace. The `KLIPPYFACE_` prefix in header guards i
 **Example:**
 
 ```
-Add progress bar rendering with colour gradient
+add: progress bar rendering with colour gradient
 
 - Render print_stats.progress as a horizontal bar with border
 - Colour transitions from red→yellow→green based on percentage
@@ -255,7 +255,10 @@ Add progress bar rendering with colour gradient
 ```
 
 **Guidelines:**
-- Subject verb: `Add`, `Fix`, `Update`, `Remove`, `Refactor`, `Sync` — imperative, no past tense
+- Verb: one of `add`, `fix`, `update`, `remove`, `refactor`, `sync`, `bump`, `docs`, `test`, `ci`, `chore` — lowercase, followed by `: `
+- Subject: what the change does, lowercase, imperative (no past tense), no trailing period
+- Keep the whole subject line ≤50 chars where you can; 72 is the hard limit
+- Merge commits keep git's default message
 - Body: bullet points starting with `-`, each describing one logical change
 - Include context if the reason isn't obvious from the diff
 - Reference GitHub Issues where relevant (e.g. `Closes #12`)
@@ -285,14 +288,16 @@ Firmware builds from the matching `v<VERSION>` tag report the plain version (`0.
 
 **Cutting a release:**
 
-1. Bump `VERSION` and `ui/package.json` in a PR into `develop` (`Bump version to X.Y.Z`), and add release notes as `docs/releases/X.Y.Z.md`: which file is for which device, and anything untested. The `Release` workflow puts them above GitHub's generated notes
+1. Bump `VERSION` and `ui/package.json` in a PR into `develop` (`bump: version to X.Y.Z`), and add release notes as `docs/releases/X.Y.Z.md`: which file is for which device, and anything untested. The `Release` workflow puts them above GitHub's generated notes
 2. Open a PR from `develop` into `master` — the `Release check` job fails if `VERSION` and `ui/package.json` differ or `vX.Y.Z` is already tagged
 3. Merge it. The `Release` workflow tags the merge commit `vX.Y.Z` and publishes a GitHub Release with:
    - `klippyface-firmware-X.Y.Z-<env>.bin` — app image for updating a flashed board, one per board env (`esp32dev`, `esp32s3-ws-lcd169`, `esp32s3-ws-lcd128`)
    - `klippyface-firmware-X.Y.Z-<env>-full.bin` — full image for a blank board (`esptool write-flash 0x0 <file>`)
    - `klippyface-server-X.Y.Z-linux-{arm64,x64}.tar.gz` — self-contained server with the Web UI in `wwwroot`
+   - `klippyface-server-X.Y.Z-win-x64.zip` — the same for Windows
+   - `docker-compose.yml` — pulls `ghcr.io/luke-kearney/klippyface-server`, pushed as `X.Y.Z` and `latest` (amd64 + arm64)
 
-**Dev builds:** every push to `develop` replaces the rolling `dev` pre-release with the same artifacts, named `X.Y.Z-dev.<sha>`, except that only the classic `esp32dev` firmware is built. The firmware reports `X.Y.Z+g<sha>`.
+**Dev builds:** every push to `develop` replaces the rolling `dev` pre-release with the same artifacts, named `X.Y.Z-dev.<sha>`, except that only the classic `esp32dev` firmware is built. The firmware reports `X.Y.Z+g<sha>`. The image is pushed as `dev`, and the pre-release's `docker-compose.yml` points at it.
 
 **CI:** the `CI` workflow builds the firmware (`esp32dev`, `esp32s3-ws-lcd169`, `esp32s3-ws-lcd128`), Web UI and server, and runs the .NET tests, on every PR into `develop`/`master` and every push to `develop`. Run the `Release` workflow manually (Actions → Release → Run workflow) to build the release artifacts (all boards) from any branch without publishing. Board targets for the release live in `FIRMWARE_TARGETS` in `release.yml`.
 

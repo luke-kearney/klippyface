@@ -1,5 +1,6 @@
 import type {
   Assignment,
+  BoardPreset,
   Frame,
   FrameElement,
   Group,
@@ -82,7 +83,12 @@ export const api = {
   getNode: (id: string) => get<Node>(`/api/nodes/${id}`),
   createNode: (d: NodeInput) => post<Node>('/api/nodes', d),
   updateNode: (id: string, d: Pick<Node, 'friendlyName' | 'description' | 'sleepAfterSeconds'>) => put<Node>(`/api/nodes/${id}`, d),
+  /** Rejecting a pending node is deleting it; if it's still on, it comes back as pending. */
   deleteNode: (id: string) => del(`/api/nodes/${id}`),
+  /** `presetId`: a board preset to add as its display, '' for none, omitted for the board's only preset. */
+  acceptNode: (id: string, d: { friendlyName?: string; presetId?: string }) => post<Node>(`/api/nodes/${id}/accept`, d),
+  clearPendingNodes: () => request<{ removed: number }>('DELETE', '/api/nodes/pending'),
+  getBoardPresets: () => get<BoardPreset[]>('/api/boards/presets'),
 
   // Displays
   createDisplay: (nodeId: string, d: DisplayInput) => post<NodeDisplay>(`/api/nodes/${nodeId}/displays`, d),

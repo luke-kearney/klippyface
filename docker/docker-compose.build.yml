@@ -1,0 +1,9 @@
+# Build the image from this checkout instead of pulling it. From docker/:
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+
+services:
+  klippyface:
+    image: klippyface-server
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile

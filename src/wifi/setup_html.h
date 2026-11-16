@@ -77,14 +77,14 @@ input::placeholder{color:#667}
     <div class="row field">
       <div class="grow">
         <label for="svHost">Server address</label>
-        <input type="text" id="svHost" placeholder="e.g. 192.168.1.50" autocomplete="off" autocapitalize="none" inputmode="url">
+        <input type="text" id="svHost" placeholder="Blank = find automatically" autocomplete="off" autocapitalize="none" inputmode="url">
       </div>
       <div style="width:96px">
         <label for="svPort">Port</label>
         <input type="number" id="svPort" value="5000" min="1" max="65535">
       </div>
     </div>
-    <p class="hint">The IP address of the computer running the Klippyface server (the address you open its web page on). The server connects to your printer; this display gets everything from it.</p>
+    <p class="hint">Leave blank and the display finds the Klippyface server on your network by itself. Otherwise, the IP address of the computer running it (the address you open its web page on). The server connects to your printer; this display gets everything from it.</p>
     <div style="margin-top:12px">
       <label class="check"><input type="checkbox" id="svTls" onchange="byId('svTlsVerifyWrap').style.display=this.checked?'block':'none'"> Use HTTPS</label>
       <div id="svTlsVerifyWrap" style="display:none;margin:10px 0 0 26px">
@@ -160,7 +160,6 @@ function saveConfig(){
   var ssid=byId('ssid').value.trim()
   var host=byId('svHost').value.trim()
   if(!ssid){setStatus('Pick or type a WiFi network','error');return}
-  if(!host){setStatus('Enter the Klippyface server address','error');return}
 
   var payload={
     ssid:ssid,

@@ -115,10 +115,8 @@ void CaptivePortal::handleSave() {
         _server.send(400, "text/plain", "WiFi SSID is required");
         return;
     }
-    if (svHost.length() == 0) {
-        _server.send(400, "text/plain", "Klippyface server host is required");
-        return;
-    }
+    // An empty server host is fine: the node finds the server over mDNS
+    svHost.trim();
 
     if (!_setup.saveConfig(ssid, password, svHost, svPort, svUseTls, svTlsVerify, friendlyName)) {
         _server.send(500, "text/plain", "Failed to save configuration");

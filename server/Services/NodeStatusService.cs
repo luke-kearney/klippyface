@@ -25,10 +25,40 @@ public class NodeStatusService : IDisposable
         _cleanupTimer = new Timer(_ => CleanupStaleConnections(), null, CleanupInterval, CleanupInterval);
     }
 
-    public void Register(string nodeId, WebSocket ws, uint configVersion)
+    /// <param name="pending">A node waiting to be accepted: online, but left out of <see cref="GetConnectedNodeIds"/>.</param>
+    public void Register(string nodeId, WebSocket ws, uint configVersion, bool pending = false)
     {
-        var conn = new NodeConnection(nodeId, ws, new SemaphoreSlim(1, 1), configVersion, DateTime.UtcNow, DateTime.UtcNow);
+        var conn = new NodeConnection(nodeId, ws, new SemaphoreSlim(1, 1), configVersion, DateTime.UtcNow, DateTime.UtcNow, pending);
         _connections[nodeId] = conn;
+    }
+
+    /// <summary>Lets an accepted node's connection receive printer state and commands.</summary>
+    public void Accept(string nodeId)
+    {
+        if (_connections.TryGetValue(nodeId, out var conn))
+            _connections[nodeId] = conn with { Pending = false };
+    }
+
+    /// <summary>
+    /// Drops the node's connection and asks it to close, e.g. when its record is
+    /// deleted. The node reconnects on its own.
+    /// </summary>
+    public async Task DisconnectAsync(string nodeId, string reason)
+    {
+        if (!_connections.TryRemove(nodeId, out var conn) || conn.Socket.State != WebSocketState.Open) return;
+
+        await conn.SendLock.WaitAsync();
+        try
+        {
+            await conn.Socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, reason, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is WebSocketException or ObjectDisposedException)
+        {
+        }
+        finally
+        {
+            conn.SendLock.Release();
+        }
     }
 
     public void UpdateConfigVersion(string nodeId, uint configVersion)
@@ -68,9 +98,10 @@ public class NodeStatusService : IDisposable
             && (DateTime.UtcNow - conn.LastHeartbeat) < HeartbeatTimeout;
     }
 
+    /// <summary>Connected nodes that have been accepted; pending ones get no printer state or commands.</summary>
     public IEnumerable<string> GetConnectedNodeIds()
     {
-        return _connections.Keys;
+        return _connections.Where(c => !c.Value.Pending).Select(c => c.Key);
     }
 
     public bool TryGetSocket(string nodeId, out WebSocket? ws)
@@ -183,6 +214,7 @@ public class NodeStatusService : IDisposable
         SemaphoreSlim SendLock,
         uint ConfigVersion,
         DateTime ConnectedAt,
-        DateTime LastHeartbeat
+        DateTime LastHeartbeat,
+        bool Pending
     );
 }

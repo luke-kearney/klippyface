@@ -7,6 +7,8 @@ export interface Node {
   macAddress: string
   friendlyName: string
   description: string
+  /** Unknown boards that connect are added as 'pending' and get nothing until accepted. */
+  status: NodeStatus
   createdAt: string
   updatedAt: string
   lastSeen: string | null
@@ -19,6 +21,23 @@ export interface Node {
   isOnline: boolean
   displays?: NodeDisplay[]
   assignments?: Assignment[]
+}
+
+export type NodeStatus = 'accepted' | 'pending'
+
+/** A known board + display combination, served by the server. */
+export interface BoardPreset {
+  id: string
+  label: string
+  /** Firmware build env this preset is for, matching `Node.board`. */
+  board: string
+  driverType: DriverType | string
+  busType: BusType | string
+  width: number
+  height: number
+  rotation: number
+  /** JSON, as on `NodeDisplay`. */
+  busConfig: string
 }
 
 export type DriverType = 'sh1106' | 'ssd1306' | 'st7789' | 'gc9a01' | 'ili9341' | 'hx8347'

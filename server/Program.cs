@@ -4,18 +4,38 @@ using Microsoft.EntityFrameworkCore;
 using Klippyface.Server.Data;
 using Klippyface.Server.Api;
 using Klippyface.Server.Services;
+using Klippyface.Server.Services.Discovery;
 using Klippyface.Server.Services.Moonraker;
 
-var builder = WebApplication.CreateBuilder(args);
+// An explicit --contentRoot wins; otherwise find wwwroot so a release runs from any folder
+var webOptions = new WebApplicationOptions { Args = args };
+if (!args.Any(a => a.StartsWith("--contentRoot", StringComparison.OrdinalIgnoreCase)))
+{
+    webOptions = new WebApplicationOptions
+    {
+        Args = args,
+        ContentRootPath = ServerPaths.ContentRoot(Directory.GetCurrentDirectory(), AppContext.BaseDirectory, Directory.Exists),
+    };
+}
+var builder = WebApplication.CreateBuilder(webOptions);
 
-builder.Services.AddDbContext<KlippyfaceDbContext>(options =>
-    options.UseSqlite("Data Source=klippyface.db"));
+var dataDir = builder.Configuration[ServerPaths.DataDirVariable];
+if (!string.IsNullOrWhiteSpace(dataDir)) Directory.CreateDirectory(dataDir);
+var connectionString = ServerPaths.ConnectionString(
+    builder.Configuration.GetConnectionString(ServerPaths.ConnectionStringName), dataDir, builder.Environment.ContentRootPath);
+
+builder.Services.AddDbContext<KlippyfaceDbContext>(db => db.UseSqlite(connectionString));
 
 builder.Services.AddScoped<ConfigExportService>();
 builder.Services.AddScoped<StarterPackService>();
 builder.Services.AddScoped<NodePublisher>();
+builder.Services.AddScoped<NodeRegistry>();
 builder.Services.AddSingleton<NodeStatusService>();
 builder.Services.AddHostedService<PendingPublishSweeper>();
+
+// mDNS advertisement so nodes find the server without a typed-in address
+builder.Services.Configure<DiscoveryOptions>(builder.Configuration.GetSection("Klippyface:Discovery"));
+builder.Services.AddHostedService<DiscoveryAdvertiser>();
 
 // One Moonraker connection for the whole server; nodes get printer state through it
 builder.Services.AddSingleton<PrinterStateStore>();
@@ -69,6 +89,7 @@ app.UseStaticFiles();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<KlippyfaceDbContext>();
+    app.Logger.LogInformation("Database: {ConnectionString}", connectionString);
     db.Database.Migrate();
 
     // First run: give an empty library the built-in faces
@@ -82,6 +103,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapNodesApi();
+app.MapBoardsApi();
 app.MapLibraryApi();
 app.MapSpritesApi();
 app.MapPresetsApi();
