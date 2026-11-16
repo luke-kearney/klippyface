@@ -164,8 +164,9 @@ klippyface/
 │   └── config/              # NVS settings storage
 ├── server/                  # .NET 10 companion server
 ├── ui/                      # Web UI source (Vite project)
-├── docker/
-│   └── Dockerfile
+├── docker/                  # Server image + compose (see docs/architecture/server.md)
+│   ├── Dockerfile
+│   └── docker-compose.yml
 └── scripts/
     └── xbm-convert.py
 ```

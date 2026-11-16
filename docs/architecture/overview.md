@@ -119,7 +119,8 @@ klippyface/
 │   │   └── components/               # 10 component files
 │   └── public/
 ├── docker/
-│   └── Dockerfile
+│   ├── Dockerfile
+│   └── docker-compose.yml
 └── scripts/
     └── xbm-convert.py
 ```

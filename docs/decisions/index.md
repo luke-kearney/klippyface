@@ -439,6 +439,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-11-16: Docker image and a configurable data directory
+
+**Context:** The docs described a `docker/Dockerfile` that didn't exist, and the one they showed never built the Web UI and mounted a volume the database wasn't written to (#45). Releases also had to be started from inside their folder, or they served no Web UI and wrote the database wherever they were started.
+
+**Decision:** `ServerPaths` picks the content root (working dir if it has `wwwroot`, else the app's folder) and puts `klippyface.db` there unless `KLIPPYFACE_DATA_DIR` or `ConnectionStrings:Klippyface` says otherwise. `docker/Dockerfile` builds the UI and an architecture-neutral publish onto `aspnet:10.0`, non-root, data in `/data`. The compose file defaults to host networking, because mDNS discovery (#46) can't work from a bridge network; a commented ports-only variant turns discovery off. Publishing images to GHCR from CI is split out (#47).
+
+**Consequences:** A release started from outside its folder now uses the database next to the app instead of one in the working directory; anyone who relied on that has to move the file or set `KLIPPYFACE_DATA_DIR`. Checked on amd64 here: UI served, database survives `down`/`up`, the dev kit discovers the container and joins as pending. arm64 isn't verified on hardware. The image is about 400 MB, mostly the .NET base image.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations
