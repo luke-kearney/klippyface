@@ -224,6 +224,9 @@ jobs:
           password: ${{ github.token }}
 
       - uses: docker/build-push-action@v6
+        env:
+          # The action otherwise uploads a .dockerbuild record as a run artifact
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           context: .
           file: docker/Dockerfile
@@ -259,9 +262,11 @@ jobs:
             docs/releases
             docker
 
+      # Only our own artifacts: actions may add others (e.g. Docker build records)
       - uses: actions/download-artifact@v4
         with:
           path: dist
+          pattern: "{firmware,server}-*"
           merge-multiple: true
 
       # The compose file users download; dev pre-releases point it at the dev image
