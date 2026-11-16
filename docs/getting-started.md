@@ -39,7 +39,19 @@ In the web UI, open **Printer**. Enter Moonraker's **Host** (usually the Klipper
 
 If Moonraker refuses the connection, add the server computer's IP to `trusted_clients` in `moonraker.conf`, or create an API key in Moonraker and enter it under **API key**.
 
-## 3. Flash the display
+## 3. Flash the display and connect it to WiFi
+
+1. Plug the board in over USB and open the **[Klippyface Flasher](https://luke-kearney.github.io/klippyface/)** in Chrome or Edge on a desktop or laptop
+2. Pick your board, click **Install**, choose the board's serial port, and choose **erase** when asked
+3. When it's done, the flasher offers to connect the board to WiFi: pick your network, enter its password, and wait for it to connect
+
+The board then finds the server on its own. Go to step 5.
+
+The screen stays black until you accept it in step 5. That's expected.
+
+### Without the flasher
+
+Use this on Firefox or Safari, or if the flasher can't open the port.
 
 1. From the [latest release](https://github.com/luke-kearney/klippyface/releases/latest), download the **`-full.bin`** for your board:
 
@@ -53,11 +65,13 @@ If Moonraker refuses the connection, add the server computer's IP to `trusted_cl
 3. Click **Connect** and pick the board's serial port
 4. Click **Erase** and wait for it to finish
 5. Set the address to **`0x0`**, choose the `-full.bin`, and click **Program**
-6. When it's done, unplug the board and plug it back in
+6. When it's done, unplug the board and plug it back in, then set up WiFi as in step 4
 
-To update a board that already runs Klippyface later, flash the plain `.bin` (no `-full`) the same way: settings are kept.
+To update a board that already runs Klippyface later, use the flasher again without erasing, or flash the plain `.bin` (no `-full`) by hand: settings are kept.
 
-## 4. Connect the display to WiFi
+## 4. Connect the display to WiFi (if the flasher didn't)
+
+Only needed if you skipped the flasher's WiFi step or flashed by hand.
 
 1. On your phone, join the WiFi network **`Klippyface-Setup`** (no password). The setup page usually opens by itself; otherwise go to `http://192.168.4.1`
 2. Pick your WiFi network and enter its password
@@ -72,7 +86,7 @@ In the web UI, open **Nodes**. Within a few seconds the board appears under **Pe
 
 Click **Accept**. Check the name and the display: Waveshare boards get theirs filled in; on a DevKit, pick the screen you wired up. Confirm, and the display gets its faces and starts showing your printer's state.
 
-That's it. For each extra display, repeat steps 3–5.
+That's it. For each extra display, repeat steps 3 and 5.
 
 ## Troubleshooting
 
