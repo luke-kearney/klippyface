@@ -81,6 +81,8 @@ jobs:
     needs: version
     runs-on: ubuntu-latest
     strategy:
+      # One board failing shouldn't hide whether the others build
+      fail-fast: false
       matrix:
         include: ${{ fromJSON(needs.version.outputs.targets) }}
     env:
