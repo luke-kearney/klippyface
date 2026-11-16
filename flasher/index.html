@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Klippyface Flasher</title>
+  <meta name="description" content="Install Klippyface firmware on an ESP32 display from the browser.">
+  <script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --card: #ffffff;
+      --text: #1b1f24;
+      --muted: #5c6670;
+      --border: #d9dee3;
+      --accent: #2f6fde;
+      --accent-text: #ffffff;
+      --warn-bg: #fff6e0;
+      --warn-border: #e8c46a;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #14171b;
+        --card: #1d2126;
+        --text: #e7eaee;
+        --muted: #9aa4ae;
+        --border: #313840;
+        --accent: #5b8ff0;
+        --accent-text: #0d1117;
+        --warn-bg: #2e2710;
+        --warn-border: #7a6420;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main { max-width: 640px; margin: 0 auto; padding: 32px 16px 48px; }
+    h1 { font-size: 1.6rem; margin: 0 0 4px; }
+    h2 { font-size: 1.05rem; margin: 28px 0 10px; }
+    p { margin: 0 0 12px; }
+    .muted { color: var(--muted); }
+    a { color: var(--accent); }
+    .boards { display: grid; gap: 8px; }
+    .board {
+      display: flex; gap: 12px; align-items: flex-start;
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 14px; cursor: pointer;
+    }
+    .board:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .board input { margin-top: 4px; accent-color: var(--accent); }
+    .board strong { display: block; }
+    .board span { color: var(--muted); font-size: 0.9rem; }
+    .install { margin-top: 20px; }
+    .install button {
+      font: inherit; font-weight: 600; cursor: pointer;
+      background: var(--accent); color: var(--accent-text);
+      border: 0; border-radius: 8px; padding: 10px 20px;
+    }
+    .note {
+      background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 8px;
+      padding: 10px 14px; margin-top: 16px; font-size: 0.95rem;
+    }
+    ol { padding-left: 1.3rem; margin: 0; }
+    li { margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Klippyface Flasher</h1>
+  <p class="muted">Install the display firmware from your browser. Version <strong id="version">…</strong></p>
+
+  <h2>1. Pick your board</h2>
+  <div class="boards" id="boards">
+    <label class="board">
+      <input type="radio" name="board" value="esp32s3-ws-lcd169" checked>
+      <div><strong>Waveshare ESP32-S3-Touch-LCD-1.69</strong><span>ST7789V2 240×280. Untested on hardware: please report on <a href="https://github.com/luke-kearney/klippyface/issues/21">#21</a></span></div>
+    </label>
+    <label class="board">
+      <input type="radio" name="board" value="esp32s3-ws-lcd128">
+      <div><strong>Waveshare ESP32-S3-LCD-1.28 (round)</strong><span>GC9A01 240×240. Untested on hardware: please report on <a href="https://github.com/luke-kearney/klippyface/issues/29">#29</a></span></div>
+    </label>
+    <label class="board">
+      <input type="radio" name="board" value="esp32dev">
+      <div><strong>ESP32 DevKit (ESP-WROOM-32)</strong><span>With an SH1106 OLED or HX8347D TFT</span></div>
+    </label>
+  </div>
+  <p class="muted" style="margin-top:10px">Both Waveshare boards are ESP32-S3 chips, so the flasher can't tell them apart: pick the right one.</p>
+
+  <h2>2. Plug it in and install</h2>
+  <p>Connect the board with a USB data cable, then click Install and pick its serial port. Choose <strong>erase</strong> when asked on a first install.</p>
+  <div class="install">
+    <esp-web-install-button id="install" manifest="manifest-esp32s3-ws-lcd169.json">
+      <button slot="activate">Install</button>
+      <div slot="unsupported" class="note">This browser can't flash boards. Use <strong>Chrome</strong> or <strong>Edge</strong> on a desktop or laptop, or flash the <code>-full.bin</code> from the <a href="https://github.com/luke-kearney/klippyface/releases/latest">release</a> by hand (see the guide).</div>
+      <div slot="not-allowed" class="note">Flashing needs a secure page (https). Open this flasher at <a href="https://luke-kearney.github.io/klippyface/">luke-kearney.github.io/klippyface</a>.</div>
+    </esp-web-install-button>
+  </div>
+
+  <h2>3. Then</h2>
+  <ol>
+    <li>Unplug the board and plug it back in (or power it anywhere)</li>
+    <li>On your phone, join <strong>Klippyface-Setup</strong>, enter your WiFi and leave <strong>Server address</strong> blank</li>
+    <li>In the Klippyface web UI, open <strong>Nodes</strong> and <strong>Accept</strong> the board under Pending</li>
+  </ol>
+  <p style="margin-top:16px">Full walkthrough and troubleshooting: <a href="https://github.com/luke-kearney/klippyface/blob/master/docs/getting-started.md">Getting Started</a>.</p>
+</main>
+<script>
+  const button = document.getElementById('install');
+  const manifestFor = (env) => `manifest-${env}.json`;
+
+  document.getElementById('boards').addEventListener('change', (e) => {
+    if (e.target.name === 'board') button.manifest = manifestFor(e.target.value);
+  });
+
+  fetch(manifestFor('esp32dev'))
+    .then((r) => r.json())
+    .then((m) => { document.getElementById('version').textContent = m.version; })
+    .catch(() => { document.getElementById('version').textContent = 'unknown'; });
+</script>
+</body>
+</html>
