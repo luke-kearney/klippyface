@@ -93,15 +93,21 @@ The server, not the nodes, talks to Moonraker:
 
 `docker/Dockerfile` (built from the repo root) builds the Web UI with Node 22, publishes the server framework-dependent and architecture-neutral (one publish serves amd64 and arm64), and runs it on `aspnet:10.0` as the non-root `app` user, on port 5000, with `KLIPPYFACE_DATA_DIR=/data` as a volume. `.dockerignore` at the repo root keeps the build context to `server/`, `ui/` and `VERSION`.
 
+The `Release` workflow's `image` job builds it for `linux/amd64` and `linux/arm64` and pushes `ghcr.io/luke-kearney/klippyface-server`: `X.Y.Z` + `latest` from master, `dev` from develop (manual runs build without pushing). Each release carries `docker-compose.yml` as an asset, pointed at `latest` (or `dev` on the dev pre-release).
+
 ```bash
-cd docker
-docker compose up -d --build     # Web UI on http://<host>:5000
+docker compose up -d             # in the folder with docker-compose.yml; Web UI on http://<host>:5000
 docker compose logs -f
+docker compose pull && docker compose up -d     # upgrade
+
+# From a checkout, building the image locally (docker/):
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 ```
 
-`docker/docker-compose.yml` (project `klippyface`) uses host networking, a named volume `klippyface_klippyface-data`, and `restart: unless-stopped`.
+`docker/docker-compose.yml` (project `klippyface`) uses the GHCR image, host networking, a named volume `klippyface_klippyface-data`, and `restart: unless-stopped`. `docker-compose.build.yml` overrides it to build from the checkout.
 
 - **Host networking** is what lets nodes discover the server: mDNS doesn't leave Docker's bridge network, and on a bridge the server would advertise its container address (`172.x`), which nodes can't reach. With host networking the container also has the host's hostname, so the instance name is `Klippyface-<host>` without configuration.
 - **Docker Desktop (Mac/Windows)** has no real host networking: use the commented `ports` + `Klippyface__Discovery__Enabled: "false"` alternative, and type the server address into each node's setup page.
 - **Bind mounts** instead of the named volume must be writable by uid 1654 (the image's `app` user).
-- **Upgrading:** `git pull && docker compose up -d --build`; the database stays in the volume and migrates on startup.
+- **Upgrading:** `docker compose pull && docker compose up -d` (or `git pull` and the build command above); the database stays in the volume and migrates on startup.
+- **GHCR visibility:** a new GHCR package is private even for a public repo. After the first push, set `klippyface-server` to public under the package's settings, or pulls fail for everyone else.
