@@ -12,6 +12,7 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 > This project is in a very early stage and is not production-ready yet.  
 > Contributions, suggestions, and architectural discussions are welcome while the project is taking shape.
 
+**New here? Follow [Getting Started](docs/getting-started.md)**: server, printer, flashing a display and accepting it, in five steps with no compiling.
 
 ## How It Works
 
@@ -36,6 +37,8 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 7. **Admin edits** (displays, groups, animations) automatically bump `LastConfigVersion` and push `refresh_config` to all connected nodes in real-time
 
 ## Installing a Release
+
+For the full walkthrough, including flashing and setting up displays, see [Getting Started](docs/getting-started.md). The short version for the server:
 
 Download the server and firmware for your device from [GitHub Releases](https://github.com/luke-kearney/klippyface/releases). The server builds are self-contained: no .NET install needed. The server listens on port 5000, and nodes on your network connect to it there.
 
