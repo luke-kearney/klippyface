@@ -39,7 +39,19 @@ A multi-node ESP32 display system driven by live Moonraker/Klipper printer data.
 
 Download the server and firmware for your device from [GitHub Releases](https://github.com/luke-kearney/klippyface/releases). The server builds are self-contained: no .NET install needed. The server listens on port 5000, and nodes on your network connect to it there.
 
-Run the server from inside its folder: the database (`klippyface.db`), Web UI (`wwwroot`) and `appsettings.json` are found relative to the working directory.
+The server can be started from any folder; it keeps its database (`klippyface.db`) next to its own files unless `KLIPPYFACE_DATA_DIR` is set. Nodes find it on their own over mDNS when their server address is left blank in the setup page.
+
+### Docker (Linux x64 / arm64)
+
+Download `docker-compose.yml` from the release into an empty folder, then in that folder:
+
+```bash
+docker compose up -d
+# → http://<this machine>:5000
+docker compose pull && docker compose up -d   # upgrade later
+```
+
+It uses host networking so nodes can discover the server. On Docker Desktop (Mac/Windows) see the comments in the file: discovery doesn't work there, so nodes need the server address typed in.
 
 ### Linux (x64 / arm64)
 

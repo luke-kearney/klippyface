@@ -1,15 +1,14 @@
-# Klippyface server. From this folder:
-#   docker compose up -d --build
+# Klippyface server. In the folder holding this file:
+#   docker compose up -d                          start (pulls the image)
+#   docker compose pull && docker compose up -d   upgrade
 # Web UI on http://<this machine>:5000. Data lives in the klippyface-data volume.
+# To build from a checkout instead, see docker-compose.build.yml.
 
 name: klippyface
 
 services:
   klippyface:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    image: klippyface-server
+    image: ghcr.io/luke-kearney/klippyface-server:latest
     container_name: klippyface
     restart: unless-stopped
 
