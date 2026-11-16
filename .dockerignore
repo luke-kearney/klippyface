@@ -1,0 +1,12 @@
+# docker/Dockerfile only needs the server, the Web UI and VERSION
+*
+!VERSION
+!server/
+!ui/
+
+server/bin/
+server/obj/
+server/wwwroot/
+server/klippyface.db*
+ui/node_modules/
+ui/tsconfig.tsbuildinfo
