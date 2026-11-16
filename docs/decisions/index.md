@@ -449,6 +449,16 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-11-16: Browser flasher on GitHub Pages, with Improv Wi-Fi
+
+**Context:** Flashing meant downloading the right `-full.bin`, opening a third-party flasher and typing in offset `0x0`, then joining the setup hotspot on a phone (#24). A flasher served by the Klippyface server itself (`:5000`) was considered, but Web Serial only works on a secure page (https or `localhost`), and the server is plain http on a LAN address, so it would only work when the board is plugged into the server's own machine.
+
+**Decision:** `flasher/index.html` uses ESP Web Tools and is published to GitHub Pages (https) by `pages.yml` after each successful master release. Release assets can't be fetched cross-site, so the workflow copies the latest release's `-full.bin` images into the site and writes one manifest per board: both Waveshare boards are ESP32-S3, so the chip alone can't pick the image, and the page makes the board an explicit choice. The firmware speaks Improv Wi-Fi over serial (#53) on every boot, so the flasher sets WiFi right after installing and the hotspot step is skipped; the server address stays blank, so discovery finds the server.
+
+**Consequences:** New displays go flash → WiFi in the same page → accept. Chrome/Edge on a desktop only; Firefox, Safari and phones keep the manual `-full.bin` + hotspot route. Pages only updates with a production release, so the flasher always serves the latest release, never dev builds. Improv checked on an `esp32dev` (CP2102); the S3 boards' native USB serial isn't verified on hardware.
+
+---
+
 ## Future Ideas (Post-v1.0)
 
 - **Home Assistant integration** — MQTT discovery, trigger display from HA automations
