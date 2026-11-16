@@ -36,12 +36,10 @@ for entry in "${boards[@]}"; do
   cp "$firmware_dir/$bin" "$out/firmware/"
 
   # The image is a merged one (bootloader, partitions, app), so it goes at 0.
-  # No Improv support yet (#53), so don't wait for it after flashing.
   jq -n --arg name "Klippyface ($name)" --arg version "$version" --arg chip "$chip" --arg path "firmware/$bin" '{
     name: $name,
     version: $version,
     new_install_prompt_erase: true,
-    new_install_improv_wait_time: 0,
     builds: [{ chipFamily: $chip, parts: [{ path: $path, offset: 0 }] }]
   }' > "$out/manifest-$env.json"
   echo "$env: $bin ($chip)"
