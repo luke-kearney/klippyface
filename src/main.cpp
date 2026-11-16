@@ -9,6 +9,7 @@
 #include "comms/ServerDiscovery.h"
 #include "engine/ConfigDeserializer.h"
 #include "wifi/CaptivePortal.h"
+#include "wifi/ImprovSerial.h"
 #include "KlippyfaceVersion.h"
 
 // -------------------------------------------------------------------
@@ -247,6 +248,10 @@ void setup() {
     // GPIO monitor task — detects 3s BOOT button press for factory reset
     xTaskCreatePinnedToCore(
         gpioMonitorTask, "gpioMonitorTask", 2048, nullptr, 1, nullptr, 0);
+
+    // Improv over serial on every boot: the browser flasher can set WiFi
+    // before setup, or change it later
+    ImprovSerial::start();
 
     // Provisioning check: if not configured, start captive portal
     if (!Settings::isProvisioned()) {
