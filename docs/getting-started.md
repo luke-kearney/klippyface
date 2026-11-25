@@ -94,7 +94,7 @@ That's it. For each extra display, repeat steps 3 and 5.
 |---------|-----|
 | The board never shows up under **Pending** | The display and the server must be on the **same network**: not the guest WiFi, and not a separate VLAN or subnet. Check the server's firewall allows **TCP 5000** (and **UDP 5353** for discovery). On **Docker Desktop** (Mac/Windows) discovery can't work: redo the WiFi setup and type the server's IP as **Server address** |
 | I need to redo the WiFi setup | Hold **BOOT** on the board for 3 seconds. It resets and `Klippyface-Setup` comes back |
-| The screen stays black after accepting | Get the serial log (below) and look for lines starting with `[GFX]`. Report it with a photo: [#21](https://github.com/luke-kearney/klippyface/issues/21) (1.69"), [#29](https://github.com/luke-kearney/klippyface/issues/29) (1.28") |
+| The screen stays black after accepting | Get the serial log (below) and look for lines starting with `[GFX]`. Report it with a photo: [open an issue](https://github.com/luke-kearney/klippyface/issues/new) (1.69"), [#29](https://github.com/luke-kearney/klippyface/issues/29) (1.28") |
 | **Printer** never shows Connected | Check Moonraker's IP and port, and `trusted_clients` or the API key |
 | The server moved to a new IP | Nothing to do: displays look for it again after 30 seconds offline |
 | Getting a serial log | In esptool.spacehuhn.com click **Connect**, open the console and press the board's reset button. Or with PlatformIO: `pio device monitor` (115200 baud) |

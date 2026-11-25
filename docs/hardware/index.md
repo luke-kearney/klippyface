@@ -8,8 +8,8 @@ Known board + display combinations are available as **board presets** in the Web
 
 | Category | Index | Verified |
 |----------|-------|----------|
-| **Display drivers** | [`display.md`](display.md) | SH1106, HX8347D, ST7789, GC9A01 |
-| **MCU / dev boards** | [`mcu.md`](mcu.md) | ESP-WROOM-32 (ESP32 DevKit V1) |
+| **Display drivers** | [`display.md`](display.md) | SH1106, HX8347D, ST7789 (GC9A01 builds, untested) |
+| **MCU / dev boards** | [`mcu.md`](mcu.md) | ESP-WROOM-32 (ESP32 DevKit V1), Waveshare ESP32-S3-Touch-LCD-1.69 |
 
 > This is a community-maintained reference. If you've tested a display or board
 > not listed here, open a PR or issue with your wiring details and we'll add it.
