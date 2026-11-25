@@ -117,9 +117,11 @@ npm run build
 |---------|--------|
 | ESP32 firmware with FreeRTOS multitasking | ✅ Done |
 | Display drivers — SH1106 (I²C OLED), HX8347D (8-bit parallel TFT) | ✅ Done — hardware-verified, see [`docs/hardware/`](docs/hardware/) |
-| Display drivers — ST7789 and GC9A01 round (SPI TFT, PSRAM frame buffer) | 🟨 Builds, awaiting hardware ([#21](https://github.com/luke-kearney/klippyface/issues/21), [#29](https://github.com/luke-kearney/klippyface/issues/29)) |
-| ESP32-S3 support | 🟨 Build targets, release binaries and panel drivers for two Waveshare S3 boards; awaiting hardware ([#20](https://github.com/luke-kearney/klippyface/issues/20)) |
+| Display drivers — ST7789 (SPI TFT, PSRAM frame buffer) | ✅ Done — hardware-verified on the Waveshare ESP32-S3-Touch-LCD-1.69 ([#21](https://github.com/luke-kearney/klippyface/issues/21)) |
+| Display drivers — GC9A01 round (SPI TFT, PSRAM frame buffer) | 🟨 Builds, awaiting hardware ([#29](https://github.com/luke-kearney/klippyface/issues/29)) |
+| ESP32-S3 support | ✅ Waveshare ESP32-S3-Touch-LCD-1.69 verified on hardware; ESP32-S3-LCD-1.28 builds, awaiting hardware ([#20](https://github.com/luke-kearney/klippyface/issues/20)) |
 | Real-time Moonraker integration | ⚠️ Partial — relayed by the server: print state triggers, live progress/nozzle/bed values, connection monitoring, screen sleep. Multi-tool: active-tool nozzle keys and a key per tool, tested against the fake Moonraker only ([#22](https://github.com/luke-kearney/klippyface/issues/22)) |
+| Loaded filament from Spoolman | ⚠️ Partial — active spool and per-tool spools (`spool.*` keys) through Moonraker's `[spoolman]`; elements can take their colour from the filament. Multi-tool tested against the fake Moonraker only ([#23](https://github.com/luke-kearney/klippyface/issues/23)) |
 | Configurable animations (Groups → Sets → Frames → Elements) | ✅ Done — sprite, text and live data elements, per-frame durations, looping. Richer progress/temperature rendering planned ([#3](https://github.com/luke-kearney/klippyface/issues/3), [#4](https://github.com/luke-kearney/klippyface/issues/4)) |
 | Starter faces for every printer state | ✅ Done — imported on first run, or from the Groups page; sized packs for 320×240, 240×320, 240×280 and round 240×240 colour displays ([#32](https://github.com/luke-kearney/klippyface/issues/32)) |
 | Klipper GCODE macro integration | ⚠️ Partial — `DISPLAY_FACE` switches group/set, `node=` targets one node; alerts not yet |
@@ -132,7 +134,7 @@ npm run build
 | Web UI — live previews matching the device | ✅ Done |
 | Captive portal first-boot setup | ✅ Done |
 | Release builds (firmware `.bin`, self-contained server) | ✅ Done — [GitHub Releases](https://github.com/luke-kearney/klippyface/releases) |
-| Browser-based firmware flasher | ⬜ Planned ([#24](https://github.com/luke-kearney/klippyface/issues/24)) |
+| Browser-based firmware flasher | ✅ Done — [Klippyface Flasher](https://luke-kearney.github.io/klippyface/) with Improv Wi-Fi setup (Chrome/Edge) |
 | Multi-node support | ⚠️ Done, untested |
 
 See [open GitHub Issues](https://github.com/luke-kearney/klippyface/issues) for upcoming work and current priorities.
@@ -256,11 +258,15 @@ known issues for every display driver and MCU that has been tested with Klippyfa
 
 | Category | Index | Verified |
 |----------|-------|----------|
-| Display drivers | [`docs/hardware/display.md`](docs/hardware/display.md) | SH1106 (I2C OLED), HX8347D (Parallel 8 TFT); ST7789, GC9A01 (SPI, untested) |
-| MCU / dev boards | [`docs/hardware/mcu.md`](docs/hardware/mcu.md) | ESP-WROOM-32 (ESP32 DevKit V1); Waveshare ESP32-S3 LCD 1.69 / 1.28 (build only) |
+| Display drivers | [`docs/hardware/display.md`](docs/hardware/display.md) | SH1106 (I2C OLED), HX8347D (Parallel 8 TFT), ST7789 (SPI); GC9A01 (SPI, untested) |
+| MCU / dev boards | [`docs/hardware/mcu.md`](docs/hardware/mcu.md) | ESP-WROOM-32 (ESP32 DevKit V1), Waveshare ESP32-S3-Touch-LCD-1.69; Waveshare ESP32-S3-LCD-1.28 (build only) |
 
 If you've tested a display or board not listed here, open a PR or issue with
 your wiring details and we'll add it.
+
+## Supporting the Project
+
+Klippyface is built in spare time. If it's useful to you, you can support it through [GitHub Sponsors](https://github.com/sponsors/luke-kearney). Testing on hardware I don't have (multi-toolhead printers, the round 1.28" board) and reporting back in [Discussions](https://github.com/luke-kearney/klippyface/discussions) helps just as much.
 
 ## Contributing
 
