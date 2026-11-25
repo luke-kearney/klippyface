@@ -24,6 +24,7 @@ struct FrameElement {
     String      value;       // text content, sprite name, or binding key
     String      label;       // optional display label
     uint32_t    color   = 0xFFFFFF;
+    String      colorKey;    // data key with a "#RRGGBB" value that overrides color, e.g. "spool.color"
     int16_t     x       = 0;
     int16_t     y       = 0;
     uint8_t     size    = 1;   // font scale for text/data values, pixel scale for sprites
@@ -62,6 +63,9 @@ public:
 
     // A text value as sent ("printing"; booleans read "Yes"/"No"); empty when unknown or numeric
     String text(const String& key) const;
+
+    // A "#RRGGBB" value as 0xRRGGBB; fallback when the key is unknown or isn't a colour
+    uint32_t color(const String& key, uint32_t fallback) const;
 
     // Server and Moonraker both reachable, Klipper ready
     bool online() const { return _moonrakerConnected; }

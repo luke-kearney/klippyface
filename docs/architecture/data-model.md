@@ -122,6 +122,7 @@ CREATE TABLE frame_elements (
     value       TEXT NOT NULL DEFAULT '',
     label       TEXT NOT NULL DEFAULT '',
     color       TEXT NOT NULL DEFAULT '#FFFFFF',
+    color_key   TEXT NOT NULL DEFAULT '',          -- data key with a #RRGGBB value that colours it instead, e.g. spool.color
     x           INTEGER NOT NULL DEFAULT 0,
     y           INTEGER NOT NULL DEFAULT 0,
     size        INTEGER NOT NULL DEFAULT 1           -- 1–8: font scale for text/datavalue, pixel scale for sprites

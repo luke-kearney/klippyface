@@ -11,7 +11,7 @@ namespace FakeMoonraker.Control;
 /// Commands typed into the fake's terminal: the same actions as /_sim/*, without curl.
 /// Off when stdin isn't a terminal (or with --console false).
 /// </summary>
-public sealed class ConsoleCommands(PrinterSimulation sim, MoonrakerHub hub, ILogger<ConsoleCommands> log)
+public sealed class ConsoleCommands(PrinterSimulation sim, MoonrakerHub hub, FakeSpoolman spoolman, ILogger<ConsoleCommands> log)
     : BackgroundService
 {
     private static readonly TimeSpan RestartTime = TimeSpan.FromSeconds(2);
@@ -25,6 +25,9 @@ public sealed class ConsoleCommands(PrinterSimulation sim, MoonrakerHub hub, ILo
           pause | resume | cancel | complete
           tool <n>                  switch to tool n (T0 = extruder)
           temp <heater> <°C>        set a target: bed, extruder, extruder1, t2, ...
+          spool <id|none>           set the active Spoolman spool
+          spool use <grams>         use filament from the active spool
+          spoolman up|down          Spoolman reachable or not (Moonraker stays up)
           set <object.field> <value>  set any field, e.g. set print_stats.message hello
           respond <text>            console line, e.g. respond display:group=win
           busy [seconds]            run non-print G-code, e.g. homing (default 10 s)
@@ -158,6 +161,13 @@ public sealed class ConsoleCommands(PrinterSimulation sim, MoonrakerHub hub, ILo
                 return $"Running G-code for {seconds:0} s";
             }
 
+            case "spool":
+                return Spool(args);
+
+            case "spoolman" when args is ["up" or "down"]:
+                spoolman.Reachable = args[0] == "up";
+                return $"Spoolman {args[0]}";
+
             case "idle":
                 return sim.ForceIdle() ? "Idle timeout fired: heaters and motors off" : "Not while printing";
 
@@ -170,6 +180,26 @@ public sealed class ConsoleCommands(PrinterSimulation sim, MoonrakerHub hub, ILo
 
             default:
                 return $"Unknown command '{command}'. Type 'help'.";
+        }
+    }
+
+    private string Spool(string[] args)
+    {
+        switch (args)
+        {
+            case ["none"]:
+                spoolman.SetActive(null);
+                return "No active spool";
+            case ["use", var text] when double.TryParse(text, CultureInfo.InvariantCulture, out var grams):
+                return spoolman.ActiveId is { } active && spoolman.Use(active, grams)
+                    ? $"Used {grams} g from spool {active}"
+                    : "No active spool";
+            case [var text] when int.TryParse(text, out var id):
+                return spoolman.SetActive(id)
+                    ? $"Active spool {id}: {spoolman.Spool(id)!["filament"]!["name"]}"
+                    : $"No spool {id}; spools are {string.Join(", ", spoolman.Ids)}";
+            default:
+                return "Usage: spool <id|none> | spool use <grams>";
         }
     }
 
@@ -193,6 +223,10 @@ public sealed class ConsoleCommands(PrinterSimulation sim, MoonrakerHub hub, ILo
             ? $"print: {state} {m.GetString("print_stats", "filename")} {progress:0.0}%"
             : $"print: {state}");
         text.AppendLine($"idle_timeout: {m.GetString("idle_timeout", "state")}");
+
+        text.AppendLine(!spoolman.Enabled ? "spoolman: off"
+            : spoolman.ActiveId is { } spool ? $"spoolman: spool {spool} ({spoolman.Spool(spool)!["filament"]!["name"]}){(spoolman.Reachable ? "" : ", Spoolman down")}"
+            : "spoolman: no active spool");
 
         var active = PrinterProfile.ExtruderName(sim.ActiveTool);
         foreach (var name in m.Profile.ExtruderNames.Append("heater_bed"))

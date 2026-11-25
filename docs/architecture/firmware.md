@@ -90,6 +90,8 @@ public:
 
 **Color convention:** `uint32_t` is always RGB888 (8-8-8). Monochrome drivers map any non-zero → white (1), zero → black (0). Color drivers use the full value.
 
+**Colour keys:** an element with a `colorKey` (config `color_key`, e.g. `spool.color`) is drawn in the colour that key's value reads (`PrinterState::color`), falling back to its `color` while there's none. On monochrome panels (`isColor()` false) the fixed colour is always used. `DisplayManager::dataValues` includes colour keys, so a colour change redraws the frame.
+
 **`drawBitmap` auto-detect:** The `dataSize` parameter allows color drivers to distinguish between RGB565 sprites (`dataSize == w*h*2`) and 1-bit mask sprites (any other size). The renderer passes `sprite.byteSize()` from the source data.
 
 ### Driver Registry (Factory)

@@ -30,7 +30,8 @@ public class PrinterStateStoreTests
 
         var changes = _store.Apply(Json("""{"extruder": {"temperature": 211.0, "target": 215}}"""));
 
-        Assert.Equal(["extruder.temperature"], changes.Keys);
+        // The derived nozzle key follows the active (only) extruder
+        Assert.Equal(["extruder.temperature", PrinterStateStore.NozzleTemperatureKey], changes.Keys.Order());
     }
 
     [Fact]
@@ -222,6 +223,52 @@ public class PrinterStateStoreTests
         Assert.False(changes.ContainsKey(PrinterStateStore.DisplayStateKey));
         Assert.False(changes.ContainsKey(PrinterStateStore.ActiveKey));
     }
+
+    [Fact]
+    public void Nozzle_keys_follow_the_active_tool()
+    {
+        _store.Replace(Json("""
+            {"toolhead": {"extruder": "extruder"},
+             "extruder": {"temperature": 210.0, "target": 215},
+             "extruder1": {"temperature": 150.0, "target": 175}}
+            """));
+        Assert.Equal(210.0, Value<double>(PrinterStateStore.NozzleTemperatureKey));
+        Assert.Equal("T0", Value<string>(PrinterStateStore.ToolKey));
+
+        var changes = _store.Apply(Json("""{"toolhead": {"extruder": "extruder1"}}"""));
+
+        Assert.Equal(150.0, changes[PrinterStateStore.NozzleTemperatureKey]!.GetValue<double>());
+        Assert.Equal(175.0, changes[PrinterStateStore.NozzleTargetKey]!.GetValue<double>());
+        Assert.Equal("T1", changes[PrinterStateStore.ToolKey]!.GetValue<string>());
+
+        // The active tool heating is a nozzle change; the other tool's isn't
+        Assert.Contains(PrinterStateStore.NozzleTemperatureKey,
+            _store.Apply(Json("""{"extruder1": {"temperature": 151.0}}""")).Keys);
+        Assert.DoesNotContain(PrinterStateStore.NozzleTemperatureKey,
+            _store.Apply(Json("""{"extruder": {"temperature": 209.0}}""")).Keys);
+    }
+
+    [Fact]
+    public void No_tool_picked_up_clears_the_nozzle_keys()
+    {
+        _store.Replace(Json("""{"toolhead": {"extruder": "extruder1"}, "extruder1": {"temperature": 150.0, "target": 0}}"""));
+
+        var changes = _store.Apply(Json("""{"toolhead": {"extruder": ""}}"""));
+
+        Assert.Null(changes[PrinterStateStore.NozzleTemperatureKey]);
+        Assert.Null(changes[PrinterStateStore.ToolKey]);
+    }
+
+    [Fact]
+    public void Single_extruder_printer_reads_its_only_nozzle()
+    {
+        _store.Replace(Json("""{"extruder": {"temperature": 200.0, "target": 200}}"""));
+
+        Assert.Equal(200.0, Value<double>(PrinterStateStore.NozzleTemperatureKey));
+        Assert.Equal("T0", Value<string>(PrinterStateStore.ToolKey));
+    }
+
+    private T Value<T>(string key) => _store.Snapshot([key])[key]!.GetValue<T>();
 
     private static JsonObject Json(string text) => JsonNode.Parse(text)!.AsObject();
 

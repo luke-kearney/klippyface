@@ -82,7 +82,7 @@ public class ConfigExportService
                     var elementsJson = new JsonArray();
                     foreach (var element in frame.Elements)
                     {
-                        elementsJson.Add(new JsonObject
+                        var elementJson = new JsonObject
                         {
                             ["type"] = element.Type,
                             ["value"] = element.Value,
@@ -91,7 +91,9 @@ public class ConfigExportService
                             ["x"] = element.X,
                             ["y"] = element.Y,
                             ["size"] = element.Size,
-                        });
+                        };
+                        if (element.ColorKey != "") elementJson["color_key"] = element.ColorKey;
+                        elementsJson.Add(elementJson);
                     }
 
                     framesJson.Add(new JsonObject
@@ -219,7 +221,7 @@ public class ConfigExportService
                     var elementsJson = new JsonArray();
                     foreach (var element in frame.Elements)
                     {
-                        elementsJson.Add(new JsonObject
+                        var elementJson = new JsonObject
                         {
                             ["type"] = element.Type,
                             ["value"] = element.Value,
@@ -228,7 +230,9 @@ public class ConfigExportService
                             ["x"] = element.X,
                             ["y"] = element.Y,
                             ["size"] = element.Size,
-                        });
+                        };
+                        if (element.ColorKey != "") elementJson["color_key"] = element.ColorKey;
+                        elementsJson.Add(elementJson);
                     }
 
                     framesJson.Add(new JsonObject

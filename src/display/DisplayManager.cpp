@@ -354,6 +354,9 @@ std::vector<String> DisplayManager::dataValues(const Frame& frame) const {
         if (element.type == FrameElement::DataValue) {
             values.push_back(_printerState.resolve(element.value));
         }
+        if (element.colorKey.length() > 0) {
+            values.push_back(_printerState.text(element.colorKey));
+        }
     }
     return values;
 }

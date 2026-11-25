@@ -102,6 +102,11 @@ public sealed class PrinterModel
                 extruder["smooth_time"] = 0.04;
                 _objects[name] = extruder;
             }
+            if (Profile.ToolMacros)
+            {
+                for (var i = 0; i < Profile.Extruders; i++)
+                    _objects[PrinterProfile.ToolMacroName(i)] = new JsonObject { ["spool_id"] = i + 1 };
+            }
         }
     }
 

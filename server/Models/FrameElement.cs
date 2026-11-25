@@ -11,6 +11,12 @@ public class FrameElement
     public string Value { get; set; } = string.Empty;
     public string Label { get; set; } = string.Empty;
     public string Color { get; set; } = "#FFFFFF";
+
+    /// <summary>
+    /// Data key whose "#RRGGBB" value colours the element instead, e.g. "spool.color".
+    /// <see cref="Color"/> is used while the key has no colour, and by firmware older than this.
+    /// </summary>
+    public string ColorKey { get; set; } = string.Empty;
     public int X { get; set; } = 0;
     public int Y { get; set; } = 0;
     /// <summary>Scale: font size for text/data values, pixel scale for sprites (1–8).</summary>

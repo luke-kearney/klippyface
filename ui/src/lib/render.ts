@@ -3,7 +3,7 @@
 
 import { FONT_5X7 } from './font5x7'
 import type { Bitmap } from './sprite'
-import type { FrameElement } from './types'
+import type { DataKey, FrameElement } from './types'
 
 export const CHAR_W = 6
 export const CHAR_H = 8
@@ -28,17 +28,45 @@ export function hexToRgb(hex: string): RGB {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
 }
 
-/** Sample values for data bindings, formatted like PrinterState::resolve. */
-export const DATA_KEYS: { key: string; label: string; sample: string }[] = [
-  { key: 'print_stats.progress', label: 'Print progress', sample: '42.0%' },
-  { key: 'extruder.temperature', label: 'Nozzle temp', sample: '215°C' },
-  { key: 'extruder.target', label: 'Nozzle target', sample: '215°C' },
-  { key: 'heater_bed.temperature', label: 'Bed temp', sample: '60°C' },
-  { key: 'heater_bed.target', label: 'Bed target', sample: '60°C' },
-  { key: 'klippyface.state', label: 'Printer state', sample: 'printing' },
-  { key: 'moonraker.connected', label: 'Moonraker status', sample: 'Online' },
+/** Offered when the server's list (GET /api/moonraker/data-keys) isn't available. */
+export const COMMON_DATA_KEYS: DataKey[] = [
+  { key: 'print_stats.progress', label: 'Print progress', group: 'Print' },
+  { key: 'klippyface.state', label: 'Printer state', group: 'Print' },
+  { key: 'klippyface.nozzle.temperature', label: 'Nozzle temp', group: 'Nozzle' },
+  { key: 'klippyface.nozzle.target', label: 'Nozzle target', group: 'Nozzle' },
+  { key: 'heater_bed.temperature', label: 'Bed temp', group: 'Bed' },
+  { key: 'heater_bed.target', label: 'Bed target', group: 'Bed' },
+  { key: 'moonraker.connected', label: 'Moonraker status', group: 'Status' },
 ]
-const SAMPLES = new Map(DATA_KEYS.map((d) => [d.key, d.sample]))
+
+const SAMPLES = new Map<string, string>([
+  ['klippyface.state', 'printing'],
+  ['klippyface.tool', 'T0'],
+  ['moonraker.connected', 'Online'],
+])
+
+/** Sample filament for "spool.<field>" (and per-tool "spool.toolN.<field>") keys. */
+const SPOOL_SAMPLES: Record<string, string> = {
+  name: 'Sunset Orange',
+  material: 'PLA',
+  vendor: 'eSun',
+  color: '#FF6A13',
+  remaining_weight: '742g',
+  id: '3',
+}
+
+/** Preview value for a data key, formatted like PrinterState::resolve. */
+export function sampleValue(key: string): string {
+  const known = SAMPLES.get(key)
+  if (known) return known
+  if (key.startsWith('spool.')) {
+    const sample = SPOOL_SAMPLES[key.slice(key.lastIndexOf('.') + 1)]
+    if (sample) return sample
+  }  if (key.endsWith('.temperature') || key.endsWith('.target')) return key.startsWith('heater_bed') ? '60°C' : '215°C'
+  if (key.endsWith('_weight')) return '742g'
+  if (key.endsWith('progress')) return '42.0%'
+  return '?'
+}
 
 /** Non-ASCII characters in the CP437 5x7 font → glyph; keep in step with GLYPHS in src/display/FontText.cpp. */
 // prettier-ignore
@@ -69,7 +97,7 @@ export function toFontText(s: string): Uint8Array {
 
 /** The glyphs the firmware would print for an element. */
 export function elementText(el: Pick<FrameElement, 'type' | 'value'>): Uint8Array {
-  const s = el.type === 'datavalue' ? (SAMPLES.get(el.value) ?? '?') : el.value
+  const s = el.type === 'datavalue' ? sampleValue(el.value) : el.value
   return toFontText(s ?? '')
 }
 
@@ -161,7 +189,8 @@ export function renderFrame(
     c.rgba[i * 4 + 3] = 255
   }
   for (const el of frame.elements ?? []) {
-    const rgb = toPanel(el.color || '#FFFFFF', mono)
+    // Monochrome panels keep the fixed colour (Renderer.cpp)
+    const rgb = toPanel(mono ? el.color || '#FFFFFF' : elementColor(el), mono)
     const k = sizeOf(el)
     if (el.type === 'sprite') {
       const s = sprites.get(el.value)
@@ -174,6 +203,12 @@ export function renderFrame(
       drawText(c, bytes, el.x - Math.trunc((bytes.length * CHAR_W * k) / 2), el.y - Math.trunc((CHAR_H * k) / 2), rgb, k)
     }
   }
+}
+
+/** The element's colour, or the sample colour its key reads, as Renderer.cpp's elementColor(). */
+export function elementColor(el: Pick<FrameElement, 'color' | 'colorKey'>): string {
+  const keyed = el.colorKey ? sampleValue(el.colorKey) : ''
+  return /^#[0-9a-f]{6}$/i.test(keyed) ? keyed : el.color || '#FFFFFF'
 }
 
 /** Paint a rendered canvas onto a 2D context at integer scale. */

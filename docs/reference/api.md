@@ -21,6 +21,7 @@ The server's one connection to Moonraker (Web UI **Printer** page).
 |--------|-------|-------------|
 | GET | `/api/moonraker` | Settings and live status: `{ host, port, use_tls, has_api_key, status: { state, detail?, connected, objects[] } }`. `state` is `NotConfigured`, `Connecting`, `KlippyNotReady`, `Ready` or `Disconnected` |
 | PUT | `/api/moonraker` | Save `{ host, port, use_tls, api_key? }` and reconnect. `api_key` omitted keeps the saved key, `""` clears it. `400` for a URL instead of a host, or a bad port |
+| GET | `/api/moonraker/data-keys` | Data keys the editor offers for this printer: `[{ key, label, group }]`. The common keys, plus `klippyface.tool` and `extruderN.*` per tool when Moonraker reports more than one extruder. Faces can bind any key |
 | GET | `/api/moonraker/state` | Every value the server has, flattened to data keys (`{ "extruder.temperature": 210.5, ... }`) |
 
 ## Node Endpoints
@@ -159,7 +160,8 @@ GET /api/config/node?mac=AA:BB:CC:DD:EE:01
               {
                 "duration_ms": 3000, "bg_color": "#000000",
                 "elements": [
-                  { "type": "text", "value": "zzz", "x": 64, "y": 32, "color": "#FFFFFF", "size": 1 }
+                  { "type": "text", "value": "zzz", "x": 64, "y": 32, "color": "#FFFFFF", "size": 1 },
+                  { "type": "sprite", "value": "icon_spool", "x": 4, "y": 4, "color": "#FFFFFF", "color_key": "spool.color", "size": 1 }
                 ]
               }
             ]
@@ -250,6 +252,8 @@ with a `type` field:
 | `sprite` | Draws a named sprite from `sprites` dict at `(x, y)`. |
 | `datavalue` | Resolves a data binding key from the relayed printer state, formats the value, and draws it centred on `(x, y)`. |
 
+Any element can also have `color_key`: a data key whose value is a `#RRGGBB` colour (e.g. `spool.color`). On a colour panel the element is drawn in that colour, and redrawn when it changes; `color` is used while the key has no colour, on monochrome panels, and by firmware without colour keys. The key is sent to the node like a bound data key. Left out of the config when unset.
+
 ### Data Binding Keys
 
 A key is `<Klipper object>.<field>` (nested fields joined with `.`), for any object the server subscribes to: `print_stats`, `virtual_sdcard`, `display_status`, `toolhead`, `idle_timeout`, `webhooks`, `heater_bed`, `extruder*`. The node formats by the key's ending: `.temperature`/`.target` → `°C`, ending in `progress` (0–1) → `%`, otherwise the number or text as is. A key the printer doesn't have shows `--`.
@@ -257,12 +261,22 @@ A key is `<Klipper object>.<field>` (nested fields joined with `.`), for any obj
 | Key | Source | Example output |
 |-----|--------|----------------|
 | `print_stats.progress` | Print progress. Klipper's `print_stats` has no progress field; the server fills this from `display_status.progress` (M73), falling back to `virtual_sdcard.progress` | `"73.0%"` |
-| `extruder.temperature` | Nozzle temp | `"210°C"` |
-| `extruder.target` | Nozzle target | `"220°C"` |
+| `klippyface.nozzle.temperature` | The active tool's nozzle temp (follows `toolhead.extruder`; the only nozzle on a single-extruder printer). Used by the starter faces | `"210°C"` |
+| `klippyface.nozzle.target` | The active tool's nozzle target | `"220°C"` |
+| `klippyface.tool` | The active tool: `T0` for `extruder`, `T1` for `extruder1`… Gone while a toolchanger holds no tool | `"T1"` |
+| `extruder.temperature`, `extruderN.temperature` | A specific tool's nozzle temp (`extruder` = T0, `extruder1` = T1…) | `"210°C"` |
+| `extruder.target`, `extruderN.target` | A specific tool's nozzle target | `"220°C"` |
 | `heater_bed.temperature` | Bed temp | `"60°C"` |
 | `heater_bed.target` | Bed target | `"65°C"` |
 | `klippyface.state` | The printer state the server works out (see [Printer States](#printer-states)); drives `state:*` triggers | `"heating"` |
 | `klippyface.active` | `true` while the state is printing, paused, heating, busy or error; nodes don't sleep their screens then | `true` |
+| `spool.name` | The active Spoolman spool's filament name (falls back to its material). Filament keys come from Moonraker's `[spoolman]` integration and are gone when no spool is active | `"Galaxy Black"` |
+| `spool.material` | Its material | `"PLA"` |
+| `spool.vendor` | Its vendor | `"Prusament"` |
+| `spool.color` | Its colour as `#RRGGBB` (the first colour of a multi-colour filament) | `"#1B1B1B"` |
+| `spool.remaining_weight` | Grams left, rounded; keys ending `_weight` are shown with `g`. Refreshed every 60 s | `"743g"` |
+| `spool.id` | The Spoolman spool id | `"1"` |
+| `spool.toolN.name`, `.material`, `.vendor`, `.color`, `.remaining_weight`, `.id` | The spool in tool N, from the `spool_id` variable of its `T<N>` macro (Moonraker's multi-tool Spoolman setup: `variable_spool_id`, set with `SET_GCODE_VARIABLE`, and `SET_ACTIVE_SPOOL` in the macro). Only for tools whose macro has a spool | `"Ocean Blue"` |
 | `print_stats.state` | Klipper's raw print state: `standby`, `printing`, `paused`, `complete`, `cancelled`, `error` | `"printing"` |
 | `moonraker.connected` | Node-side: server and Moonraker both reachable, Klipper ready | `"Online"` / `"Offline"` |
 

@@ -24,6 +24,9 @@ public static class SimEndpoints
                 "POST /_sim/print/start          {\"filename\":\"x.gcode\",\"duration_s\":120}",
                 "POST /_sim/print/pause | resume | cancel | complete",
                 "POST /_sim/toolchange/{n}",
+                "POST /_sim/spool/{id}                 set the active Spoolman spool (0 = none)",
+                "POST /_sim/spool/{id}/use?grams=10    use filament from a spool",
+                "POST /_sim/spoolman?reachable=false   Spoolman down (Moonraker stays up)",
                 "POST /_sim/respond              {\"msg\":\"display:node=x group=y\",\"type\":\"echo|command|error\"}",
                 "POST /_sim/klippy/restart?seconds=5",
                 "POST /_sim/klippy/shutdown?message=...",
@@ -65,6 +68,18 @@ public static class SimEndpoints
             s.SelectTool(n)
                 ? Results.NoContent()
                 : Results.NotFound(new { error = $"No tool T{n} (printer has {s.Model.Profile.Extruders})" }));
+
+        sim.MapPost("/spool/{id:int}", (int id, FakeSpoolman spoolman) =>
+            spoolman.SetActive(id == 0 ? null : id)
+                ? Results.NoContent()
+                : Results.NotFound(new { error = $"No spool {id}" }));
+        sim.MapPost("/spool/{id:int}/use", (int id, double grams, FakeSpoolman spoolman) =>
+            spoolman.Use(id, grams) ? Results.NoContent() : Results.NotFound(new { error = $"No spool {id}" }));
+        sim.MapPost("/spoolman", (bool reachable, FakeSpoolman spoolman) =>
+        {
+            spoolman.Reachable = reachable;
+            return Results.NoContent();
+        });
 
         // Formats the line the way Klipper's RESPOND command does
         sim.MapPost("/respond", (RespondRequest body, MoonrakerHub hub) =>

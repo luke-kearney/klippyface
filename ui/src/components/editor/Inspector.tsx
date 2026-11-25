@@ -8,9 +8,10 @@ import { Slider } from '@/components/ui/slider'
 import { Textarea } from '@/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Field } from '@/components/common'
-import { DATA_KEYS, isMono } from '@/lib/render'
+import { useDataKeys } from '@/hooks/queries'
+import { COMMON_DATA_KEYS, isMono, sampleValue } from '@/lib/render'
 import { groupByFolder } from '@/lib/sprite'
-import type { Frame, FrameElement, Set, Sprite } from '@/lib/types'
+import type { DataKey, Frame, FrameElement, Set, Sprite } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 export const TYPE_META = {
@@ -21,9 +22,19 @@ export const TYPE_META = {
 
 const SWATCHES = ['#FFFFFF', '#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#00C7BE', '#007AFF', '#AF52DE']
 
-function ColorField({ value, onChange, mono }: { value: string; onChange: (v: string) => void; mono: boolean }) {
+function ColorField({
+  value,
+  onChange,
+  mono,
+  label = 'Colour',
+}: {
+  value: string
+  onChange: (v: string) => void
+  mono: boolean
+  label?: string
+}) {
   return (
-    <Field label="Colour" hint={mono ? 'Monochrome panel: any non-black colour lights the pixel.' : undefined}>
+    <Field label={label} hint={mono ? 'Monochrome panel: any non-black colour lights the pixel.' : undefined}>
       <div className="flex items-center gap-2">
         <input
           type="color"
@@ -49,6 +60,79 @@ function ColorField({ value, onChange, mono }: { value: string; onChange: (v: st
     </Field>
   )
 }
+
+/** Keys grouped by heading, in the order the server lists them; `current` is kept even if this printer doesn't offer it. */
+function groupDataKeys(list: DataKey[], current: string): [string, DataKey[]][] {
+  const all = list.some((k) => k.key === current) || !current ? list : [...list, { key: current, label: current, group: 'Other' }]
+  const groups = new Map<string, DataKey[]>()
+  for (const k of all) groups.set(k.group, [...(groups.get(k.group) ?? []), k])
+  return [...groups]
+}
+
+function DataKeySelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { data } = useDataKeys()
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Choose value" />
+      </SelectTrigger>
+      <SelectContent>
+        {groupDataKeys(data ?? COMMON_DATA_KEYS, value).map(([group, list]) => (
+          <SelectGroup key={group}>
+            <SelectLabel>{group}</SelectLabel>
+            {list.map((d) => (
+              <SelectItem key={d.key} value={d.key}>
+                {d.label} <span className="font-mono text-xs text-muted-foreground">{sampleValue(d.key)}</span>
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
+/** Fixed colour, or a colour from the printer such as the loaded filament's. */
+function ElementColorField({ element, onChange, mono }: { element: FrameElement; onChange: (patch: Partial<FrameElement>) => void; mono: boolean }) {
+  const { data } = useDataKeys()
+  const colorKeys = (data ?? COMMON_DATA_KEYS).filter((k) => k.key.endsWith('.color'))
+  const current = element.colorKey ?? ''
+  if (current && !colorKeys.some((k) => k.key === current)) colorKeys.push({ key: current, label: current, group: 'Other' })
+
+  return (
+    <>
+      {colorKeys.length > 0 && (
+        <Field
+          label="Colour from"
+          hint={
+            current
+              ? mono
+                ? 'Monochrome panel: the filament colour only matters on colour displays.'
+                : 'Drawn in that colour (preview: a sample). The colour below is used while there is none, and by older firmware.'
+              : undefined
+          }
+        >
+          <Select value={current || FIXED_COLOR} onValueChange={(v) => onChange({ colorKey: v === FIXED_COLOR ? '' : v })}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={FIXED_COLOR}>Fixed colour</SelectItem>
+              {colorKeys.map((k) => (
+                <SelectItem key={k.key} value={k.key}>
+                  {k.group} · {k.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      )}
+      <ColorField value={element.color || '#FFFFFF'} onChange={(color) => onChange({ color })} mono={mono} label={current ? 'Fallback colour' : 'Colour'} />
+    </>
+  )
+}
+
+const FIXED_COLOR = 'fixed'
 
 const NumberInput = ({ value, onChange }: { value: number; onChange: (v: number) => void }) => (
   <Input type="number" value={value} onChange={(e) => onChange(parseInt(e.target.value) || 0)} className="font-mono" />
@@ -126,18 +210,7 @@ export function ElementInspector({
       )}
       {element.type === 'datavalue' && (
         <Field label="Printer value" hint="Preview shows sample data. Centred on X/Y.">
-          <Select value={element.value} onValueChange={(v) => onChange({ value: v })}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Choose value" />
-            </SelectTrigger>
-            <SelectContent>
-              {DATA_KEYS.map((d) => (
-                <SelectItem key={d.key} value={d.key}>
-                  {d.label} <span className="font-mono text-xs text-muted-foreground">{d.sample}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <DataKeySelect value={element.value} onChange={(value) => onChange({ value })} />
         </Field>
       )}
 
@@ -169,7 +242,7 @@ export function ElementInspector({
           <NumberInput value={element.y} onChange={(y) => onChange({ y })} />
         </Field>
       </div>
-      <ColorField value={element.color || '#FFFFFF'} onChange={(color) => onChange({ color })} mono={isMono(driverType)} />
+      <ElementColorField element={element} onChange={onChange} mono={isMono(driverType)} />
       <p className="text-xs text-muted-foreground">
         Drag on the canvas, or use arrow keys to nudge (Shift = 8px). Delete removes, Ctrl+D duplicates.
       </p>

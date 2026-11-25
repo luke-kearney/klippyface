@@ -329,6 +329,7 @@ public static class LibraryApi
             element.Value = input.Value;
             element.Label = input.Label;
             element.Color = input.Color;
+            element.ColorKey = input.ColorKey ?? string.Empty;
             element.X = input.X;
             element.Y = input.Y;
             element.Size = Math.Clamp(input.Size, 1, 8);

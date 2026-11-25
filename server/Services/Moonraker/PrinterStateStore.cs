@@ -15,6 +15,13 @@ public sealed class PrinterStateStore
     /// <summary>True while the printer is working (see <see cref="IsActive"/>); nodes don't sleep their screens then.</summary>
     public const string ActiveKey = "klippyface.active";
 
+    /// <summary>The active tool, "T0" for extruder, "T1" for extruder1…; from toolhead.extruder.</summary>
+    public const string ToolKey = "klippyface.tool";
+
+    /// <summary>The active tool's nozzle, so faces follow tool changes on multi-tool printers.</summary>
+    public const string NozzleTemperatureKey = "klippyface.nozzle.temperature";
+    public const string NozzleTargetKey = "klippyface.nozzle.target";
+
     /// <summary>
     /// Keys the server works out itself. print_stats has no progress field in
     /// Klipper, but faces have always bound to "print_stats.progress"; it follows
@@ -27,7 +34,23 @@ public sealed class PrinterStateStore
         (DisplayStateKey, (v, resultDismissed) => DisplayState(v, resultDismissed)),
         (ActiveKey, (v, resultDismissed) =>
             DisplayState(v, resultDismissed) is { } state ? JsonValue.Create(IsActive(state)) : null),
+        (ToolKey, (v, _) => ToolIndex(ActiveExtruder(v)) is { } tool ? JsonValue.Create($"T{tool}") : null),
+        (NozzleTemperatureKey, (v, _) => v.GetValueOrDefault($"{ActiveExtruder(v)}.temperature")),
+        (NozzleTargetKey, (v, _) => v.GetValueOrDefault($"{ActiveExtruder(v)}.target")),
     ];
+
+    /// <summary>
+    /// The extruder in use. Single-extruder printers always report "extruder"; a
+    /// toolchanger with no tool picked up reports "".
+    /// </summary>
+    private static string ActiveExtruder(IReadOnlyDictionary<string, JsonNode?> v) =>
+        Text(v, "toolhead.extruder") ?? "extruder";
+
+    /// <summary>0 for "extruder", n for "extruder&lt;n&gt;", null for anything else.</summary>
+    public static int? ToolIndex(string extruder) =>
+        extruder == "extruder" ? 0
+        : extruder.StartsWith("extruder") && int.TryParse(extruder["extruder".Length..], out var n) && n > 0 ? n
+        : null;
 
     /// <summary>Printing, paused, heating, busy or error; idle, complete and cancelled are resting.</summary>
     public static bool IsActive(string state) => state is "printing" or "paused" or "heating" or "busy" or "error";
@@ -106,7 +129,34 @@ public sealed class PrinterStateStore
             var changes = new Dictionary<string, JsonNode?>();
             foreach (var key in _values.Keys.Except(incoming.Keys).ToList())
             {
-                if (IsDerived(key)) continue;
+                if (IsDerived(key) || IsOtherSource(key)) continue;
+                _values.Remove(key);
+                changes[key] = null;
+            }
+            foreach (var (key, value) in incoming)
+                SetLocked(key, value, changes);
+            UpdateDerivedLocked(changes);
+            return changes;
+        }
+    }
+
+    /// <summary>
+    /// Set every key under <paramref name="root"/> ("spool" → "spool.name", ...) from
+    /// somewhere other than Klipper's objects, e.g. Spoolman. Keys under it that
+    /// aren't in <paramref name="values"/> go away; a Klipper resubscribe leaves them be.
+    /// </summary>
+    public IReadOnlyDictionary<string, JsonNode?> ReplaceSource(string root, JsonObject? values)
+    {
+        var incoming = new Dictionary<string, JsonNode?>();
+        Flatten(new JsonObject { [root] = values?.DeepClone() ?? new JsonObject() }, null, incoming);
+        var prefix = root + ".";
+
+        lock (_lock)
+        {
+            _otherSources.Add(prefix);
+            var changes = new Dictionary<string, JsonNode?>();
+            foreach (var key in _values.Keys.Where(k => k.StartsWith(prefix) && !incoming.ContainsKey(k)).ToList())
+            {
                 _values.Remove(key);
                 changes[key] = null;
             }
@@ -203,6 +253,11 @@ public sealed class PrinterStateStore
     }
 
     private static bool IsDerived(string key) => Derived.Any(d => d.Key == key);
+
+    // Key prefixes set through ReplaceSource ("spool.")
+    private readonly HashSet<string> _otherSources = [];
+
+    private bool IsOtherSource(string key) => _otherSources.Any(key.StartsWith);
 
     /// <summary>{"print_stats": {"info": {"current_layer": 3}}} → "print_stats.info.current_layer": 3. Arrays stay whole.</summary>
     private static void Flatten(JsonObject obj, string? prefix, Dictionary<string, JsonNode?> into)

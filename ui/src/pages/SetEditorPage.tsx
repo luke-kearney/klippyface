@@ -15,7 +15,7 @@ import { ElementInspector, FrameInspector, TYPE_META } from '@/components/editor
 import { SpriteThumb } from '@/components/SpriteThumb'
 import { useSpriteBitmaps, useSprites } from '@/hooks/queries'
 import { useSetDocument, type SetDocument } from '@/hooks/useSetDocument'
-import { DATA_KEYS } from '@/lib/render'
+import { COMMON_DATA_KEYS } from '@/lib/render'
 import { groupByFolder } from '@/lib/sprite'
 import type { FrameElement } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -122,7 +122,16 @@ export function SetEditorPage() {
   }
 
   const duplicateElement = (el: FrameElement) =>
-    addElement({ type: el.type, value: el.value, label: el.label, color: el.color, x: el.x + 4, y: el.y + 4, size: el.size })
+    addElement({
+      type: el.type,
+      value: el.value,
+      label: el.label,
+      color: el.color,
+      colorKey: el.colorKey,
+      x: el.x + 4,
+      y: el.y + 4,
+      size: el.size,
+    })
 
   const moveLayer = (el: FrameElement, dir: -1 | 1) => {
     if (!frame) return
@@ -315,7 +324,7 @@ export function SetEditorPage() {
                   variant="outline"
                   size="sm"
                   className="justify-start"
-                  onClick={() => addElement({ type: 'datavalue', value: DATA_KEYS[0].key })}
+                  onClick={() => addElement({ type: 'datavalue', value: COMMON_DATA_KEYS[0].key })}
                   disabled={playing}
                 >
                   <TYPE_META.datavalue.icon /> Printer value

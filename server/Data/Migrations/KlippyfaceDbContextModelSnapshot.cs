@@ -89,6 +89,10 @@ namespace Klippyface.Server.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ColorKey")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("FrameId")
                         .IsRequired()
                         .HasColumnType("TEXT");

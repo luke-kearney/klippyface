@@ -16,6 +16,7 @@ const elementBody = (e: FrameElement): ElementInput => ({
   value: e.value,
   label: e.label,
   color: e.color,
+  colorKey: e.colorKey ?? '',
   x: e.x,
   y: e.y,
   size: e.size ?? 1,

@@ -33,6 +33,7 @@ public sealed class FakeMoonrakerHost : IAsyncDisposable
 
     public PrinterSimulation Sim => _app.Services.GetRequiredService<PrinterSimulation>();
     public MoonrakerHub Hub => _app.Services.GetRequiredService<MoonrakerHub>();
+    public FakeSpoolman Spoolman => _app.Services.GetRequiredService<FakeSpoolman>();
     public ConsoleCommands Console => _app.Services.GetRequiredService<ConsoleCommands>();
 
     public static Task<FakeMoonrakerHost> StartAsync(string profile = "single", string scenario = "idle") =>

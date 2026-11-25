@@ -50,6 +50,9 @@ public sealed class MoonrakerServiceOptions
 
     /// <summary>How often to retry setup while Klipper isn't ready, in case notify_klippy_ready was missed.</summary>
     public TimeSpan KlippyRetry { get; set; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>How often to re-read the loaded spools from Spoolman (remaining weight drops while printing).</summary>
+    public TimeSpan SpoolmanRefresh { get; set; } = TimeSpan.FromSeconds(60);
 }
 
 /// <summary>
@@ -68,11 +71,15 @@ public sealed partial class MoonrakerService(
     private CancellationTokenSource _reconnect = new();
     private MoonrakerStatus _status = new(MoonrakerState.NotConfigured, null, []);
     private bool _statusReported;
+    private SpoolmanTracker? _spoolman;
 
     public MoonrakerStatus Status
     {
         get { lock (_lock) return _status; }
     }
+
+    /// <summary>Moonraker's Spoolman integration answers, so filament keys have values.</summary>
+    public bool SpoolmanAvailable => _spoolman?.Available ?? false;
 
     /// <summary>Drop the current connection and start again with fresh settings.</summary>
     public void Reconnect()
@@ -80,11 +87,12 @@ public sealed partial class MoonrakerService(
         lock (_lock) _reconnect.Cancel();
     }
 
-    /// <summary>Klipper objects displays can bind to.</summary>
+    /// <summary>Klipper objects displays can bind to, plus the T&lt;n&gt; macros that hold each tool's spool.</summary>
     public static bool IsWanted(string obj) =>
         obj is "print_stats" or "virtual_sdcard" or "display_status" or "toolhead" or "heater_bed"
             or "idle_timeout" or "webhooks"
-        || ExtruderName().IsMatch(obj);
+        || ExtruderName().IsMatch(obj)
+        || SpoolmanTracker.IsToolMacro(obj);
 
     [GeneratedRegex(@"^extruder\d*$")]
     private static partial Regex ExtruderName();
@@ -155,26 +163,44 @@ public sealed partial class MoonrakerService(
         log.LogInformation("Connecting to Moonraker at {Uri}", uri);
 
         await using var rpc = await MoonrakerRpcClient.ConnectAsync(uri, current.ApiKey, ct);
+        var spoolman = _spoolman = new SpoolmanTracker(store, log);
         var ready = await TrySubscribeAsync(rpc, ct);
+        if (ready) await SyncSpoolsAsync(rpc, spoolman, refresh: true, ct);
+        var spoolsDue = DateTime.UtcNow + options.SpoolmanRefresh;
 
         while (true)
         {
-            JsonObject message;
-            try
+            if (!rpc.Notifications.TryRead(out var message))
             {
-                // While Klipper is down, check back now and then in case its ready notice was missed
-                message = ready
-                    ? await rpc.Notifications.ReadAsync(ct)
-                    : await rpc.Notifications.ReadAsync(ct).AsTask().WaitAsync(options.KlippyRetry, ct);
-            }
-            catch (TimeoutException)
-            {
-                ready = await TrySubscribeAsync(rpc, ct);
-                continue;
-            }
-            catch (ChannelClosedException)
-            {
-                return;   // Moonraker went away
+                try
+                {
+                    // While Klipper is down, check back now and then in case its ready notice was missed;
+                    // while it's up, wake for the next spool refresh. Waiting (not reading) means a
+                    // timeout can't swallow the next notification.
+                    var wait = ready ? spoolsDue - DateTime.UtcNow : options.KlippyRetry;
+                    if (!await rpc.Notifications.WaitToReadAsync(ct).AsTask()
+                            .WaitAsync(wait > TimeSpan.Zero ? wait : TimeSpan.Zero, ct))
+                        return;   // Moonraker went away
+                    continue;
+                }
+                catch (TimeoutException)
+                {
+                    if (!ready)
+                    {
+                        ready = await TrySubscribeAsync(rpc, ct);
+                        if (ready) await SyncSpoolsAsync(rpc, spoolman, refresh: false, ct);
+                    }
+                    else
+                    {
+                        await SyncSpoolsAsync(rpc, spoolman, refresh: true, ct);
+                        spoolsDue = DateTime.UtcNow + options.SpoolmanRefresh;
+                    }
+                    continue;
+                }
+                catch (ChannelClosedException)
+                {
+                    return;   // Moonraker went away
+                }
             }
 
             switch (message["method"]?.GetValue<string>())
@@ -183,12 +209,24 @@ public sealed partial class MoonrakerService(
                     var changes = store.Apply(update);
                     if (changes.Count > 0)
                         await NotifyAsync(() => listener.OnStateChangedAsync(changes));
+                    // A tool's spool changed (SET_GCODE_VARIABLE MACRO=T1 VARIABLE=spool_id ...)
+                    if (changes.Keys.Any(SpoolmanTracker.IsToolSpoolKey))
+                        await SyncSpoolsAsync(rpc, spoolman, refresh: false, ct);
                     if (changes.ContainsKey("webhooks.state"))
                         await SetReadyStatusAsync(Status.Objects);
                     break;
 
                 case "notify_klippy_ready":
                     ready = await TrySubscribeAsync(rpc, ct);
+                    if (ready) await SyncSpoolsAsync(rpc, spoolman, refresh: false, ct);
+                    break;
+
+                case "notify_active_spool_set":
+                    await SyncSpoolsAsync(rpc, spoolman, refresh: false, ct);
+                    break;
+
+                case "notify_spoolman_status_changed":
+                    await SyncSpoolsAsync(rpc, spoolman, refresh: true, ct);
                     break;
 
                 case "notify_klippy_disconnected":
@@ -253,6 +291,13 @@ public sealed partial class MoonrakerService(
         if (changes.Count > 0)
             await NotifyAsync(() => listener.OnStateChangedAsync(changes));
         return true;
+    }
+
+    private async Task SyncSpoolsAsync(MoonrakerRpcClient rpc, SpoolmanTracker spoolman, bool refresh, CancellationToken ct)
+    {
+        var changes = await spoolman.SyncAsync(rpc.CallAsync, refresh, ct);
+        if (changes.Count > 0)
+            await NotifyAsync(() => listener.OnStateChangedAsync(changes));
     }
 
     /// <summary>Ready, or KlippyShutdown while webhooks.state says Klipper has shut down.</summary>

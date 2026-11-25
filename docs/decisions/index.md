@@ -429,6 +429,38 @@ This is the consolidated, append-only record of significant design decisions. En
 
 ---
 
+## 2026-10-16: Active-tool nozzle keys; the editor's data keys come from the server
+
+**Context:** Faces could only show `extruder.*`, and the editor offered a fixed list with no other tools (#22). On a toolchanger or IDEX the useful number is the tool in use.
+
+**Decision:** The server derives `klippyface.nozzle.temperature`/`.target` and `klippyface.tool` from `toolhead.extruder`, beside its other `klippyface.*` keys; the firmware formats them by key ending, so it needs no change. The editor's key list comes from `GET /api/moonraker/data-keys`, which adds `extruderN.*` per tool only when Moonraker reports more than one extruder. The starter faces use the nozzle key.
+
+**Consequences:** Existing libraries keep `extruder.temperature` (still valid; the starter pack only imports into an empty library). Multi-tool behaviour is tested against the fake Moonraker's `quad` profile, not on hardware.
+
+---
+
+## 2026-10-16: Loaded filament from Spoolman, through Moonraker
+
+**Context:** #23 asked for the loaded filament on the faces, with the data source undecided.
+
+**Decision:** Use Moonraker's `[spoolman]` integration over the existing Moonraker connection: the active spool id from `server.spoolman.get_spool_id`, details through `server.spoolman.proxy`. The server exposes them as `spool.*` keys (name, material, vendor, colour, remaining weight, id), re-read when the active spool changes and every 60 s. No separate Spoolman URL to configure.
+
+**Consequences:** Only Spoolman is supported for now; other filament trackers would need their own source. Remaining weight lags printing by up to a minute plus Moonraker's own reporting interval.
+
+Per-tool spools follow Moonraker's documented multi-tool setup: a `spool_id` variable on each `T<n>` macro, read as `spool.tool<n>.*`. Other setups (Happy Hare, AFC) aren't read; that and the whole multi-tool path are tested against the fake Moonraker only, not hardware.
+
+---
+
+## 2026-10-16: Elements can take their colour from a data key
+
+**Context:** The filament colour (#23) is a value, but elements had only a fixed `color`, and data values draw as text.
+
+**Decision:** Any element can have a `color_key` (e.g. `spool.color`) whose `#RRGGBB` value colours it, with `color` as the fallback. Sprites are 1-bit masks drawn in their element's colour, so a spool sprite in the filament colour needs nothing else; the starter pack gains an `icon_spool` sprite. Monochrome panels ignore the key. The key is a separate field rather than a special `color` value, so older firmware just sees the fixed colour.
+
+**Consequences:** Needs new firmware to show; older firmware draws the fallback colour. A colour key is sent to the node like a bound data key.
+
+---
+
 ## 2026-11-16: The server advertises itself over mDNS
 
 **Context:** A node only finds the server through an address typed into the setup portal. A wrong address, an `https://` address, or a server that later gets a new IP from DHCP leaves the node with a black screen and nothing on it to say why (discussion #14, #46). Together with pending nodes, discovery means a new node needs only WiFi details.
